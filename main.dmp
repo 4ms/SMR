@@ -1,0 +1,612 @@
+
+main.elf:     file format elf32-littlearm
+main.elf
+architecture: arm, flags 0x00000012:
+EXEC_P, HAS_SYMS
+start address 0x08005a05
+
+Program Header:
+    LOAD off    0x00000074 vaddr 0x08000000 paddr 0x08000000 align 2**2
+         filesz 0x0000e714 memsz 0x0000e714 flags r-x
+    LOAD off    0x0000e788 vaddr 0x20000000 paddr 0x0800e714 align 2**2
+         filesz 0x00004034 memsz 0x00004e1c flags rw-
+private flags = 5000002: [Version5 EABI] [has entry point]
+
+Sections:
+Idx Name          Size      VMA       LMA       File off  Algn
+  0 .isr_vector   00000188  08000000  08000000  00000074  2**0
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  1 .text         0000e58c  08000188  08000188  000001fc  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  2 .data         00004034  20000000  0800e714  0000e788  2**2
+                  CONTENTS, ALLOC, LOAD, DATA
+  3 .bss          000005e8  20004034  08012748  000127bc  2**2
+                  ALLOC
+  4 ._user_heap_stack 00000800  2000461c  08012d30  000127bc  2**0
+                  ALLOC
+  5 .ARM.attributes 00000035  00000000  00000000  000127bc  2**0
+                  CONTENTS, READONLY
+  6 .debug_info   0000fcdb  00000000  00000000  000127f1  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  7 .debug_abbrev 0000289a  00000000  00000000  000224cc  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  8 .debug_loc    00008a99  00000000  00000000  00024d66  2**0
+                  CONTENTS, READONLY, DEBUGGING
+  9 .debug_aranges 000002c8  00000000  00000000  0002d7ff  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 10 .debug_ranges 000001e0  00000000  00000000  0002dac7  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 11 .debug_line   00003116  00000000  00000000  0002dca7  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 12 .debug_str    00003bf6  00000000  00000000  00030dbd  2**0
+                  CONTENTS, READONLY, DEBUGGING
+ 13 .comment      00000070  00000000  00000000  000349b3  2**0
+                  CONTENTS, READONLY
+ 14 .debug_frame  00001b30  00000000  00000000  00034a24  2**2
+                  CONTENTS, READONLY, DEBUGGING
+SYMBOL TABLE:
+08000000 l    d  .isr_vector	00000000 .isr_vector
+08000188 l    d  .text	00000000 .text
+20000000 l    d  .data	00000000 .data
+20004034 l    d  .bss	00000000 .bss
+2000461c l    d  ._user_heap_stack	00000000 ._user_heap_stack
+00000000 l    d  .ARM.attributes	00000000 .ARM.attributes
+00000000 l    d  .debug_info	00000000 .debug_info
+00000000 l    d  .debug_abbrev	00000000 .debug_abbrev
+00000000 l    d  .debug_loc	00000000 .debug_loc
+00000000 l    d  .debug_aranges	00000000 .debug_aranges
+00000000 l    d  .debug_ranges	00000000 .debug_ranges
+00000000 l    d  .debug_line	00000000 .debug_line
+00000000 l    d  .debug_str	00000000 .debug_str
+00000000 l    d  .comment	00000000 .comment
+00000000 l    d  .debug_frame	00000000 .debug_frame
+00000000 l    df *ABS*	00000000 startup_stm32f4xx.o
+08005a12 l       .text	00000000 LoopCopyDataInit
+08005a0a l       .text	00000000 CopyDataInit
+08005a2a l       .text	00000000 LoopFillZerobss
+08005a24 l       .text	00000000 FillZerobss
+08005a50 l       .text	00000000 Infinite_Loop
+00000000 l    df *ABS*	00000000 system_stm32f4xx.c
+00000000 l    df *ABS*	00000000 main.c
+20004034 l     O .bss	00000001 flash.8886
+00000000 l    df *ABS*	00000000 codec.c
+00000000 l    df *ABS*	00000000 i2s.c
+00000000 l    df *ABS*	00000000 adc.c
+00000000 l    df *ABS*	00000000 inouts.c
+00000000 l    df *ABS*	00000000 audio_util.c
+00000000 l    df *ABS*	00000000 filter.c
+2000401c l     O .data	00000001 old_scale.8611
+2000401d l     O .data	00000001 old_scale_bank.8612
+20004064 l     O .bss	00000018 f_adc.8602
+20004094 l     O .bss	00000018 envelope.8590
+00000000 l    df *ABS*	00000000 envout_pwm.c
+00000000 l    df *ABS*	00000000 led_driver.c
+00000000 l    df *ABS*	00000000 mem.c
+00000000 l    df *ABS*	00000000 dac.c
+00000000 l    df *ABS*	00000000 rotary.c
+00000000 l    df *ABS*	00000000 stm32f4xx_gpio.c
+00000000 l    df *ABS*	00000000 stm32f4xx_i2c.c
+00000000 l    df *ABS*	00000000 stm32f4xx_rcc.c
+20004024 l     O .data	00000010 APBAHBPrescTable
+00000000 l    df *ABS*	00000000 stm32f4xx_spi.c
+00000000 l    df *ABS*	00000000 stm32f4xx_dma.c
+00000000 l    df *ABS*	00000000 stm32f4xx_adc.c
+00000000 l    df *ABS*	00000000 misc.c
+00000000 l    df *ABS*	00000000 stm32f4xx_tim.c
+00000000 l    df *ABS*	00000000 stm32f4xx_dac.c
+00000000 l    df *ABS*	00000000 
+08004c98 g     F .text	00000012 TIM_TimeBaseStructInit
+08005a50  w    F .text	00000004 RTC_Alarm_IRQHandler
+08005a50  w    F .text	00000004 HASH_RNG_IRQHandler
+08005a50  w    F .text	00000004 EXTI2_IRQHandler
+20004168 g     O .bss	00000004 rxbuf
+08001148 g     F .text	00000026 audio_split_stereo
+08003a84 g     F .text	0000000c RCC_HSICmd
+08005a50  w    F .text	00000004 TIM8_CC_IRQHandler
+08005004 g     F .text	00000014 TIM_ForcedOC2Config
+080032a4 g     F .text	00000040 init_rotary
+08003ae0 g     F .text	0000000c RCC_PLLCmd
+0800479c g     F .text	00000014 ADC_ContinuousModeCmd
+0800085c g     F .text	00000002 DebugMon_Handler
+08004fe8 g     F .text	00000004 TIM_SetCompare2
+080043e0 g     F .text	00000014 DMA_Cmd
+080064e0 g     O .text	00000018 clip_led
+08003aec g     F .text	00000014 RCC_PLLI2SConfig
+0800357c g     F .text	00000028 GPIO_PinAFConfig
+080004b0 g     F .text	00000348 display_scale
+08005580 g     F .text	0000001a TIM_SelectCOM
+08003e5c g     F .text	0000000c RCC_ClearITPendingBit
+080038a4 g     F .text	0000001a I2C_TransmitPEC
+08003548 g     F .text	0000000c GPIO_ReadOutputDataBit
+0800bbac g     O .text	00000ad4 filter_bpre_coefs_gammaspread1_800Q
+08005190 g     F .text	00000020 TIM_CCxCmd
+08005504 g     F .text	0000001a TIM_SetIC4Prescaler
+08004528 g     F .text	00000054 DMA_GetITStatus
+080011e4 g     F .text	00000c84 I2S_RX_CallBack
+0800559c g     F .text	0000001a TIM_CCPreloadControl
+08005a50  w    F .text	00000004 TIM1_CC_IRQHandler
+0800389c g     F .text	00000006 I2C_ReceiveData
+0800dc28 g     O .text	00000ad4 filter_bpre_coefs_western_200Q
+08004154 g     F .text	00000004 SPI_I2S_SendData
+08005a50  w    F .text	00000004 DMA2_Stream5_IRQHandler
+20004460 g     O .bss	00000040 right_buffer
+08000848 g     F .text	00000002 HardFault_Handler
+08005a50  w    F .text	00000004 DMA1_Stream5_IRQHandler
+08003980 g     F .text	00000010 I2C_GetLastEvent
+080063d8 g     O .text	00000048 COLOR_CH
+080047e8 g     F .text	00000014 ADC_DMACmd
+080058d4 g     F .text	00000020 DAC_WaveGenerationCmd
+00000800 g       *ABS*	00000000 _Min_Stack_Size
+0800503c g     F .text	00000010 TIM_OC1PreloadConfig
+08005a50  w    F .text	00000004 SysTick_Handler
+08004988 g     F .text	00000078 NVIC_Init
+0800387c g     F .text	0000001a I2C_ARPCmd
+08003d14 g     F .text	00000018 RCC_AHB2PeriphResetCmd
+08003798 g     F .text	00000012 I2C_OwnAddress2Config
+08005a50  w    F .text	00000004 PVD_IRQHandler
+08004950 g     F .text	0000001c ADC_GetITStatus
+08005a50  w    F .text	00000004 SDIO_IRQHandler
+08005a50  w    F .text	00000004 TAMP_STAMP_IRQHandler
+080040e8 g     F .text	0000001a SPI_TIModeCmd
+0800e714 g       .text	00000000 _sidata
+0800414c g     F .text	00000006 SPI_I2S_ReceiveData
+08000860 g     F .text	00000002 PendSV_Handler
+2000407c g     O .bss	00000018 assign_fade
+08003e68 g     F .text	0000006c SPI_I2S_DeInit
+08000844 g     F .text	00000002 NMI_Handler
+08005890 g     F .text	00000028 DAC_SoftwareTriggerCmd
+0800e714 g       .data	00000000 __exidx_end
+08002010 g     F .text	00000030 update_ENVOUT_PWM
+08005a50  w    F .text	00000004 CAN2_RX1_IRQHandler
+0800418c g     F .text	00000006 SPI_GetCRCPolynomial
+08005a50  w    F .text	00000004 EXTI3_IRQHandler
+08005718 g     F .text	00000022 TIM_ETRClockMode2Config
+08003dec g     F .text	00000018 RCC_ITConfig
+0800511c g     F .text	00000010 TIM_OC1NPolarityConfig
+08004ff4 g     F .text	00000010 TIM_ForcedOC1Config
+0800560c g     F .text	00000014 TIM_DMACmd
+080056f0 g     F .text	00000028 TIM_ETRClockMode1Config
+08000328 g     F .text	00000188 update_filter_assign_LEDs
+08005a50  w    F .text	00000004 TIM8_TRG_COM_TIM14_IRQHandler
+0800408c g     F .text	0000001e SPI_BiDirectionalLineConfig
+080054ec g     F .text	00000016 TIM_SetIC3Prescaler
+200040ac g     O .bss	00000006 lock
+08005a50  w    F .text	00000004 TIM1_UP_TIM10_IRQHandler
+08003cfc g     F .text	00000018 RCC_AHB1PeriphResetCmd
+080050ec g     F .text	00000010 TIM_ClearOC3Ref
+08004638 g     F .text	00000028 ADC_CommonInit
+0800e714 g       .text	00000000 _etext
+20004034 g       .bss	00000000 _sbss
+0800493c g     F .text	0000000c ADC_GetFlagStatus
+08003b40 g     F .text	00000014 RCC_SYSCLKConfig
+0800434c g     F .text	00000070 DMA_Init
+08005a50  w    F .text	00000004 TIM8_UP_TIM13_IRQHandler
+08005a50  w    F .text	00000004 I2C3_ER_IRQHandler
+2000403c g     O .bss	00000001 test_spread
+08003a38 g     F .text	00000038 RCC_WaitForHSEStartUp
+08004420 g     F .text	00000006 DMA_GetCurrDataCounter
+080043f4 g     F .text	00000014 DMA_PeriphIncOffsetSizeConfig
+200040b2 g     O .bss	00000001 play_state
+0800097c g     F .text	00000060 Codec_CtrlInterface_Init
+080048f0 g     F .text	00000014 ADC_InjectedDiscModeCmd
+20004049 g     O .bss	00000001 rotate
+08003c6c g     F .text	0000000c RCC_BackupResetCmd
+080020f4 g     F .text	000000f8 LEDDriver_writeregister
+08003954 g     F .text	00000014 I2C_ITConfig
+08005560 g     F .text	00000020 TIM_CtrlPWMOutputs
+08000ae0 g     F .text	000000c8 Codec_Init
+08004a00 g     F .text	00000014 NVIC_SetVectorTable
+08003174 g     F .text	00000080 memcpy
+0800466c g     F .text	00000014 ADC_Cmd
+200044a0 g     O .bss	00000040 left_buffer
+08004698 g     F .text	0000000c ADC_AnalogWatchdogSingleChannelConfig
+080046c0 g     F .text	0000001c ADC_VBATCmd
+080047b0 g     F .text	00000010 ADC_DiscModeChannelCountConfig
+08003b0c g     F .text	0000000c RCC_ClockSecuritySystemCmd
+08005a50  w    F .text	00000004 EXTI0_IRQHandler
+08005a50  w    F .text	00000004 I2C2_EV_IRQHandler
+08003e38 g     F .text	00000010 RCC_ClearFlag
+08004d5c g     F .text	0000001a TIM_Cmd
+08005a50  w    F .text	00000004 DMA1_Stream2_IRQHandler
+08005a50  w    F .text	00000004 CAN1_RX0_IRQHandler
+08005070 g     F .text	00000014 TIM_OC4PreloadConfig
+08000868 g     F .text	000000f0 Codec_WriteRegister
+08005a50  w    F .text	00000004 FPU_IRQHandler
+20000010 g     O .data	00000004 SystemCoreClock
+0800496c g     F .text	00000008 ADC_ClearITPendingBit
+08001170 g     F .text	00000026 audio_comb_stereo
+08005a50  w    F .text	00000004 OTG_HS_WKUP_IRQHandler
+08000f74 g     F .text	00000100 init_inouts
+08003a28 g     F .text	00000010 RCC_HSEConfig
+080055dc g     F .text	00000008 TIM_ClearFlag
+08003574 g     F .text	00000008 GPIO_ToggleBits
+08004158 g     F .text	0000001a SPI_CalculateCRC
+080055fc g     F .text	00000008 TIM_ClearITPendingBit
+08000854 g     F .text	00000002 UsageFault_Handler
+0800441c g     F .text	00000004 DMA_SetCurrDataCounter
+08004ccc g     F .text	00000004 TIM_GetCounter
+080041d4 g     F .text	00000008 SPI_I2S_ClearFlag
+08003ce4 g     F .text	00000018 RCC_APB2PeriphClockCmd
+08003904 g     F .text	0000001a I2C_DMACmd
+080054b0 g     F .text	00000004 TIM_GetCapture3
+08005a50  w    F .text	00000004 CAN2_SCE_IRQHandler
+08005a50  w    F .text	00000004 DMA2_Stream2_IRQHandler
+080038c0 g     F .text	0000001e I2C_PECPositionConfig
+0800343c g     F .text	000000c0 GPIO_Init
+08003abc g     F .text	00000024 RCC_PLLConfig
+20004034 g       .bss	00000000 __bss_start__
+2000404d g     O .bss	00000001 write_in_i
+08000cac g     F .text	00000088 I2S_Block_PlayRec
+08004454 g     F .text	0000000a DMA_MemoryTargetConfig
+20000000 g       .data	00000000 _sdata
+08005a50  w    F .text	00000004 SPI1_IRQHandler
+08004680 g     F .text	00000010 ADC_AnalogWatchdogCmd
+080054a8 g     F .text	00000004 TIM_GetCapture1
+08003da4 g     F .text	00000018 RCC_AHB3PeriphClockLPModeCmd
+08004a2c g     F .text	00000018 SysTick_CLKSourceConfig
+08003570 g     F .text	00000004 GPIO_Write
+08005a50  w    F .text	00000004 TIM6_DAC_IRQHandler
+08003554 g     F .text	00000006 GPIO_ReadOutputData
+08004e88 g     F .text	0000008c TIM_OC3Init
+20004038 g     O .bss	00000004 envout_mode
+08003a90 g     F .text	00000020 RCC_LSEConfig
+08005a50  w    F .text	00000004 TIM1_BRK_TIM9_IRQHandler
+08005a50  w    F .text	00000004 DCMI_IRQHandler
+080038e0 g     F .text	0000001a I2C_CalculatePEC
+08005a50  w    F .text	00000004 CAN2_RX0_IRQHandler
+08003c60 g     F .text	0000000c RCC_RTCCLKCmd
+0800482c g     F .text	0000005a ADC_InjectedChannelConfig
+0800457c g     F .text	00000034 DMA_ClearITPendingBit
+20004058 g     O .bss	00000004 cur_rec_addr
+08004a44 g     F .text	000001b8 TIM_DeInit
+08003ccc g     F .text	00000018 RCC_APB1PeriphClockCmd
+08000958 g     F .text	00000024 Codec_Reset
+08003e48 g     F .text	00000014 RCC_GetITStatus
+080031f4 g     F .text	00000068 DAC_Ch1_NoiseConfig
+20004040 g     O .bss	00000004 adc_lag_attack
+0800e714 g       .data	00000000 __exidx_start
+08005a50  w    F .text	00000004 DMA2_Stream3_IRQHandler
+080041dc g     F .text	0000002a SPI_I2S_GetITStatus
+080055d0 g     F .text	0000000c TIM_GetFlagStatus
+08003c9c g     F .text	00000018 RCC_AHB2PeriphClockCmd
+080041c8 g     F .text	0000000c SPI_I2S_GetFlagStatus
+080046dc g     F .text	00000096 ADC_RegularChannelConfig
+0800e6fc g     O .text	00000018 ttable
+080050a8 g     F .text	00000010 TIM_OC3FastConfig
+200044e0 g     O .bss	00000040 filtered_buffer
+08003898 g     F .text	00000004 I2C_SendData
+2000403d g     O .bss	00000001 hys_spread
+080047d4 g     F .text	00000006 ADC_GetConversionValue
+080059d0 g     F .text	0000000c DAC_ClearFlag
+08005620 g     F .text	0000001a TIM_SelectCCDMA
+080058b8 g     F .text	0000001c DAC_DualSoftwareTriggerCmd
+08005a50  w    F .text	00000004 USART6_IRQHandler
+080043bc g     F .text	00000022 DMA_StructInit
+08004d44 g     F .text	00000016 TIM_SetClockDivision
+20004618 g     O .bss	00000001 state
+08004058 g     F .text	0000001a I2S_Cmd
+08003b18 g     F .text	00000014 RCC_MCO1Config
+080040cc g     F .text	0000001a SPI_SSOutputCmd
+08004074 g     F .text	00000016 SPI_DataSizeConfig
+08003610 g     F .text	000000e0 I2C_Init
+08001120 g     F .text	00000024 audio_stereoize_justleft
+08004478 g     F .text	0000003c DMA_GetFlagStatus
+20004520 g     O .bss	00000004 c_2q
+08004690 g     F .text	00000006 ADC_AnalogWatchdogThresholdsConfig
+08005a50  w    F .text	00000004 USART3_IRQHandler
+200040b4 g     O .bss	00000018 rot_dir
+08005a50  w    F .text	00000004 CRYP_IRQHandler
+2000461c g       .bss	00000000 _ebss
+08004d78 g     F .text	00000080 TIM_OC1Init
+0800650c g     O .text	00000ad4 filter_bpre_coefs_western_800Q
+08005060 g     F .text	00000010 TIM_OC3PreloadConfig
+08005a04  w    F .text	00000038 Reset_Handler
+08000ba8 g     F .text	00000104 I2S_Block_Init
+08003540 g     F .text	00000006 GPIO_ReadInputData
+08004cc8 g     F .text	00000004 TIM_SetAutoreload
+08005a50  w    F .text	00000004 CAN1_RX1_IRQHandler
+08004810 g     F .text	0000001c ADC_MultiModeDMARequestAfterLastTransferCmd
+08005a50  w    F .text	00000004 UART5_IRQHandler
+08003e04 g     F .text	00000034 RCC_GetFlagStatus
+08000f50 g     F .text	00000024 DMA2_Stream0_IRQHandler
+08002e18 g     F .text	00000234 LEDDriver_setRGBLED
+2000416c g     O .bss	00000100 rx_buffer
+0800355c g     F .text	00000004 GPIO_SetBits
+08005a50  w    F .text	00000004 TIM4_IRQHandler
+080048b0 g     F .text	0000000c ADC_ExternalTrigInjectedConvConfig
+08003b54 g     F .text	00000010 RCC_GetSYSCLKSource
+08004d10 g     F .text	0000001a TIM_ARRPreloadConfig
+2000426c g     O .bss	00000100 tx_buffer
+08003564 g     F .text	0000000a GPIO_WriteBit
+2000405d g     O .bss	00000001 memfull
+080048dc g     F .text	00000014 ADC_AutoInjectedConvCmd
+08003730 g     F .text	0000001a I2C_GenerateSTART
+080036f0 g     F .text	00000022 I2C_StructInit
+080059dc g     F .text	0000001c DAC_GetITStatus
+0800d154 g     O .text	00000ad4 filter_bpre_coefs_gamma_200Q
+20004060 g     O .bss	00000001 OutputDev
+08005a50  w    F .text	00000004 I2C1_EV_IRQHandler
+200040cc g     O .bss	00000004 midpt
+08005a50  w    F .text	00000004 DMA1_Stream6_IRQHandler
+080055e4 g     F .text	00000016 TIM_GetITStatus
+08003d2c g     F .text	00000018 RCC_AHB3PeriphResetCmd
+08003ba0 g     F .text	00000090 RCC_GetClocksFreq
+080022b8 g     F .text	0000000c LEDDriver_endxfer
+08005a50  w    F .text	00000004 DMA1_Stream1_IRQHandler
+2000404b g     O .bss	00000001 read_in_i
+08004f94 g     F .text	00000050 TIM_SelectOCxM
+08003dd4 g     F .text	00000018 RCC_APB2PeriphClockLPModeCmd
+0800383c g     F .text	0000001e I2C_NACKPositionConfig
+08005a50  w    F .text	00000004 UART4_IRQHandler
+2000461c g       .bss	00000000 __bss_end__
+08005808 g     F .text	00000006 TIM_RemapConfig
+08005a50  w    F .text	00000004 TIM3_IRQHandler
+08005a50  w    F .text	00000004 RCC_IRQHandler
+20000014 g     O .data	00000001 spread
+08005a50  w    F .text	00000004 TIM8_BRK_TIM12_IRQHandler
+08004774 g     F .text	0000000a ADC_SoftwareStartConv
+00000000 g       *ABS*	00000000 _Min_Heap_Size
+08005084 g     F .text	00000010 TIM_OC1FastConfig
+0800c680 g     O .text	00000ad4 filter_bpre_coefs_gammaspread1_2Q
+08005a50 g       .text	00000004 Default_Handler
+08006fe0 g     O .text	00000ad4 filter_bpre_coefs_western_2Q
+2000436c g     O .bss	0000003c DMA_InitStructure2
+20000000 g     O .data	00000010 AHBPrescTable
+08003990 g     F .text	00000036 I2C_GetFlagStatus
+08003920 g     F .text	0000001a I2C_DMALastTransferCmd
+0800304c g     F .text	0000003a LEDDriver_Reset
+08003c30 g     F .text	00000030 RCC_RTCCLKConfig
+0800504c g     F .text	00000014 TIM_OC2PreloadConfig
+0800573c g     F .text	00000010 TIM_SelectInputTrigger
+08002090 g     F .text	00000060 LEDDriver_I2C_Init
+20004035 g     O .bss	00000001 flag_update_LED_ring
+08005a50  w    F .text	00000004 EXTI15_10_IRQHandler
+080055b8 g     F .text	00000014 TIM_ITConfig
+20004048 g     O .bss	00000001 strike
+0800385c g     F .text	0000001e I2C_SMBusAlertConfig
+08004df8 g     F .text	00000090 TIM_OC2Init
+08005a50  w    F .text	00000004 ADC_IRQHandler
+08005934 g     F .text	00000018 DAC_SetDualChannelData
+200040d0 g     O .bss	00000004 halfspread
+080010d4 g     F .text	00000030 audio_split_justleft_16to8
+08005810 g     F .text	0000001a DAC_DeInit
+080058f4 g     F .text	00000020 DAC_SetChannel1Data
+080047dc g     F .text	0000000c ADC_GetMultiModeConversionValue
+08003b00 g     F .text	0000000c RCC_PLLI2SCmd
+08005a50  w    F .text	00000004 DMA1_Stream7_IRQHandler
+20004524 g     O .bss	00000004 c
+08004cac g     F .text	00000006 TIM_PrescalerConfig
+080007f8 g     F .text	0000004c display_spectral_readout
+080040ac g     F .text	00000020 SPI_NSSInternalSoftwareConfig
+080035a4 g     F .text	0000006c I2C_DeInit
+08003714 g     F .text	0000001a I2C_Cmd
+08003560 g     F .text	00000004 GPIO_ResetBits
+0800517c g     F .text	00000014 TIM_OC4PolarityConfig
+0800574c g     F .text	00000016 TIM_SelectOutputTrigger
+08005a50  w    F .text	00000004 TIM7_IRQHandler
+200043a8 g     O .bss	0000003c dma_tx
+080039c8 g     F .text	00000008 I2C_ClearFlag
+08005a50  w    F .text	00000004 CAN2_TX_IRQHandler
+08004174 g     F .text	0000000c SPI_TransmitCRC
+08005a50  w    F .text	00000004 TIM5_IRQHandler
+08004fec g     F .text	00000004 TIM_SetCompare3
+08005a50  w    F .text	00000004 DMA2_Stream7_IRQHandler
+08004f14 g     F .text	0000006c TIM_OC4Init
+08005a50  w    F .text	00000004 I2C3_EV_IRQHandler
+08004470 g     F .text	00000008 DMA_GetFIFOStatus
+080059bc g     F .text	00000014 DAC_GetFlagStatus
+08004780 g     F .text	00000008 ADC_GetSoftwareStartConvStatus
+080048c8 g     F .text	0000000a ADC_SoftwareStartInjectedConv
+080021ec g     F .text	00000090 LEDDriver_startxfer
+080057ec g     F .text	0000001a TIM_SelectHallSensor
+08005a50  w    F .text	00000004 EXTI9_5_IRQHandler
+080032e4 g     F .text	00000040 read_rotary
+200040d4 g     O .bss	00000050 spectral_readout
+08005a50  w    F .text	00000004 RTC_WKUP_IRQHandler
+08003dbc g     F .text	00000018 RCC_APB1PeriphClockLPModeCmd
+08000864 g     F .text	00000004 Codec_TIMEOUT_UserCallback
+08005914 g     F .text	00000020 DAC_SetChannel2Data
+20004044 g     O .bss	00000004 adc_lag_decay
+08003768 g     F .text	00000012 I2C_Send7bitAddress
+08002508 g     F .text	00000910 LEDDriver_setallLEDs
+08005a50  w    F .text	00000004 ETH_WKUP_IRQHandler
+080054b8 g     F .text	00000016 TIM_SetIC1Prescaler
+0800402c g     F .text	0000000e I2S_StructInit
+2000404e g     O .bss	00000001 write_out_i
+0800381c g     F .text	0000001e I2C_FastModeDutyCycleConfig
+08005028 g     F .text	00000014 TIM_ForcedOC4Config
+08005a50  w    F .text	00000004 SPI2_IRQHandler
+20004020 g     O .data	00000004 LEDDriverTimeout
+08006420 g     O .text	0000003c SCALE_BANK_COLOR
+08005a50  w    F .text	00000004 OTG_HS_EP1_IN_IRQHandler
+08004440 g     F .text	00000014 DMA_DoubleBufferModeCmd
+08003164 g     F .text	00000010 memset
+0800084c g     F .text	00000002 MemManage_Handler
+08003a70 g     F .text	00000014 RCC_AdjustHSICalibrationValue
+20004124 g     O .bss	00000018 adc_buffer
+08005a54 g     F .text	00000982 main
+08004208 g     F .text	00000012 SPI_I2S_ClearITPendingBit
+08004460 g     F .text	00000008 DMA_GetCurrentMemoryTarget
+08005a50  w    F .text	00000004 DMA1_Stream0_IRQHandler
+0800564c g     F .text	0000001a TIM_ITRxExternalClockConfig
+0800227c g     F .text	0000003c LEDDriver_senddata
+08005154 g     F .text	00000014 TIM_OC3PolarityConfig
+08003d74 g     F .text	00000018 RCC_AHB1PeriphClockLPModeCmd
+08005a50  w    F .text	00000004 CAN1_TX_IRQHandler
+08000858 g     F .text	00000002 SVC_Handler
+08004194 g     F .text	00000014 SPI_I2S_DMACmd
+0800563c g     F .text	0000000e TIM_InternalClockConfig
+0800510c g     F .text	00000010 TIM_OC1PolarityConfig
+08005094 g     F .text	00000014 TIM_OC2FastConfig
+08007ab4 g     O .text	00000ad4 filter_bpre_coefs_indian_200Q
+08003b78 g     F .text	00000014 RCC_PCLK1Config
+08004468 g     F .text	00000008 DMA_GetCmdStatus
+08004cc4 g     F .text	00000004 TIM_SetCounter
+08005a50  w    F .text	00000004 EXTI4_IRQHandler
+08003b8c g     F .text	00000014 RCC_PCLK2Config
+08001144 g     F .text	00000002 Audio_Init
+08004ff0 g     F .text	00000004 TIM_SetCompare4
+080037c8 g     F .text	0000001a I2C_GeneralCallCmd
+080054ac g     F .text	00000004 TIM_GetCapture2
+0800403c g     F .text	0000001a SPI_Cmd
+08003088 g     F .text	000000dc LEDDriver_Init
+08004cd0 g     F .text	00000006 TIM_GetPrescaler
+080050dc g     F .text	00000010 TIM_ClearOC2Ref
+080037e4 g     F .text	0000001a I2C_SoftwareResetCmd
+0800019c g     F .text	00000120 SystemInit
+080051d0 g     F .text	00000168 TIM_ICInit
+08003324 g     F .text	00000118 GPIO_DeInit
+0800585c g     F .text	0000000c DAC_StructInit
+08004888 g     F .text	00000010 ADC_InjectedSequencerLengthConfig
+08008588 g     O .text	00000ad4 filter_bpre_coefs_indian_2Q
+0800a604 g     O .text	00000ad4 filter_bpre_coefs_gamma_800Q
+080039f4 g     F .text	00000034 RCC_DeInit
+08005338 g     F .text	00000010 TIM_ICStructInit
+08005348 g     F .text	00000160 TIM_PWMIConfig
+08004428 g     F .text	00000018 DMA_DoubleBufferModeConfig
+08003b2c g     F .text	00000014 RCC_MCO2Config
+08004660 g     F .text	0000000c ADC_CommonStructInit
+080022c4 g     F .text	00000244 LEDDriver_set_LED_ring
+2000413c g     O .bss	00000001 scale_bank
+08005a50  w    F .text	00000004 FSMC_IRQHandler
+08004624 g     F .text	00000014 ADC_StructInit
+08004920 g     F .text	0000001a ADC_ITConfig
+08005a50  w    F .text	00000004 ETH_IRQHandler
+08005a50  w    F .text	00000004 OTG_HS_EP1_OUT_IRQHandler
+08005140 g     F .text	00000014 TIM_OC2NPolarityConfig
+08004a14 g     F .text	00000018 NVIC_SystemLPConfig
+080050cc g     F .text	00000010 TIM_ClearOC1Ref
+20004528 g     O .bss	000000a0 buf
+08005a50  w    F .text	00000004 WWDG_IRQHandler
+08003d8c g     F .text	00000018 RCC_AHB2PeriphClockLPModeCmd
+08003d44 g     F .text	00000018 RCC_APB1PeriphResetCmd
+08004948 g     F .text	00000006 ADC_ClearFlag
+2000404c g     O .bss	00000001 read_out_i
+200045c8 g     O .bss	00000040 filtered_bufferR
+080044e8 g     F .text	00000040 DMA_ITConfig
+080039d0 g     F .text	0000001c I2C_GetITStatus
+080059f8 g     F .text	0000000c DAC_ClearITPendingBit
+20004608 g     O .bss	00000010 dac
+08005a50  w    F .text	00000004 TIM2_IRQHandler
+08004cf4 g     F .text	0000001a TIM_UpdateRequestConfig
+08005018 g     F .text	00000010 TIM_ForcedOC3Config
+08004104 g     F .text	00000046 I2S_FullDuplexConfig
+08005668 g     F .text	00000088 TIM_TIxExternalClockConfig
+08003800 g     F .text	0000001a I2C_StretchClockCmd
+08000db4 g     F .text	0000019c ADC1_Init
+080034fc g     F .text	00000012 GPIO_StructInit
+20004140 g     O .bss	00000006 dest_filter_assign_table
+08005a50  w    F .text	00000004 OTG_FS_WKUP_IRQHandler
+08005a50  w    F .text	00000004 TIM1_TRG_COM_TIM11_IRQHandler
+080045b0 g     F .text	0000001a ADC_DeInit
+08005a50  w    F .text	00000004 OTG_HS_IRQHandler
+0800554c g     F .text	00000012 TIM_BDTRStructInit
+08004f80 g     F .text	00000014 TIM_OCStructInit
+08005168 g     F .text	00000014 TIM_OC3NPolarityConfig
+080045cc g     F .text	00000058 ADC_Init
+2002ffff g       *ABS*	00000000 _estack
+080051b0 g     F .text	00000020 TIM_CCxNCmd
+08004898 g     F .text	00000016 ADC_SetInjectedOffset
+08005a50  w    F .text	00000004 EXTI1_IRQHandler
+08005970 g     F .text	0000002c DAC_DMACmd
+0800577c g     F .text	00000016 TIM_SelectMasterSlaveMode
+0800645c g     O .text	00000084 SCALE_COLOR
+0800393c g     F .text	00000018 I2C_ReadRegister
+080064f8 g     O .text	00000014 w8731_init_data
+08001e68 g     F .text	000001a8 init_envout_pwm
+080046a4 g     F .text	0000001c ADC_TempSensorVrefintCmd
+08004180 g     F .text	0000000c SPI_GetCRC
+20004034 g       .data	00000000 _edata
+080054b4 g     F .text	00000004 TIM_GetCapture4
+0800594c g     F .text	00000024 DAC_GetDataOutputValue
+080020f0 g     F .text	00000004 LEDDRIVER_TIMEOUT_UserCallback
+0800905c g     O .text	00000ad4 filter_bpre_coefs_17ET_200Q
+08005868 g     F .text	00000028 DAC_Cmd
+0800b0d8 g     O .text	00000ad4 filter_bpre_coefs_gamma_2Q
+08004bfc g     F .text	0000009c TIM_TimeBaseInit
+08004904 g     F .text	0000001a ADC_GetInjectedConversionValue
+0800325c g     F .text	00000048 TIM6_Config
+0800582c g     F .text	00000030 DAC_Init
+08005a50  w    F .text	00000004 USART2_IRQHandler
+080048bc g     F .text	0000000c ADC_ExternalTrigInjectedConvEdgeConfig
+0800599c g     F .text	00000020 DAC_ITConfig
+2000001c g     O .data	00004000 log_4096
+08000000 g     O .isr_vector	00000000 g_pfnVectors
+080038fc g     F .text	00000008 I2C_GetPEC
+080002bc g     F .text	00000068 SystemCoreClockUpdate
+08001104 g     F .text	0000001c audio_split_justleft
+08005604 g     F .text	00000008 TIM_DMAConfig
+080047c0 g     F .text	00000014 ADC_DiscModeCmd
+080041a8 g     F .text	0000001e SPI_I2S_ITConfig
+08005a50  w    F .text	00000004 I2C2_ER_IRQHandler
+20004148 g     O .bss	00000018 ENVOUT_PWM
+20004050 g     O .bss	00000004 g_error
+080055cc g     F .text	00000004 TIM_GenerateEvent
+080037ac g     F .text	0000001a I2C_DualAddressCmd
+08005a50  w    F .text	00000004 DMA2_Stream1_IRQHandler
+080009dc g     F .text	00000054 Codec_AudioInterface_Init
+080044b4 g     F .text	00000034 DMA_ClearFlag
+08001198 g     F .text	0000004a audio_morph
+08004788 g     F .text	00000014 ADC_EOCOnEachRegularChannelCmd
+08005520 g     F .text	0000002a TIM_BDTRConfig
+08009b30 g     O .text	00000ad4 filter_bpre_coefs_17ET_2Q
+08005a50  w    F .text	00000004 CAN1_SCE_IRQHandler
+08003cb4 g     F .text	00000018 RCC_AHB3PeriphClockCmd
+08003c78 g     F .text	0000000c RCC_I2SCLKConfig
+20004160 g     O .bss	00000006 filter_assign_table
+08000a30 g     F .text	000000b0 Codec_GPIO_Init
+08005a50  w    F .text	00000004 FLASH_IRQHandler
+08001074 g     F .text	00000032 audio_convert_2x16_to_stereo24
+200043e4 g     O .bss	0000003c DMA_InitStructure
+20004166 g     O .bss	00000001 scale
+08005a50  w    F .text	00000004 DMA2_Stream4_IRQHandler
+20004054 g     O .bss	00000004 cur_play_addr
+08003510 g     F .text	00000024 GPIO_PinLockConfig
+08003c84 g     F .text	00000018 RCC_AHB1PeriphClockCmd
+08000850 g     F .text	00000002 BusFault_Handler
+08005a50  w    F .text	00000004 USART1_IRQHandler
+20004420 g     O .bss	00000004 txbuf
+08003ab0 g     F .text	0000000c RCC_LSICmd
+0800377c g     F .text	0000001a I2C_AcknowledgeConfig
+08005a50  w    F .text	00000004 OTG_FS_IRQHandler
+080054d0 g     F .text	0000001a TIM_SetIC2Prescaler
+08005a50  w    F .text	00000004 SPI3_IRQHandler
+08005794 g     F .text	00000018 TIM_ETRConfig
+20000015 g     O .data	00000001 old_spread
+08005a50  w    F .text	00000004 DMA1_Stream4_IRQHandler
+08003968 g     F .text	00000018 I2C_CheckEvent
+08003d5c g     F .text	00000018 RCC_APB2PeriphResetCmd
+08005764 g     F .text	00000016 TIM_SelectSlaveMode
+0800374c g     F .text	0000001a I2C_GenerateSTOP
+20004167 g     O .bss	00000001 blend_mode
+20000018 g     O .data	00000004 CODECTimeout
+08005a50  w    F .text	00000004 I2C1_ER_IRQHandler
+08004014 g     F .text	00000018 SPI_StructInit
+2000404a g     O .bss	00000001 is_recording
+08003ed4 g     F .text	00000052 SPI_Init
+08004974 g     F .text	00000014 NVIC_PriorityGroupConfig
+0800421c g     F .text	00000130 DMA_DeInit
+080050fc g     F .text	00000010 TIM_ClearOC4Ref
+08004d2c g     F .text	00000016 TIM_SelectOnePulseMode
+08000324 g     F .text	00000002 check_errors
+080047fc g     F .text	00000014 ADC_DMARequestAfterLastTransferCmd
+080057ac g     F .text	0000003e TIM_EncoderInterfaceConfig
+080048d4 g     F .text	00000008 ADC_GetSoftwareStartInjectedConvCmdStatus
+2000405c g     O .bss	00000001 num_samples
+080039ec g     F .text	00000008 I2C_ClearITPendingBit
+08004fe4 g     F .text	00000004 TIM_SetCompare1
+08004408 g     F .text	00000014 DMA_FlowControllerConfig
+0800512c g     F .text	00000014 TIM_OC2PolarityConfig
+08004cd8 g     F .text	0000001a TIM_UpdateDisableConfig
+08003534 g     F .text	0000000c GPIO_ReadInputDataBit
+080050b8 g     F .text	00000014 TIM_OC4FastConfig
+08005a50  w    F .text	00000004 DMA2_Stream6_IRQHandler
+20004424 g     O .bss	0000003c dma_rx
+08003f28 g     F .text	000000ec I2S_Init
+08002040 g     F .text	00000050 LEDDriver_GPIO_Init
+08003b64 g     F .text	00000014 RCC_HCLKConfig
+08000d34 g     F .text	00000080 DMA1_Stream3_IRQHandler
+080010a8 g     F .text	0000002a audio_convert_stereo24_to_2x16
+08004cb4 g     F .text	00000010 TIM_CounterModeConfig
+
+
