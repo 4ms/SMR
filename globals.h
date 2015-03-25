@@ -10,7 +10,7 @@
 
 
 #define NUM_FILTS 20
-#define NUM_ACTIVE_FILTS 6
+#define NUM_CHANNELS 6
 
 #define POST 1
 #define PRE 0
@@ -31,7 +31,7 @@
 #define READ_BUFF_OVERRUN (1<<7)
 
 #define NUMSCALES 11
-#define NUMSCALEBANKS 5
+#define NUMSCALEBANKS 6
 
 //#define SAMPLERATE 24000
 //#define SAMPLERATE 48000

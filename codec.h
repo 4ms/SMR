@@ -119,5 +119,6 @@ void     Codec_AudioInterface_Init(uint32_t AudioFreq);
 uint32_t     Codec_Reset(void);
 uint32_t Codec_WriteRegister(uint8_t RegisterAddr, uint16_t RegisterValue);
 void     Codec_GPIO_Init(void);
+void init_i2s_clkin(void);
 
 #endif

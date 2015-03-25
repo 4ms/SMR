@@ -12,7 +12,7 @@
 #include "inouts.h"
 #include "envout_pwm.h"
 
-extern uint32_t ENVOUT_PWM[NUM_ACTIVE_FILTS];
+uint32_t ENVOUT_PWM[NUM_CHANNELS];
 
 void init_envout_pwm(void){
 	TIM_TimeBaseInitTypeDef tim;
@@ -21,43 +21,35 @@ void init_envout_pwm(void){
 
 	int i;
 
-
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 
-	RCC_AHB1PeriphClockCmd(ENVOUT_PWM_RCC_1256, ENABLE);
-	gpio.GPIO_Pin = ENVOUT_PWM_pins_1256;
 	gpio.GPIO_Mode = GPIO_Mode_AF;
 	gpio.GPIO_Speed = GPIO_Speed_50MHz;
 	gpio.GPIO_OType = GPIO_OType_PP;
 	gpio.GPIO_PuPd = GPIO_PuPd_UP ;
-	GPIO_Init(ENVOUT_PWM_GPIO_1256, &gpio);
 
-	//Turn the mis-connected pins PB2 and PB3 to inputs (only needed for a fix for pcb p4)
-	gpio.GPIO_Pin = GPIO_Pin_2 | GPIO_Pin_3;
-	gpio.GPIO_Mode = GPIO_Mode_IN;
-	gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
-	GPIO_Init(GPIOB, &gpio);
+	RCC_AHB1PeriphClockCmd(ENVOUT_PWM_RCC_12, ENABLE);
+	gpio.GPIO_Pin = ENVOUT_PWM_pins_12;
+	GPIO_Init(ENVOUT_PWM_GPIO_12, &gpio);
 
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
-	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
-	gpio.GPIO_Pin = (GPIO_Pin_8 | GPIO_Pin_10);
-	gpio.GPIO_Mode = GPIO_Mode_AF;
-	gpio.GPIO_Speed = GPIO_Speed_50MHz;
-	gpio.GPIO_OType = GPIO_OType_PP;
-	gpio.GPIO_PuPd = GPIO_PuPd_UP ;
-	GPIO_Init(GPIOA, &gpio);
+	RCC_AHB1PeriphClockCmd(ENVOUT_PWM_RCC_34, ENABLE);
+	gpio.GPIO_Pin = ENVOUT_PWM_pins_34;
+	GPIO_Init(ENVOUT_PWM_GPIO_34, &gpio);
+
+	RCC_AHB1PeriphClockCmd(ENVOUT_PWM_RCC_56, ENABLE);
+	gpio.GPIO_Pin = ENVOUT_PWM_pins_56;
+	GPIO_Init(ENVOUT_PWM_GPIO_56, &gpio);
+
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_12, ENVOUT_PWM_pinsource_1, GPIO_AF_TIM3);
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_12, ENVOUT_PWM_pinsource_2, GPIO_AF_TIM3);
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_34, ENVOUT_PWM_pinsource_3, GPIO_AF_TIM1);
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_34, ENVOUT_PWM_pinsource_4, GPIO_AF_TIM1);
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_56, ENVOUT_PWM_pinsource_5, GPIO_AF_TIM3);
+	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_56, ENVOUT_PWM_pinsource_6, GPIO_AF_TIM3);
 
 
-
-	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_1256, ENVOUT_PWM_pinsource_1, GPIO_AF_TIM3);
-	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_1256, ENVOUT_PWM_pinsource_2, GPIO_AF_TIM3);
-	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_1256, ENVOUT_PWM_pinsource_5, GPIO_AF_TIM3);
-	GPIO_PinAFConfig(ENVOUT_PWM_GPIO_1256, ENVOUT_PWM_pinsource_6, GPIO_AF_TIM3);
-
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource8, GPIO_AF_TIM1);
-	GPIO_PinAFConfig(GPIOA, GPIO_PinSource10, GPIO_AF_TIM1);
-
-	for (i=0;i<NUM_ACTIVE_FILTS;i++)
+	for (i=0;i<NUM_CHANNELS;i++)
 		ENVOUT_PWM[i]=0;
 
 
@@ -102,14 +94,15 @@ void init_envout_pwm(void){
 
 
 void update_ENVOUT_PWM(void){
-	TIM3->CCR3=ENVOUT_PWM[0]; //PB0
-	TIM3->CCR4=ENVOUT_PWM[1]; //PB1
+	TIM3->ENVOUT_PWM_CC_1=ENVOUT_PWM[0];
+	TIM3->ENVOUT_PWM_CC_2=ENVOUT_PWM[1];
 
-	TIM3->CCR1=ENVOUT_PWM[4]; //PB4
-	TIM3->CCR2=ENVOUT_PWM[5]; //PB5
+	TIM1->ENVOUT_PWM_CC_3=ENVOUT_PWM[2];
+	TIM1->ENVOUT_PWM_CC_4=ENVOUT_PWM[3];
 
-	TIM1->CCR1=ENVOUT_PWM[2]; //PA8
-	TIM1->CCR3=ENVOUT_PWM[3]; //PA10
+	TIM3->ENVOUT_PWM_CC_5=ENVOUT_PWM[4];
+	TIM3->ENVOUT_PWM_CC_6=ENVOUT_PWM[5];
+
 
 
 }

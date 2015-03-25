@@ -135,7 +135,7 @@ uint32_t LEDDriver_writeregister(uint8_t driverAddr, uint8_t RegisterAddr, uint8
 }
 
 
-uint32_t LEDDriver_startxfer(uint8_t driverAddr){
+inline uint32_t LEDDriver_startxfer(uint8_t driverAddr){
 	uint32_t result=0;
 
 	driverAddr = PCA9685_I2C_BASE_ADDRESS | (driverAddr << 1);
@@ -171,7 +171,7 @@ uint32_t LEDDriver_startxfer(uint8_t driverAddr){
 	return result;
 }
 
-uint32_t LEDDriver_senddata(uint8_t data){
+inline uint32_t LEDDriver_senddata(uint8_t data){
 	uint32_t result=0;
 
 	/* Transmit the data for write operation */
@@ -187,7 +187,7 @@ uint32_t LEDDriver_senddata(uint8_t data){
 
 }
 
-void LEDDriver_endxfer(void){
+inline void LEDDriver_endxfer(void){
 	/* End the configuration sequence */
 	I2C_GenerateSTOP(LEDDRIVER_I2C, ENABLE);
 

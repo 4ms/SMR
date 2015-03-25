@@ -15,43 +15,46 @@
 #include "mem.h"
 #include "log_4096.h"
 
+float adc_lag_attack=0;
+float adc_lag_decay=0;
+
 extern float log_4096[4096];
 extern uint8_t rotate;
 extern uint8_t spread;
-extern uint8_t scale;
-extern uint8_t scale_bank;
-
-extern float adc_lag_attack;
-extern float adc_lag_decay;
+extern uint8_t scale[NUM_CHANNELS];
+extern uint8_t scale_bank[NUM_CHANNELS];
 
 extern uint8_t g_error;
 
-extern uint32_t envout_mode;
+extern uint32_t env_prepost_mode;
 
-extern uint32_t ENVOUT_PWM[NUM_ACTIVE_FILTS];
+extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern const uint32_t clip_led[6];
 
-extern uint8_t lock[NUM_ACTIVE_FILTS];
-extern uint8_t lock_pos[NUM_ACTIVE_FILTS];
+extern uint8_t lock[NUM_CHANNELS];
+extern uint8_t lock_pos[NUM_CHANNELS];
 
-extern uint8_t filter_assign_table[NUM_ACTIVE_FILTS];
-extern uint8_t dest_filter_assign_table[NUM_ACTIVE_FILTS];
-extern float rot_dir[NUM_ACTIVE_FILTS];
+extern uint8_t filter_assign_table[NUM_CHANNELS];
+extern uint8_t dest_filter_assign_table[NUM_CHANNELS];
+extern float rot_dir[NUM_CHANNELS];
+
+extern uint8_t dest_scale[NUM_CHANNELS];
 
 //extern uint8_t blend_mode;
 
 extern uint8_t flag_update_LED_ring;
 
 extern __IO uint16_t adc_buffer[NUM_ADCS];
+extern uint32_t qvalcv;
+
 
 //extern float spectral_readout[NUM_FILTS];
 
 //extern uint8_t strike;
 
+extern float freq_nudge[NUM_CHANNELS];
 
-float *c;
-float *c_2q;
-float buf[NUM_FILTS][2];
+
 
 
 
@@ -85,28 +88,24 @@ int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_
   */
 
 
+float *c_hiq[6];
+float *c_loq[6];
+float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][2];
 
+float assign_fade[NUM_CHANNELS]={0,0,0,0,0,0};
 
-float assign_fade[NUM_ACTIVE_FILTS]={0,0,0,0,0,0};
+extern float envspeed_attack, envspeed_decay;
+
+//uint16_t ra_i=0;
+//float f_array[1000];
+//uint16_t i16_array[1000];
 
 void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 {
-	DEBUG_ON(DEBUG0);
+	DEBUGA_ON(DEBUG0);
 
-	static float envelope[NUM_ACTIVE_FILTS];
+	static float envelope[NUM_CHANNELS];
 	float env_in;
-	//float ga = exp(-1.0f/(SampleRate*AttackTimeInSecond));
-	//float gr = exp(-1.0f/(SampleRate*ReleaseTimeInSeconds));
-	float gAttack;
-	float gDecay;
-
-	if (ENVSPEED) {
-		gAttack=0.99916883665;
-		gDecay=0.99916883665;
-	} else {
-		gAttack=0.9998958;
-		gDecay=0.9998958;
-	}
 
 	int32_t s;
 	uint32_t t;
@@ -117,9 +116,10 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	float f_end;
 	float f_blended;
 
-	static float f_adc[NUM_ACTIVE_FILTS];
-	float adc_lag[NUM_ACTIVE_FILTS];
-	float freq_nudge[NUM_FILTS];
+	float *ff;
+
+	static float f_adc[NUM_CHANNELS];
+	float adc_lag[NUM_CHANNELS];
 
 	float filter_out[NUM_FILTS][MONO_BUFSZ];
 
@@ -129,14 +129,18 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	uint32_t need_calc=0;
 	uint8_t k;
 
-	static int8_t old_scale=-1;
-	static int8_t old_scale_bank=-1;
+	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
+	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 
 	float var_q, inv_var_q, var_f, inv_var_f;
 	register float tmp, fir, iir;
 	float c0,c1,c2;
 	float a0,a1,a2;
 	uint8_t filter_num,channel_num;
+	uint8_t scale_num;
+	static uint8_t is_fading_down_across_scales[NUM_CHANNELS]={0,0,0,0,0,0};
+
+	uint8_t nudge_filter_num;
 
 	//~60us static, ~88us morphing
 
@@ -145,9 +149,9 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	//convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
-	// Setup pot variables: 0.2us x 6 = 1.6us
 
-	for (i=0;i<NUM_ACTIVE_FILTS;i++){
+	// Setup pot variables: 0.2us x 6 = 1.6us
+	for (i=0;i<NUM_CHANNELS;i++){
 
 		//1st order LPF:
 		env_in=((float)adc_buffer[i+2])/4096.0f;
@@ -167,156 +171,207 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	//Update assign_fade[] and inc/decrement filter_assign_table
 	f_t=1.0/((adc_buffer[MORPH_ADC]+1.0)*1.5);
 
-	for (j=0;j<NUM_ACTIVE_FILTS;j++){
 
-		if ((dest_filter_assign_table[j] != filter_assign_table[j]) || assign_fade[j]!=0){
+	for (j=0;j<NUM_CHANNELS;j++){
+
+		if ((dest_filter_assign_table[j] != filter_assign_table[j]) || assign_fade[j]!=0){ //|| dest_scale[j]!=scale[j]
+
 			assign_fade[j]+=rot_dir[j]*f_t;
 
 			if (assign_fade[j]>=1){
-				if (filter_assign_table[j]==(NUM_FILTS-1)) filter_assign_table[j]=0;
-				else filter_assign_table[j]++;
+
+				filter_assign_table[j]=(filter_assign_table[j]+1) % NUM_FILTS;
+
+				if (filter_assign_table[j]==0 && dest_scale[j]!=scale[j]){
+					scale[j]=dest_scale[j];
+				}
+
 				flag_update_LED_ring=1;
 
-				if (dest_filter_assign_table[j] == filter_assign_table[j])
+				if (dest_filter_assign_table[j] == filter_assign_table[j]) // && dest_scale[j]==scale[j]
+				{
 					assign_fade[j]=0;
-				else
+					is_fading_down_across_scales[j]=0;
+				} else{
 					assign_fade[j]-=1;
-
+				}
 			}
 
 			if (assign_fade[j]<=0){
 
-				if (dest_filter_assign_table[j] == filter_assign_table[j]){
+				if (dest_filter_assign_table[j] == filter_assign_table[j]){ //We hit out final destination, so stop.
 					assign_fade[j]=0;
-				} else {
+					is_fading_down_across_scales[j]=0;
+
+				} else {												//We are moving negative, or we hit a step along the way
 					assign_fade[j]+=1;
 					if (filter_assign_table[j]==0) filter_assign_table[j]=NUM_FILTS-1;
 					else filter_assign_table[j]--;
+
+					if (filter_assign_table[j]==(NUM_FILTS-1) && dest_scale[j]!=scale[j]){
+						scale[j]=dest_scale[j];
+						is_fading_down_across_scales[j]=1;
+					}
 
 					flag_update_LED_ring=1;
 				}
 
 			}
-			t=(filter_assign_table[j]+1) % NUM_FILTS;
-
-			if (!(need_calc & (1<<t))){
-				need_calc|=(1<<t);
-				nc_channel[total_calc_filters]=j;
-				nc_filter[total_calc_filters++]=(filter_assign_table[j]+1) % NUM_FILTS;
-			}
 
 		}
-		if (!(need_calc & (1<<filter_assign_table[j]))){
-			need_calc|=(1<<filter_assign_table[j]);
-			nc_channel[total_calc_filters]=j;
-			nc_filter[total_calc_filters++]=filter_assign_table[j];
-		}
-
 	}
 
-	//Calc freq nudge and fill array: 1.2us
-	for (i=0;i<NUM_FILTS;i++){
-		if (i==filter_assign_table[0]) freq_nudge[i]=(float)adc_buffer[FREQNUDGE1_ADC]/4096.0;
-		else if (i==filter_assign_table[5]) freq_nudge[i]=(float)adc_buffer[FREQNUDGE6_ADC]/4096.0;
-		else freq_nudge[i]=0;
+	//Calculate our Q value (global)
+					//var_q=adc_buffer[QVAL_ADC]/4096.0;
+					//if (var_q<0.01) var_q=0.0;
+					//if (var_q>0.99) var_q=1.0;
+
+
+	var_q=log_4096[qvalcv];
+	inv_var_q = 1.0-var_q;
+
+	//Figure out the coef tables we're drawing from (Lo-Q and Hi-Q) for each channel
+	//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
+	for (i=0;i<NUM_CHANNELS;i++){
+
+		if (scale_bank[i]<0) scale_bank[i]=0;
+		if (scale_bank[i]>=NUMSCALEBANKS) scale_bank[i]=NUMSCALEBANKS-1;
+		if (scale[i]<0) scale[i]=0;
+		if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
+
+		if (scale_bank[i]!=old_scale_bank[i] /*|| scale[i]!=old_scale[i]*/){
+
+			old_scale_bank[i]=scale_bank[i];
+
+			ff=(float *)buf[i];
+			for (j=0;j<(NUMSCALES*NUM_FILTS);j++) *(ff+j)=0;
+
+
+			if (scale_bank[i]==0){
+				c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
+
+			} else if (scale_bank[i]==1){
+				c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_indian_2Q);
+
+			} else if (scale_bank[i]==2){
+				c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);
+
+			} else if (scale_bank[i]==3){
+				c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);
+
+			} else if (scale_bank[i]==4){
+				c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);
+
+			} else if (scale_bank[i]==5){
+				c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);
+				c_loq[i]=(float *)(filter_bpre_coefs_17ET_2Q);
+				//c_hiq[i]=(float *)(filter_bpre_coefs_gamma_800Q);
+				//c_loq[i]=(float *)(filter_bpre_coefs_gamma_2Q);
+
+			}
+		}
 	}
 
 
 	//Calculate all the needed filters: about 14us for 6, 29us for 12
+	//DEBUGA_ON(DEBUG2);
+
+	//Calculate filter_out[]
+	//filter_out[0-5] are the filter_assign_table filters. filter_out[6-11] are the morph destination/source values
+
+	for (j=0;j<NUM_CHANNELS*2;j++){
+
+		if (j<6)
+			channel_num=j;
+		else
+			channel_num=j-6;
+
+		if (j<6 || assign_fade[channel_num]!=0){
+
+			if (j<6) {
+				filter_num=filter_assign_table[channel_num];
+				scale_num=scale[channel_num];
+
+				//filter_num+=freqcv_bumpup[channel_num];
+				//if (filter_num>=NUM_FILTS) filter_num=NUM_FILTS-1;
 
 
-	var_q=log_4096[adc_buffer[QVAL_ADC]];
-	if (var_q<0.01) var_q=0.0;
-	if (var_q>0.99) var_q=1.0;
-	inv_var_q = 1.0-var_q;
+			}else{
+				filter_num=(filter_assign_table[channel_num]+1) % NUM_FILTS;
 
+				//filter_num+=freqcv_bumpup[channel_num];
+				//if (filter_num>=NUM_FILTS) filter_num=NUM_FILTS-1;
 
-	if (scale_bank==0){
-		c=(float *)(filter_bpre_coefs_western_800Q+(scale*21));
-		c_2q=(float *)(filter_bpre_coefs_western_2Q+(scale*21));
+				if (filter_num==0){
+					if (is_fading_down_across_scales[channel_num])
+						scale_num=(scale[channel_num] +1 ) % NUMSCALES;
+					else
+						scale_num=dest_scale[channel_num];
 
-	} else if (scale_bank==1){
-		c=(float *)(filter_bpre_coefs_indian_200Q+(scale*21));
-		c_2q=(float *)(filter_bpre_coefs_indian_2Q+(scale*21));
+				} else {
+					scale_num=scale[channel_num];
+				}
+			}
 
-	} else if (scale_bank==2){
-		c=(float *)(filter_bpre_coefs_17ET_200Q+(scale*21));
-		c_2q=(float *)(filter_bpre_coefs_17ET_2Q+(scale*21));
+			//var_f=freq_nudge[filter_num];
+			var_f=freq_nudge[channel_num];
+			if (var_f<0.002) var_f=0.0;
+			if (var_f>0.998) var_f=1.0;
+			inv_var_f=1.0-var_f;
 
-	} else if (scale_bank==3){
-		c=(float *)(filter_bpre_coefs_gamma_800Q+(scale*21));
-		c_2q=(float *)(filter_bpre_coefs_gamma_2Q+(scale*21));
+			//Freq fade
 
-	} else if (scale_bank==4){
-		c=(float *)(filter_bpre_coefs_gammaspread1_800Q+(scale*21));
-		c_2q=(float *)(filter_bpre_coefs_gammaspread1_2Q+(scale*21));
-	}
+			nudge_filter_num = filter_num + 1;
+			if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
+			a0=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
+			a1=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
+			a2=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
 
-	//a scale bank adds 7884 bytes
+			c0=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
+			c1=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
+			c2=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
 
-	if (old_scale!=scale || old_scale_bank!=scale_bank){
-		old_scale=scale;
-		old_scale_bank=scale_bank;
-		for (i=0;i<NUM_FILTS;i++){
-			buf[i][0]=0;
-			buf[i][1]=0;
-			buf[i][2]=0;
+/*
+			a0=*(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 3)*var_f + *(c_loq[channel_num] + (scale_num*63) + filter_num*3 + 0)*inv_var_f;
+			a1=*(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 4)*var_f + *(c_loq[channel_num] + (scale_num*63) + filter_num*3 + 1)*inv_var_f;
+			a2=*(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 5)*var_f + *(c_loq[channel_num] + (scale_num*63) + filter_num*3 + 2)*inv_var_f;
+
+			c0=*(c_hiq[channel_num] + scale_num*63 + filter_num*3 + 3)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
+			c1=*(c_hiq[channel_num] + scale_num*63 + filter_num*3 + 4)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
+			c2=*(c_hiq[channel_num] + scale_num*63 + filter_num*3 + 5)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
+*/
+			//Q fade
+			c0=c0*var_q + a0*inv_var_q;
+			c1=c1*var_q + a1*inv_var_q;
+			c2=c2*var_q + a2*inv_var_q;
+
+			for (i=0;i<MONO_BUFSZ;i++){
+
+				tmp= buf[channel_num][scale_num][filter_num][0];
+				buf[channel_num][scale_num][filter_num][0]=buf[channel_num][scale_num][filter_num][1];
+
+				//Odd inputs go to odd filters numbers (1-20)
+				if (filter_num & 1) iir=left_buffer[i] * c0;
+				else iir=right_buffer[i] * c0;
+
+				iir -= c1*tmp;
+				fir= -tmp;
+				iir -= c2*buf[channel_num][scale_num][filter_num][0];
+				fir += iir;
+				buf[channel_num][scale_num][filter_num][1]= iir;
+
+				filter_out[j][i]= fir;
+
+			}
 		}
-
 	}
-
-	DEBUG_ON(DEBUG2);
-
-	/*
-	 * float *c_hiq[6];
-	 * float *c_loq[6];
-	 *
-	 * uint8_t scale[6];
-	 * uint8_t scale_bank[6];
-	 *
-	 */
-
-	for (j=0;j<total_calc_filters;j++){
-		channel_num=nc_channel[j];
-		filter_num=nc_filter[j];
-
-		var_f=freq_nudge[filter_num];
-		inv_var_f=1.0-var_f;
-
-		a0=*(c_2q+filter_num*3+3)*var_f + *(c_2q+filter_num*3+0)*inv_var_f;
-		a1=*(c_2q+filter_num*3+4)*var_f + *(c_2q+filter_num*3+1)*inv_var_f;
-		a2=*(c_2q+filter_num*3+5)*var_f + *(c_2q+filter_num*3+2)*inv_var_f;
-
-		c0=*(c+filter_num*3+3)*var_f + *(c+filter_num*3+0)*inv_var_f;
-		c1=*(c+filter_num*3+4)*var_f + *(c+filter_num*3+1)*inv_var_f;
-		c2=*(c+filter_num*3+5)*var_f + *(c+filter_num*3+2)*inv_var_f;
-
-		c0=c0*var_q + a0*inv_var_q;
-		c1=c1*var_q + a1*inv_var_q;
-		c2=c2*var_q + a2*inv_var_q;
-
-		for (i=0;i<MONO_BUFSZ;i++){
-
-			tmp= buf[filter_num][0];
-			buf[filter_num][0]=buf[filter_num][1];
-
-			//Odd inputs go to odd filters numbers (1-20)
-			if (filter_num & 1) iir=left_buffer[i] * c0;
-			else iir=right_buffer[i] * c0;
-
-			iir -= c1*tmp;
-			fir= -tmp;
-			iir -= c2*buf[filter_num][0];
-			fir += iir;
-			buf[filter_num][1]= iir;
-
-			filter_out[filter_num][i]= fir;
-
-		}
-	}
-	DEBUG_OFF(DEBUG2);
-
+//	DEBUGA_OFF(DEBUG2);
 
 
 	for (i=0;i<MONO_BUFSZ;i++){
@@ -324,15 +379,14 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 		filtered_buffer[i]=0;
 		filtered_bufferR[i]=0;
 
-		for (j=0;j<NUM_ACTIVE_FILTS;j++){
+		for (j=0;j<NUM_CHANNELS;j++){
 
 			//when blending, 1.5us/sample. When static, 0.7us/sample = 11-24us total
 			if (assign_fade[j]==0){
-				f_blended = filter_out[filter_assign_table[j]][i];
+				f_blended = filter_out[j][i];
 			} else {
-				t=filter_assign_table[j]+1;
-				if (t>=NUM_FILTS) t=0;
-				f_blended = (filter_out[filter_assign_table[j]][i] * (1.0f-assign_fade[j])) + (filter_out[t][i] * assign_fade[j]);
+				//Rotate Morph fade
+				f_blended = (filter_out[j][i] * (1.0f-assign_fade[j])) + (filter_out[j+NUM_CHANNELS][i] * assign_fade[j]);
 			}
 
 
@@ -364,14 +418,14 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			else env_in=-1.0*f_blended;
 
 			if(envelope[j] < env_in) {
-				envelope[j] *= gAttack;
-				envelope[j] += (1.0-gAttack)*env_in;
+				envelope[j] *= envspeed_attack;
+				envelope[j] += (1.0-envspeed_attack)*env_in;
 			} else {
-				envelope[j] *= gDecay;
-				envelope[j] += (1.0-gDecay)*env_in;
+				envelope[j] *= envspeed_decay;
+				envelope[j] += (1.0-envspeed_decay)*env_in;
 			}
 			//Pre-CV (input) or Post-CV (output)
-			if (envout_mode==PRE) ENVOUT_PWM[j]=((uint32_t)envelope[j])>>16;
+			if (env_prepost_mode==PRE) ENVOUT_PWM[j]=((uint32_t)envelope[j])>>16;
 			else ENVOUT_PWM[j]=(uint32_t)(envelope[j]*f_adc[j])>>16;
 
 
@@ -380,113 +434,9 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	}
 
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
-	DEBUG_OFF(DEBUG0);
+	DEBUGA_OFF(DEBUG0);
 
 }
-
-/*
-inline float filter_BpRe(register float val, uint8_t filter_num, float var1){
-	DEBUG_ON(DEBUG2);
-
-	   register float tmp, fir, iir;
-	   float c0,c1,c2,inv_var1;
-	   float d0,d1,d2;
-	   uint8_t next_filter_num;
-
-	   tmp= buf[filter_num][0];
-	   buf[filter_num][0]=buf[filter_num][1];
-
-
-	   if (var1<0.05){
-		   c0=*(c+filter_num*3+0);
-		   c1=*(c+filter_num*3+1);
-		   c2=*(c+filter_num*3+2);
-
-		   d0=filter_bpre_coefs_2Q_perfectfifth[filter_num][0];
-		   d1=filter_bpre_coefs_2Q_perfectfifth[filter_num][1];
-		   d2=filter_bpre_coefs_2Q_perfectfifth[filter_num][2];
-
-		   var1=adc_buffer[QVAL_ADC]/4096.0;
-		   inv_var1=1.0-var1;
-		   c0=d0*var1 + c0*inv_var1;
-		   c1=d1*var1 + c1*inv_var1;
-		   c2=d2*var1 + c2*inv_var1;
-
-
-	   } else {
-			next_filter_num=filter_num+1;
-
-			if (var1>0.95){
-				   c0=*(c+next_filter_num*3+0);
-				   c1=*(c+next_filter_num*3+1);
-				   c2=*(c+next_filter_num*3+2);
-			} else {
-			   inv_var1=1.0-var1;
-			   c0=*(c+next_filter_num*3+0)*var1 + *(c+filter_num*3+0)*inv_var1;
-			   c1=*(c+next_filter_num*3+1)*var1 + *(c+filter_num*3+1)*inv_var1;
-			   c2=*(c+next_filter_num*3+2)*var1 + *(c+filter_num*3+2)*inv_var1;
-			}
-	   }
-
-
-
-	   iir= val * c0;
-	   iir -= c1*tmp; fir= -tmp;
-	   iir -= c2*buf[filter_num][0];
-
-	   fir += iir;
-	   buf[filter_num][1]= iir; val= fir;
-
-	   DEBUG_OFF(DEBUG2);
-
-	   return val;
-	}
-*/
-
-
-/*
-float filter_BpRe200(register float val, uint8_t filter_num, float var1){
-
-DEBUG_ON(DEBUG2);
-   static float buf[NUM_FILTS][2];
-   register float tmp, fir, iir;
-   float c0,c1,c2,inv_var1;
-   uint8_t next_filter_num;
-
-   tmp= buf[filter_num][0];
-   buf[filter_num][0]=buf[filter_num][1];
-
-   if (var1<0.05){
-	   c0=filter_bpre_coefs_200Q[filter_num][0];
-	   c1=filter_bpre_coefs_200Q[filter_num][1];
-	   c2=filter_bpre_coefs_200Q[filter_num][2];
-   } else {
-		next_filter_num=filter_num+1;
-
-		if (var1>0.95){
-		   c0=filter_bpre_coefs_200Q[next_filter_num][0];
-		   c1=filter_bpre_coefs_200Q[next_filter_num][1];
-		   c2=filter_bpre_coefs_200Q[next_filter_num][2];
-		} else {
-		   inv_var1=1.0-var1;
-		   c0=filter_bpre_coefs_200Q[next_filter_num][0]*var1 + filter_bpre_coefs_200Q[filter_num][0]*inv_var1;
-		   c1=filter_bpre_coefs_200Q[next_filter_num][1]*var1 + filter_bpre_coefs_200Q[filter_num][1]*inv_var1;
-		   c2=filter_bpre_coefs_200Q[next_filter_num][2]*var1 + filter_bpre_coefs_200Q[filter_num][2]*inv_var1;
-		}
-   }
-
-   iir= val * c0;
-   iir -= c1*tmp; fir= -tmp;
-   iir -= c2*buf[filter_num][0];
-
-   fir += iir;
-   buf[filter_num][1]= iir; val= fir;
-
-   DEBUG_OFF(DEBUG2);
-
-   return val;
-}
-*/
 
 /*
 inline float filter_PkBq(register float val, uint8_t filter_num, float var1, uint8_t qval){

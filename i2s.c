@@ -24,8 +24,6 @@ DMA_InitTypeDef dma_tx, dma_rx;
 uint32_t txbuf, rxbuf;
 
 extern uint32_t g_error;
-extern uint32_t cur_rec_addr;
-extern uint32_t cur_play_addr;
 
 
 

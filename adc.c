@@ -54,7 +54,7 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	ADC_Init(ADC1, &ADC_InitStructure);
 	
 	/* Configure analog input pins ------------------------------------------*/
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7 | GPIO_Pin_6 | GPIO_Pin_3 | GPIO_Pin_2 | GPIO_Pin_1 | GPIO_Pin_0; //Channel 7, 6, 3, 2, 1, 0
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7 | GPIO_Pin_6 | GPIO_Pin_5 | GPIO_Pin_3 | GPIO_Pin_2 | GPIO_Pin_1 | GPIO_Pin_0; //Channel 7, 6, 5, 3, 2, 1, 0
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL ;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -64,21 +64,27 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOC, &GPIO_InitStructure);
 
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 ; //Channel 8, 9
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOB, &GPIO_InitStructure);
 
 	/* ADC1 regular channel configuration -----------------------------------*/ 
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, 1, ADC_SampleTime_144Cycles); //[0]: PA0, lag
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, 2, ADC_SampleTime_144Cycles); //[1]: PA1, rotate morph
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, 3, ADC_SampleTime_144Cycles); //[2]: PA2: filter 1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, 4, ADC_SampleTime_144Cycles); //[3]: PA3: filter 2
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_6, 5, ADC_SampleTime_144Cycles); //[4]: PA6: filter 3
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, 6, ADC_SampleTime_144Cycles); //[5]: PA7: filter 4
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 7, ADC_SampleTime_144Cycles); //[6]: PC0: filter 5
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, 8, ADC_SampleTime_144Cycles); //[7]: PC1: filter 6
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, 9, ADC_SampleTime_144Cycles); //[8]: PC2: freq 1
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, 10, ADC_SampleTime_144Cycles);//[9]: PC3: freq 6
-
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_0, MORPH_ADC+1, ADC_SampleTime_144Cycles); //[0]: PA0, Morph
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_1, QVAL_ADC+1, ADC_SampleTime_144Cycles); //[1]: PA1, Q
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_2, LEVEL_ADC_BASE+1, ADC_SampleTime_144Cycles); //[2]: PA2: filter 1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_3, LEVEL_ADC_BASE+2, ADC_SampleTime_144Cycles); //[3]: PA3: filter 2
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_6, LEVEL_ADC_BASE+3, ADC_SampleTime_144Cycles); //[4]: PA6: filter 3
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_7, LEVEL_ADC_BASE+4, ADC_SampleTime_144Cycles); //[5]: PA7: filter 4
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, LEVEL_ADC_BASE+5, ADC_SampleTime_144Cycles); //[6]: PC0: filter 5
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_11, LEVEL_ADC_BASE+6, ADC_SampleTime_144Cycles); //[7]: PC1: filter 6
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_12, FREQNUDGE1_ADC+1, ADC_SampleTime_144Cycles); //[8]: PC2: freq 1
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_13, FREQNUDGE6_ADC+1, ADC_SampleTime_144Cycles);//[9]: PC3: freq 6
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_14, SCALE_ADC+1, ADC_SampleTime_144Cycles); //[10]: PC4: rotate CV
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_15, SPREAD_ADC+1, ADC_SampleTime_144Cycles); //[11]: PC5: spread CV
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_5, ROTRESET_ADC+1, ADC_SampleTime_144Cycles);//[12]: PA5: Rot CV/Reset
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_8, FM_135_ADC+1, ADC_SampleTime_144Cycles);//[13]: PB0: FM_135
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, FM_246_ADC+1, ADC_SampleTime_144Cycles);//[14]: PB1: FM_246
 
 	/* Enable Complete DMA interrupt  */
 	//DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, ENABLE);
@@ -113,5 +119,5 @@ void DMA2_Stream0_IRQHandler(void)
 		/* Start ADC1 Software Conversion */ 
 		//ADC_SoftwareStartConv(ADC1);
 	}
-	
+
 }
