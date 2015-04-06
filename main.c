@@ -1,6 +1,10 @@
 /*
  * To Do
- * Spread CV should rotate across scales if rotate_to_next_scale is on
+ *
+ * Pressing the lcok button should lock the channel where it exists at that moment, not at the dest_filter
+ * --we'll have to check if that spot conflicts with any other channel's dest_filter, and rotate them up/down if so
+ *
+ * Change scale should morph(?)... changing bank??
  *
  * Try single-variable Resonant BP (chrissy's link)
  * --freq_nudge could then be full range
@@ -9,9 +13,23 @@
  *
  * Set ENVSPEED lpf values (it clips easily)
  *
- * Allow for different Q on each channel (hold lock while turning Q)
  *
- * Show CV on slider LEDs
+ *
+ *
+ * Hardware:
+ * Add jumper to select sliders showing clip/cv level
+ * (or have a system mode?)
+ *
+ * Add a jumper to allow DC signals (just jump the 10uF caps)
+ *
+ * What is that background sound?
+ *
+ * Add analog white noise circuit
+ *
+ * ENV OUT LEDs are RGB (add a PCA x 2)??
+ *
+ * ENV OUT LEDs (white 3mm) are too bright, increase resistor value
+ *
  *
  */
 #include "stm32f4xx.h"
@@ -28,6 +46,9 @@
 #include "led_driver.h"
 #include "dac.h"
 #include "rotary.h"
+#include "rotation.h"
+
+//#define TEST_LED_RING
 
 //10s  is 0.999998958333873 or 1-0.00000104166613  @4096
 //1s   is 0.999989583387583 or 1-0.00001041661242  @2048
@@ -43,33 +64,34 @@
 #define MAX_LAG_DECAY 0.001
 #define MIN_LAG_DECAY 0.01
 
+#define QPOT_MIN_CHANGE 50
+#define LOCK_BUTTON_QUNLOCK_HOLD_TIME 50000
 
-uint8_t scale_bank_defaultscale[NUMSCALEBANKS]={4,4,6,5,9,5};
+extern uint8_t scale_bank_defaultscale[NUMSCALEBANKS];
 
 uint32_t g_error=0;
 
-__IO uint16_t adc_buffer[NUM_ADCS];
+__IO uint16_t adc_buffer[NUM_ADCS+1];
 
 uint8_t rotate=0;
 uint8_t scale[NUM_CHANNELS];
+uint8_t scale_cv[NUM_CHANNELS];
 uint8_t scale_bank[NUM_CHANNELS];
 uint8_t dest_scale[NUM_CHANNELS];
 
 uint8_t dest_scale_bank=0;
 uint8_t hover_scale_bank=0;
 
-uint8_t spread=99, test_spread=0, hys_spread=0,old_spread=1;
 
 const uint32_t clip_led[6]={LED_CLIP1, LED_CLIP2, LED_CLIP3, LED_CLIP4, LED_CLIP5, LED_CLIP6};
 
 uint8_t filter_assign_table[NUM_CHANNELS];
 uint8_t dest_filter_assign_table[NUM_CHANNELS];
-float rot_dir[6];
 
 uint8_t lock[NUM_CHANNELS];
 uint8_t lock_pressed[NUM_CHANNELS];
 uint8_t lock_up[NUM_CHANNELS];
-uint8_t lock_down[NUM_CHANNELS];
+uint32_t lock_down[NUM_CHANNELS];
 
 uint8_t flag_update_LED_ring=0;
 
@@ -80,15 +102,24 @@ extern uint8_t do_ROTDOWN;
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
 
+extern float rot_dir[6];
+
 extern uint16_t mod_mode_135, mod_mode_246;
 extern uint16_t rotate_to_next_scale;
 
-uint32_t qvalcv;
+extern int8_t spread;
+
+uint32_t qval[NUM_CHANNELS];
+uint32_t qvalcv, qvalpot;
+uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
+
+
 
 float freq_nudge[NUM_CHANNELS];
 
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 
+uint8_t SLIDER_LEDS=SHOW_LEVEL;
 
 
 #define delay()						\
@@ -105,69 +136,29 @@ void check_errors(void){
 
 }
 
-#define SPREAD_ADC_HYSTERESIS 75
-
-extern float assign_fade[NUM_CHANNELS];
-
-const float COLOR_CH[6][3]={
-{0,0,1023},
-{200,200,816},
-{800,1000,800},
-{1023,400,800},
-{1000,500,202},
-{800,200,0}
-};
-
-void update_filter_assign_LEDs(void){
-	uint16_t ring[20][3];
-	uint8_t i, next_i,chan=0;
-	float inv_fade;
-
-	for (i=0;i<20;i++){
-		ring[i][0]=0;
-		ring[i][1]=0;
-		ring[i][2]=0;
-	}
-
-	for (i=0;i<20;i++){
-		next_i=(i+1) % NUM_FILTS;
-		for (chan=0;chan<6;chan++){
-			if (filter_assign_table[chan]==i){
-				inv_fade=1.0-assign_fade[chan];
-
-				ring[i][0]=(uint16_t)((COLOR_CH[chan][0])*inv_fade);
-
-				ring[i][1]=(uint16_t)((COLOR_CH[chan][1])*inv_fade);
-
-				ring[i][2]=(uint16_t)((COLOR_CH[chan][2])*inv_fade);
-
-				if (ring[next_i][0]+ring[next_i][1]+ring[next_i][2]==0){
-					ring[next_i][0]=(uint16_t)((COLOR_CH[chan][0])*(assign_fade[chan]));
-					ring[next_i][1]=(uint16_t)((COLOR_CH[chan][1])*(assign_fade[chan]));
-					ring[next_i][2]=(uint16_t)((COLOR_CH[chan][2])*(assign_fade[chan]));
-				}
-				chan=6;
-			}
-		}
-	}
-
-
-	LEDDriver_set_LED_ring(ring);
+inline uint32_t diff(uint32_t a, uint32_t b){
+	return (a>b)?(a-b):(b-a);
 }
 
-const float SCALE_COLOR[NUMSCALES][3]={
-		{0,0,1000},
-		{0,200,800},
-		{0,400,600},
-		{0,600,400},
-		{0,800,200},
-		{0,1000,0},
-		{200,800,200},
-		{400,600,400},
-		{600,400,600},
-		{800,200,800},
-		{1000,0,1000}
 
+extern float assign_fade[NUM_CHANNELS];
+extern float f_adc[NUM_CHANNELS];
+
+
+
+/* ledring.c */
+//#define ASSIGN_COLORS
+#define NUM_COLORSCHEMES 6
+
+uint8_t cur_colsch=0;
+
+float COLOR_CH[NUM_COLORSCHEMES][NUM_CHANNELS][3]={
+		{{0, 0, 761}, {0, 770, 766}, {0, 766, 16}, {389, 383, 387}, {763, 154, 0}, {766, 0, 112}},
+		{{0, 0, 761}, {0, 780, 766}, {768, 767, 764}, {493, 768, 2}, {763, 154, 0}, {580, 65, 112}},
+		{{767, 0, 0}, {767, 28, 386}, {0, 0, 764}, {0, 320, 387}, {767, 768, 1}, {767, 774, 765}},
+		{{0, 0, 761}, {106, 0, 508}, {762, 769, 764}, {0, 767, 1}, {706, 697, 1}, {765, 179, 1}},
+		{{0,0,900}, {200,200,816}, {800,900,800},	{900,400,800},	{900,500,202}, {800,200,0}},
+		{{0,0,766}, {766,150,0}, {0,50,766}, {766,100,0}, {0,150,766}, {766,50,0}}
 };
 
 const float SCALE_BANK_COLOR[NUMSCALEBANKS][3]={
@@ -181,34 +172,158 @@ const float SCALE_BANK_COLOR[NUMSCALEBANKS][3]={
 
 };
 
-void display_scale(void){
+
+void display_filter_rotation(void){
 	uint16_t ring[20][3];
-	uint8_t i,j;
+	uint8_t i, next_i,chan=0;
+	float inv_fade[6],fade[6];
+	float t_f;
 	static uint8_t flash=0;
 
-	flash=1-flash;
+	uint16_t ring_a[20][3];
+	uint16_t ring_b[20][3];
 
-	//First, turn all scale indicators on
-	for (i=0;i<NUMSCALES;i++){
-		j=(i+(20-NUMSCALES/2)) % 20;
-		ring[j][0]=SCALE_COLOR[i][0];
-		ring[j][1]=SCALE_COLOR[i][1];
-		ring[j][2]=SCALE_COLOR[i][2];
+	//12us to 100us
+DEBUG3_ON;
+
+#ifdef TEST_LED_RING
+	for (i=0;i<20;i++){
+		ring[i][0]=1023;
+		ring[i][1]=1023;
+		ring[i][2]=1023;
+	}
+#else
+
+	for (i=0;i<20;i++){
+		ring[i][0]=0;
+		ring[i][1]=0;
+		ring[i][2]=0;
 	}
 
-	//Then, if we're flashing, turn off all scales that are active on some channel
-	if (flash){
-		for (i=0;i<NUM_CHANNELS;i++){
-			j=(scale[i]+(20-NUMSCALES/2)) % 20;
-			ring[j][0]=0;
-			ring[j][1]=0;
-			ring[j][2]=0;
+	// Set the brightness of each LED in the ring:
+	// --if it's unlocked, then brightness corresponds to the slider+cv level. Keep a minimum of 5% so that it doesn't go totally off
+	// --if it's locked, brightness flashes between 100% and 0%.
+	// As we rotate morph between two LEDs in the ring:
+	// --fade[chan] is the brightness of the end point LED
+	// --inv_fade[chan] is the brightness of the start point LED
+	flash=1-flash;
+	for (chan=0;chan<6;chan++){
+		t_f = f_adc[chan] < 0.05 ? 0.05 : f_adc[chan];
+
+		if (lock[chan]==0){
+
+			inv_fade[chan] = (1.0-assign_fade[chan])*(t_f);
+			fade[chan] = assign_fade[chan]*(t_f);
+
+		} else {
+			fade[chan]=0.0;
+			if (flash) inv_fade[chan]=t_f;
+			else inv_fade[chan]=0.0;
+
 		}
 	}
 
-	ring[NUMSCALES/2+1][0]=0;
-	ring[NUMSCALES/2+1][1]=0;
-	ring[NUMSCALES/2+1][2]=0;
+	for (i=0;i<20;i++){
+		next_i=(i+1) % NUM_FILTS;
+		for (chan=0;chan<6;chan++){
+			if (filter_assign_table[chan]==i){
+
+				//inv_fade = (1.0-assign_fade[chan])*(f_adc[chan]);
+				//fade = assign_fade[chan]*(f_adc[chan]);
+				if (inv_fade[chan]>0.0){
+					if (ring[i][0]+ring[i][1]+ring[i][2]==0){
+						ring[i][0] = (uint16_t)((COLOR_CH[cur_colsch][chan][0])*inv_fade[chan]);
+						ring[i][1] = (uint16_t)((COLOR_CH[cur_colsch][chan][1])*inv_fade[chan]);
+						ring[i][2] = (uint16_t)((COLOR_CH[cur_colsch][chan][2])*inv_fade[chan]);
+					}else {
+						ring[i][0] += (uint16_t)((COLOR_CH[cur_colsch][chan][0])*inv_fade[chan]);
+						ring[i][1] += (uint16_t)((COLOR_CH[cur_colsch][chan][1])*inv_fade[chan]);
+						ring[i][2] += (uint16_t)((COLOR_CH[cur_colsch][chan][2])*inv_fade[chan]);
+
+						if (ring[i][0]>1023) ring[i][0]=1023;
+						if (ring[i][1]>1023) ring[i][1]=1023;
+						if (ring[i][2]>1023) ring[i][2]=1023;
+					}
+				}
+				if (fade[chan]>0.0){
+					if (ring[next_i][0]+ring[next_i][1]+ring[next_i][2]==0){
+						ring[next_i][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])*fade[chan]);
+						ring[next_i][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])*fade[chan]);
+						ring[next_i][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])*fade[chan]);
+					} else {
+						ring[next_i][0]+=(uint16_t)((COLOR_CH[cur_colsch][chan][0])*fade[chan]);
+						ring[next_i][1]+=(uint16_t)((COLOR_CH[cur_colsch][chan][1])*fade[chan]);
+						ring[next_i][2]+=(uint16_t)((COLOR_CH[cur_colsch][chan][2])*fade[chan]);
+
+						if (ring[next_i][0]>1023) ring[next_i][0]=1023;
+						if (ring[next_i][1]>1023) ring[next_i][1]=1023;
+						if (ring[next_i][2]>1023) ring[next_i][2]=1023;
+
+					}
+				}
+				chan=6;//break;
+			}
+		}
+	}
+	DEBUG3_OFF;
+
+#endif
+
+	LEDDriver_set_LED_ring(ring);
+}
+
+
+
+void display_scale(void){
+	uint16_t ring[20][3];
+	uint8_t i,j, chan;
+	static uint8_t flash=0;
+
+
+	uint8_t elacs[NUMSCALES][NUM_CHANNELS];
+	uint8_t elacs_num[NUMSCALES];
+	static uint8_t elacs_ctr[NUMSCALES]={0,0,0,0,0,0,0,0,0,0,0};
+
+	//slow down the flashing
+	if (flash++>3) flash=0;
+
+	// Blank out the reverse-hash scale table
+	for (i=0;i<NUMSCALES;i++) {
+		elacs_num[i]=0;
+		elacs[i][0]=99;elacs[i][1]=99;elacs[i][2]=99;elacs[i][3]=99;elacs[i][4]=99;elacs[i][5]=99;
+	}
+
+	// each entry in elacs equals the number of channels
+	for (i=0;i<NUM_CHANNELS;i++){
+		elacs[scale[i]][elacs_num[scale[i]]] = i;
+		elacs_num[scale[i]]++;
+	}
+
+	for (i=0;i<NUMSCALES;i++) {
+		j=(i+(20-NUMSCALES/2)) % 20; //ring positions 15 16 17 18 19 0 1 2 3 4 5
+
+		if (flash==0) {
+			elacs_ctr[i]++;
+			if (elacs_ctr[i] >= elacs_num[i]) elacs_ctr[i]=0;
+		}
+
+		//Blank out the channel if there are no entries
+		if (elacs[i][0]==99){
+			ring[j][0]=15;
+			ring[j][1]=15;
+			ring[j][2]=5;
+
+
+		} else {
+			ring[j][0]=COLOR_CH[cur_colsch][  elacs[i][ elacs_ctr[i] ]  ][0];
+			ring[j][1]=COLOR_CH[cur_colsch][  elacs[i][ elacs_ctr[i] ]  ][1];
+			ring[j][2]=COLOR_CH[cur_colsch][  elacs[i][ elacs_ctr[i] ]  ][2];
+
+		}
+	}
+
+
+	// Show the scale bank settings
 
 	for (i=0;i<NUM_CHANNELS;i++){
 		j=13-i; //13, 12, 11, 10, 9, 8
@@ -223,10 +338,19 @@ void display_scale(void){
 			ring[j][2]=SCALE_BANK_COLOR[scale_bank[i]][2];
 		}
 	}
+
+	// Blank out three spots to separate scale and bank
+	//6
+	ring[NUMSCALES/2+1][0]=0;
+	ring[NUMSCALES/2+1][1]=0;
+	ring[NUMSCALES/2+1][2]=0;
+
+	//7
 	ring[13-NUM_CHANNELS][0]=0;
 	ring[13-NUM_CHANNELS][1]=0;
 	ring[13-NUM_CHANNELS][2]=0;
 
+	//14
 	ring[19-NUMSCALES/2][0]=0;
 	ring[19-NUMSCALES/2][1]=0;
 	ring[19-NUMSCALES/2][2]=0;
@@ -259,28 +383,29 @@ void display_spectral_readout(void){
 
 }
 
-/*
-uint8_t figureout_which_channel_scale_to_show(void){
-	uint8_t i,chan;
 
-	for (i=0;i<NUM_CHANNELS;i++){
-		if (lock_pressed[i]){ //display the first channel that has a lock button held down
-			return (i);
-			break;
+inline void update_LED_ring(int16_t change_scale_mode){
+
+	static uint32_t led_ring_update_ctr=0;
+
+	if (led_ring_update_ctr++>3000 || flag_update_LED_ring){
+		led_ring_update_ctr=0;
+		flag_update_LED_ring=0;
+
+		if (change_scale_mode){
+			display_scale();
+		} else {
+			//if (display_spec==0)
+				display_filter_rotation();
+			//else
+				//display_spectral_readout();
 		}
+
 	}
 
-	for (i=0;i<NUM_CHANNELS;i++){
-		chan=i;
-		if (scale_bank[i]==unlocked_scale_bank && lock[i]!=1){ //or display the first channel that's unlocked and in the unlocked bank
-			return(i);
-			break;
-		}
-	}
-	//or display the last channel by default
-	return(chan);
+
 }
-*/
+
 
 inline uint8_t num_locks_pressed(void){
 	uint8_t i,j;
@@ -290,6 +415,28 @@ inline uint8_t num_locks_pressed(void){
 	return j;
 }
 
+inline void update_lock_leds(void){
+	uint8_t i;
+	static uint8_t flash=0;
+	static uint16_t lock_led_update_ctr=0;
+
+	if (lock_led_update_ctr++>3000){
+		lock_led_update_ctr=0;
+
+		if (++flash>=16) flash=0;
+
+		for (i=0;i<NUM_CHANNELS;i++){
+			if (q_locked[i] && !flash){
+				if (lock[i]) LOCKLED_OFF(i);
+				else LOCKLED_ON(i);
+			} else {
+				if (lock[i]) LOCKLED_ON(i);
+				else LOCKLED_OFF(i);
+			}
+		}
+	}
+
+}
 
 
 
@@ -297,10 +444,11 @@ void main(void)
 {
 	uint16_t rec_up,rec_down;
 	uint16_t rotsw_up, rotsw_down;
+	uint32_t rotsw_hold;
 	uint32_t is_distinct;
 	uint32_t play_down,play_up;
 
-	uint16_t old_adc_buffer[NUM_ADCS];
+	uint16_t old_adc_buffer[NUM_ADCS+1];
 	uint8_t rotate_pot, rotate_shift;
 
 	uint32_t din1_down=0,din2_down=0,din3_down=0,din4_down=0;
@@ -308,25 +456,29 @@ void main(void)
 
 	uint32_t rotary_state, old_rotary_state;
 	uint8_t do_rotate_up, do_rotate_down;
+	int8_t do_next_scale, do_prev_scale;
 
-	uint32_t led_ring_update_ctr=0;
 
 	uint8_t lock_test5;
 
 	int16_t change_scale_mode=0;
 
+	uint8_t user_turned_Q_pot=0;
 	uint8_t user_turned_rotary=0;
-	uint8_t user_pressed_rotary=0;
-	uint8_t just_switched_to_change_scale_mode=0;
+	uint8_t dont_qunlock[NUM_CHANNELS];
+	uint8_t already_handled_lock_release[NUM_CHANNELS];
 
-	uint8_t force_spread_update=0;
+	uint8_t just_switched_to_change_scale_mode=0;
 
 	uint8_t rot_offset=0, old_rot_offset=0;
 
 	int32_t t;
+	int32_t t_scalecv, t_old_scalecv;
 	float t_f;
 	uint16_t temp_u16;
 	uint32_t i,j;
+
+	uint8_t color_assign=0;
 
 
 	init_inouts();
@@ -336,6 +488,8 @@ void main(void)
 
 	Audio_Init();
 	ADC1_Init((uint16_t *)adc_buffer);
+	ADC3_Init();
+
 	Codec_Init(SAMPLERATE);
 	delay();
 	I2S_Block_Init();
@@ -372,7 +526,10 @@ void main(void)
 	flag_update_LED_ring=1;
 
 	spread=(adc_buffer[SPREAD_ADC] >> 8) + 1;
-	force_spread_update=1;
+
+	update_spread(1);
+
+	old_adc_buffer[QPOT_ADC]=0xFFFF;
 
 	for (i=0;i<NUM_CHANNELS;i++){
 		scale[i]=6;
@@ -384,129 +541,28 @@ void main(void)
 
 		check_errors();
 
-		update_ENVOUT_PWM();
-
-		if (led_ring_update_ctr++>6000 || flag_update_LED_ring){
-			led_ring_update_ctr=0;
-			flag_update_LED_ring=0;
-
-			if (change_scale_mode){
-				display_scale();
-			} else {
-				//if (display_spec==0)
-					update_filter_assign_LEDs();
-				//else
-					//display_spectral_readout();
-
-			}
-		}
-
-
 		poll_switches();
 
+		update_ENVOUT_PWM();
 
-/*** SPREAD CV ***/
+		update_LED_ring(change_scale_mode);
 
-		test_spread=(adc_buffer[SPREAD_ADC] >> 8) + 1; //0-4095 to 1-16
+		update_lock_leds();
 
-		if (test_spread < spread){
-			if (adc_buffer[SPREAD_ADC] <= (4095-SPREAD_ADC_HYSTERESIS))
-				temp_u16 = adc_buffer[SPREAD_ADC] + SPREAD_ADC_HYSTERESIS;
-			else
-				temp_u16 = 4095;
+#ifdef ASSIGN_COLORS
+		for (i=0;i<6;i++) {if (lock[i]==0) {color_assign=i;i=6;}}
 
-			hys_spread = (temp_u16 >> 8) + 1;
-			old_spread=spread;
+		COLOR_CH[cur_colsch][color_assign][0] = adc_buffer[2]>>2;
+		COLOR_CH[cur_colsch][color_assign][1] = adc_buffer[3]>>2;
+		COLOR_CH[cur_colsch][color_assign][2] = adc_buffer[4]>>2;
 
-		} else if (test_spread > spread){
-			if (adc_buffer[SPREAD_ADC] > SPREAD_ADC_HYSTERESIS)
-				temp_u16 = adc_buffer[SPREAD_ADC] - SPREAD_ADC_HYSTERESIS;
-			else
-				temp_u16 = 0;
+//		COLOR_CH[cur_colsch][(color_assign+1) % 6][0] = adc_buffer[5]>>2;
+//		COLOR_CH[cur_colsch][(color_assign+1) % 6][1] = adc_buffer[6]>>2;
+//		COLOR_CH[cur_colsch][(color_assign+1) % 6][2] = adc_buffer[7]>>2;
+#endif
 
-			hys_spread = (temp_u16 >> 8) + 1;
-			old_spread=spread;
-
-		} else {
-			hys_spread=0xFF; //adc has not changed, do nothing
-		}
-
-		if (hys_spread == test_spread || force_spread_update){
-			force_spread_update=0;
-
-			spread=test_spread;
-			if (spread>old_spread)
-				t_f=1;
-			else t_f=-1;
-
-			if (lock[5]==1) lock_test5=dest_filter_assign_table[5];
-			else lock_test5=99;
-
-			//Assign [0] and check for duplicate placement over 2 & lock5
-			if (lock[0]!=1){
-				if ((NUM_FILTS+dest_filter_assign_table[2])<(spread*2)) dest_filter_assign_table[0] = (NUM_FILTS*2)+dest_filter_assign_table[2]-(spread*2);
-				else if (dest_filter_assign_table[2]<(spread*2)) dest_filter_assign_table[0] = NUM_FILTS+dest_filter_assign_table[2]-(spread*2);
-				else dest_filter_assign_table[0]=dest_filter_assign_table[2]-(spread*2);
-				rot_dir[0]=-1.0*t_f;
-
-				while (dest_filter_assign_table[0]==lock_test5
-						|| dest_filter_assign_table[0]==dest_filter_assign_table[2])
-					dest_filter_assign_table[0]=(dest_filter_assign_table[0]+1) % NUM_FILTS;
-
-			}
-
-			//Assign [1] and check for duplicate placement over 0, 2 & lock5
-			if (dest_filter_assign_table[2]<spread) dest_filter_assign_table[1] = NUM_FILTS+dest_filter_assign_table[2]-spread;
-			else dest_filter_assign_table[1]=dest_filter_assign_table[2]-spread;
-			rot_dir[1]=-1.0*t_f;
-			while (				dest_filter_assign_table[1]==dest_filter_assign_table[0]
-			       				|| dest_filter_assign_table[1]==dest_filter_assign_table[2]
-								|| dest_filter_assign_table[1]==lock_test5)
-				dest_filter_assign_table[1]=(dest_filter_assign_table[1]+1) % NUM_FILTS;
-
-
-
-			//Keep [2] stationary
-			rot_dir[2]=-1.0*t_f;
-
-			//Assign [3] and check for duplicate placement over 0,1,2 & lock5
-			dest_filter_assign_table[3]=(dest_filter_assign_table[2]+spread) % NUM_FILTS;
-			rot_dir[3]=t_f;
-			while (				dest_filter_assign_table[3]==dest_filter_assign_table[0]
-			       				|| dest_filter_assign_table[3]==dest_filter_assign_table[1]
-								|| dest_filter_assign_table[3]==dest_filter_assign_table[2]
-								|| dest_filter_assign_table[3]==lock_test5)
-				dest_filter_assign_table[3]=(dest_filter_assign_table[3]+1) % NUM_FILTS;
-
-
-			//Assign [4] and check for duplicate placement over 0,1,2,3 & any locks
-			dest_filter_assign_table[4]=(dest_filter_assign_table[2]+(spread*2)) % NUM_FILTS;
-			rot_dir[4]=t_f;
-			while (				dest_filter_assign_table[4]==dest_filter_assign_table[0]
-								|| dest_filter_assign_table[4]==dest_filter_assign_table[1]
-								|| dest_filter_assign_table[4]==dest_filter_assign_table[2]
-								|| dest_filter_assign_table[4]==dest_filter_assign_table[3]
-								|| dest_filter_assign_table[4]==lock_test5)
-				dest_filter_assign_table[4]=(dest_filter_assign_table[4]+1) % NUM_FILTS;
-
-
-			//Assign [5] and check for duplicate placement over 0,1,2,3,4
-			if (lock[5]!=1) {
-				dest_filter_assign_table[5]=(dest_filter_assign_table[2]+(spread*3)) % NUM_FILTS;
-				rot_dir[5]=t_f;
-
-				while (				dest_filter_assign_table[5]==dest_filter_assign_table[0]
-				       				|| dest_filter_assign_table[5]==dest_filter_assign_table[1]
-				       			    || dest_filter_assign_table[5]==dest_filter_assign_table[2]
-				                    || dest_filter_assign_table[5]==dest_filter_assign_table[3]
-				                    || dest_filter_assign_table[5]==dest_filter_assign_table[4]
-									)
-					dest_filter_assign_table[5]=(dest_filter_assign_table[5]+1) % NUM_FILTS;
-
-			}
-
-			//update_filter_assign_LEDs();
-		}
+		/*** SPREAD CV ***/
+		update_spread(0);
 
 
 /**** LOCK JACKS ****/
@@ -555,12 +611,25 @@ void main(void)
 		for (i=0;i<6;i++){
 			if (LOCKBUTTON(i)){
 				lock_up[i]=1;
-				if (lock_down[i]!=0) lock_down[i]++;
-				if (lock_down[i]>200){
-					//Handle button press
+				if (lock_down[i]!=0
+					&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
+					lock_down[i]++;
+
+				if (lock_down[i]==200){ //first time we notice lock button is solidly down...
 					lock_pressed[i]=1;
-					user_pressed_rotary=0;
+					user_turned_Q_pot=0;
+					already_handled_lock_release[i]=0;
 				}
+				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
+				//if so, then we should unlock immediately, but not unlock the q_lock
+				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot) {
+					//dont_qunlock[i]=1;
+					lock[i]=0;
+					LOCKLED_OFF(i);
+					already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
+				}
+				/*else dont_qunlock[i]=0;*/
+
 			} else {
 				lock_down[i]=1;
 				if (lock_up[i]!=0) lock_up[i]++;
@@ -570,18 +639,17 @@ void main(void)
 					lock_pressed[i]=0;
 					//scale_display_chan = figureout_which_channel_scale_to_show();
 
-					if (!user_pressed_rotary){ 				//only change lock state if user did not click
+					if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
+
 						if (lock[i]==0){
 							lock[i]=1;
 							LOCKLED_ON(i);
 						}
 						else {
 							lock[i]=0;
+							/*if (!dont_qunlock[i]) */q_locked[i]=0;
 							LOCKLED_OFF(i);
 						}
-					} else { 							//if user held lock and clicked over to display the locked scale, then exit change scale mode
-						if (change_scale_mode==2)
-							change_scale_mode=0;
 					}
 
 				}
@@ -595,41 +663,38 @@ void main(void)
 		if (ROTARY_SW){
 			rotsw_up=1;
 			if (rotsw_down!=0) rotsw_down++;
+
+			//Handle long hold press: change colorscheme
+			if (++rotsw_hold>200000){
+				rotsw_hold=100000;
+				cur_colsch=(cur_colsch+1) % NUM_COLORSCHEMES;
+				change_scale_mode=0;
+			}
+
 			if (rotsw_down>200){rotsw_down=0;
+
+
 				//Handle button press
 				if (change_scale_mode==0) {
 
-					if (num_locks_pressed()>0)
-						change_scale_mode=2;
-					else
-						change_scale_mode=1;
-
+					change_scale_mode=1;
 					just_switched_to_change_scale_mode=1;
-					//scale_display_chan = figureout_which_channel_scale_to_show();
-				}
 
-				else if (change_scale_mode==1) {
-					if (num_locks_pressed()>0){
-						change_scale_mode=2;
-						just_switched_to_change_scale_mode=1;
-					} else
-						just_switched_to_change_scale_mode=0;
 					//scale_display_chan = figureout_which_channel_scale_to_show();
-				}
 
-				else if (change_scale_mode==2){
-					change_scale_mode=0;
-					just_switched_to_change_scale_mode=1;
+				} else {
+
+					just_switched_to_change_scale_mode=0;
 					//scale_display_chan = figureout_which_channel_scale_to_show();
 				}
 
 				user_turned_rotary=0;
-				user_pressed_rotary=1;
+				//user_pressed_rotary=1;
 
 			}
 
 		} else {
-			rotsw_down=1;
+			rotsw_down=1;rotsw_hold=0;
 			if (rotsw_up!=0) rotsw_up++;
 			if (rotsw_up>200){ rotsw_up=0;
 
@@ -643,11 +708,7 @@ void main(void)
 					}
 				}
 
-				if (change_scale_mode==1 && !just_switched_to_change_scale_mode && !user_turned_rotary) {
-					change_scale_mode=0;
-					just_switched_to_change_scale_mode=0;
-				}
-				else if (change_scale_mode==2 && !just_switched_to_change_scale_mode && !user_turned_rotary){
+				if (change_scale_mode && !just_switched_to_change_scale_mode && !user_turned_rotary) {
 					change_scale_mode=0;
 					just_switched_to_change_scale_mode=0;
 				}
@@ -660,7 +721,7 @@ void main(void)
 
 		if (rotary_state==DIR_CW) {
 
-			if (rotsw_up && !rotsw_down){ //CHANGE SCALE BANK
+			if (rotsw_up && !rotsw_down){ //HOVER BANK
 
 				hover_scale_bank++;
 				if (hover_scale_bank==NUMSCALEBANKS) hover_scale_bank=0; //wrap-around
@@ -669,25 +730,19 @@ void main(void)
 			}
 
 			else if (!change_scale_mode){	//ROTATE UP
-				do_rotate_up=1;
+
+				// Increment the rotate up queue, and clears the rotate down queue
+				do_rotate_up++;
+				do_rotate_down=0;
 
 			}else{							//CHANGE SCALE
+				do_next_scale=1;
 
-				for (i=0;i<NUM_CHANNELS;i++) {
-					if (lock[i]!=1) {
-						if (scale[i]<(NUMSCALES-1)) {
-							scale[i]++; //no wrap-around
-							if (dest_scale[i]<(NUMSCALES-1))
-								dest_scale[i]++;//dest_scale[i]=scale[i];?
-						}
-						scale_bank_defaultscale[scale_bank[i]]=scale[i];
-					}
-				}
 			}
 		}
 		if (rotary_state==DIR_CCW) {
 
-			if (rotsw_up && !rotsw_down){ //CHANGE SCALE BANK
+			if (rotsw_up && !rotsw_down){ //HOVER BANK
 
 				if (hover_scale_bank==0) hover_scale_bank=NUMSCALEBANKS-1; //wrap-around
 				else hover_scale_bank--;
@@ -695,141 +750,115 @@ void main(void)
 				user_turned_rotary=1;
 
 			} else if (!change_scale_mode){ //ROTATE DOWN
-				do_rotate_down=1;
+
+				// Increment the rotate up queue, and clears the rotate down queue
+				do_rotate_down++;
+				do_rotate_up=0;
 
 			}else {							//CHANGE SCALE
-				for (i=0;i<NUM_CHANNELS;i++) {
-
-					if (lock[i]!=1) {
-						if (scale[i]>0)	{
-							scale[i]--; //no wrap-around
-							if (dest_scale[i]>0) dest_scale[i]--;//=scale[i];?
-						}
-						scale_bank_defaultscale[scale_bank[i]]=scale[i];
-					}
-				}
+				do_prev_scale=1;
 			}
 		}
 
-/**** ROTATE TRIGGERS *****/
+
+		if (do_next_scale){
+			do_next_scale--;
+			t_old_scalecv = change_scale_up(t_scalecv, t_old_scalecv);
+		}
+
+		if (do_prev_scale){
+			do_prev_scale--;
+			change_scale_down(t_scalecv, t_old_scalecv);
+		}
+
+
+/**** ROTATE TRIGGER JACKS *****/
 
 		if (do_ROTUP){
 			do_ROTUP=0;
-			do_rotate_up=1;
+			do_rotate_up++;
 		}
 
 
 		if (do_ROTDOWN){
 			do_ROTDOWN=0;
-			do_rotate_down=1;
+			do_rotate_down++;
 		}
 
-/***** HANDLE ROTATE UP *****/
+/**** ROTATE Up/Down *****/
+	//Only process a rotation in the queue if none of the channels are rotating (Note: we can still rotate if we're spreading)
+
+	if ((rot_dir[0]+rot_dir[1]+rot_dir[2]+rot_dir[3]+rot_dir[4]+rot_dir[5])==0){
 
 		if (do_rotate_up){
-
-			while (do_rotate_up--){
-				for (i=0;i<NUM_CHANNELS;i++){ //takes 4us
-					//Don't change locked filters
-					if (lock[i]!=1){
-
-						//Find a distinct value, shifting upward if necessary
-						is_distinct=0;
-						while (!is_distinct){
-							//dest_filter_assign_table[i]=(dest_filter_assign_table[i]+1) % NUM_FILTS;
-							//Loop it around to the bottom of the scale, or to bottom of the next scale if we're in RANGE BANK mode
-							if (dest_filter_assign_table[i]==(NUM_FILTS-1)){
-								dest_filter_assign_table[i]=0;
-								if (rotate_to_next_scale) {
-									dest_scale[i]=(scale[i]+1) % NUMSCALES;
-								}
-							} else
-								dest_filter_assign_table[i]++;
-
-							for (is_distinct=1,j=0;j<NUM_CHANNELS;j++){
-								if (i!=j && dest_filter_assign_table[i]==dest_filter_assign_table[j] && lock[j]==1)
-									is_distinct=0;
-							}
-						}
-					}
-				}
-			}
-			rot_dir[0]=1; //CW
-			rot_dir[1]=1; //CW
-			rot_dir[2]=1; //CW
-			rot_dir[3]=1; //CW
-			rot_dir[4]=1; //CW
-			rot_dir[5]=1; //CW
-
-			do_rotate_up=0;
+			rotate_up(do_rotate_up);
+			do_rotate_up--;
 		}
-
-/***** HANDLE ROTATE DOWN *****/
 
 		if (do_rotate_down){
+			rotate_down(do_rotate_down);
+			do_rotate_down--;
+		}
 
-			while (do_rotate_down--){
-				for (i=0;i<NUM_CHANNELS;i++){
-					//Don't change locked filters
-					if (lock[i]!=1){
+	}
 
-						//Find a distinct value, shifting downward if necessary
-						is_distinct=0;
-						while (!is_distinct){
 
-							if (dest_filter_assign_table[i]==0) {
-								dest_filter_assign_table[i] = NUM_FILTS-1;
-								if (rotate_to_next_scale){
-									if (scale[i]==0) dest_scale[i]=NUMSCALES-1;
-									else dest_scale[i]=scale[i]-1;
-								}
-							}
-							else
-								dest_filter_assign_table[i]--;
 
-							for (is_distinct=1,j=0;j<NUM_CHANNELS;j++){
-								if (i!=j && dest_filter_assign_table[i]==dest_filter_assign_table[j] && lock[j]==1)
-									is_distinct=0;
-							}
-						}
-					}
+
+
+/****** QVAL/QPOT ADC *****/
+
+		//Check jack
+		t=adc_buffer[QVAL_ADC];
+
+		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
+			qvalcv=adc_buffer[QVAL_ADC];
+		}
+
+		//Check pot
+		adc_buffer[QPOT_ADC]=check_ADC3();
+
+		if (diff(adc_buffer[QPOT_ADC], old_adc_buffer[QPOT_ADC]) > QPOT_MIN_CHANGE){
+
+			old_adc_buffer[QPOT_ADC]=adc_buffer[QPOT_ADC];
+
+			j=0;
+			for (i=0;i<6;i++){
+				if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+					q_locked[i]=1;
+					user_turned_Q_pot=1;
+
+					qval[i]=adc_buffer[QPOT_ADC];
+					j++;
 				}
 			}
-			rot_dir[0]=-1; //CCW
-			rot_dir[1]=-1; //CCW
-			rot_dir[2]=-1; //CCW
-			rot_dir[3]=-1; //CCW
-			rot_dir[4]=-1; //CCW
-			rot_dir[5]=-1; //CCW
 
-			do_rotate_down=0;
+			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
+			if (!j) qvalpot=adc_buffer[QPOT_ADC];
 		}
 
-
-/****** QVAL ADC *****/
-
-		t=adc_buffer[QVAL_ADC] - old_adc_buffer[QVAL_ADC];
-		if (t<(-15) || t>15){
-			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
-
-			//Handle new pot0 value
-			qvalcv=adc_buffer[QVAL_ADC];
-
+		for (i=0;i<NUM_CHANNELS;i++){
+			if (!q_locked[i]){
+				qval[i]=qvalcv + qvalpot;
+				if (qval[i]>4095) qval[i]=4095;
+			}
 		}
+
 
 /****** ROTATECV ADC *****/
 
-		t=adc_buffer[SCALE_ADC] - old_adc_buffer[SCALE_ADC];
+		t=adc_buffer[ROTCV_ADC] - old_adc_buffer[ROTCV_ADC];
 		if (t<(-100) || t>100){
 			/*
-			if (adc_buffer[ROTRESET_ADC] > 4000 && old_adc_buffer[ROTRESET_ADC] < 100){
-				//Rising edge square wave
+			if (adc_buffer[ROTCV_ADC] > 4000 && old_adc_buffer[ROTCV_ADC] < 100){
+				//Rising edge square wave could reset the rotation (# rotates up - # rotates down)
 
 			}
 			*/
-			old_adc_buffer[SCALE_ADC]=adc_buffer[SCALE_ADC];
+			old_adc_buffer[ROTCV_ADC]=adc_buffer[ROTCV_ADC];
 
-			rot_offset=adc_buffer[SCALE_ADC]/205; //0..19
+			rot_offset=adc_buffer[ROTCV_ADC]/205; //0..19
 
 			if (rot_offset < old_rot_offset){
 				do_rotate_down=old_rot_offset - rot_offset;
@@ -844,24 +873,21 @@ void main(void)
 /****** SCALE_ADC *****/
 
 		t=adc_buffer[SCALE_ADC] - old_adc_buffer[SCALE_ADC];
-		if (t<(-MIN_SCALE_ADC_CHANGE) || t>MIN_SCALE_ADC_CHANGE){
+		if (t<(-100) || t>100){
+
 			old_adc_buffer[SCALE_ADC]=adc_buffer[SCALE_ADC];
 
-			//Handle new value
-			t=adc_buffer[SCALE_ADC]/409;
-			for (i=0;i<NUM_CHANNELS;i++) {
-				if (lock[i]!=1) {
-					//scale_cv[i]=t;
-					//if (scale_cv[i]>=NUMSCALES) scale_cv[i]=NUMSCALES-1;
-#ifdef USINGBREAKOUT
-					scale[i]=t;
-					if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
-#endif
+			t_scalecv=adc_buffer[SCALE_ADC]/409; //0..10
 
-				}
+			if (t_scalecv < t_old_scalecv){
+				do_prev_scale = t_old_scalecv - t_scalecv;
 
+			} else if (t_scalecv > t_old_scalecv){
+				do_next_scale = t_scalecv - t_old_scalecv;
 			}
+			t_old_scalecv = t_scalecv;
 		}
+
 
 /*** FREQ ADC***/
 

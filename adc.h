@@ -16,5 +16,7 @@
 #define MIN_SCALE_ADC_CHANGE 100
 
 void ADC1_Init(uint16_t *ADC_Buffer);
+void ADC3_Init(void);
+uint32_t check_ADC3(void);
 
 #endif

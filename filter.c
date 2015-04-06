@@ -37,6 +37,7 @@ extern uint8_t lock_pos[NUM_CHANNELS];
 extern uint8_t filter_assign_table[NUM_CHANNELS];
 extern uint8_t dest_filter_assign_table[NUM_CHANNELS];
 extern float rot_dir[NUM_CHANNELS];
+extern float spread_dir[NUM_CHANNELS];
 
 extern uint8_t dest_scale[NUM_CHANNELS];
 
@@ -44,15 +45,20 @@ extern uint8_t dest_scale[NUM_CHANNELS];
 
 extern uint8_t flag_update_LED_ring;
 
-extern __IO uint16_t adc_buffer[NUM_ADCS];
-extern uint32_t qvalcv;
-
+extern __IO uint16_t adc_buffer[NUM_ADCS+1];
+extern uint32_t qval[NUM_CHANNELS];
 
 //extern float spectral_readout[NUM_FILTS];
 
 //extern uint8_t strike;
 
 extern float freq_nudge[NUM_CHANNELS];
+
+float assign_fade[NUM_CHANNELS]={0,0,0,0,0,0};
+
+extern float envspeed_attack, envspeed_decay;
+
+extern uint8_t SLIDER_LEDS;
 
 
 
@@ -91,18 +97,13 @@ int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_
 float *c_hiq[6];
 float *c_loq[6];
 float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][2];
+float f_adc[NUM_CHANNELS];
 
-float assign_fade[NUM_CHANNELS]={0,0,0,0,0,0};
-
-extern float envspeed_attack, envspeed_decay;
-
-//uint16_t ra_i=0;
-//float f_array[1000];
-//uint16_t i16_array[1000];
 
 void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 {
 	DEBUGA_ON(DEBUG0);
+
 
 	static float envelope[NUM_CHANNELS];
 	float env_in;
@@ -118,7 +119,6 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 
 	float *ff;
 
-	static float f_adc[NUM_CHANNELS];
 	float adc_lag[NUM_CHANNELS];
 
 	float filter_out[NUM_FILTS][MONO_BUFSZ];
@@ -131,6 +131,8 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
+
+	static float f_ctr=0;
 
 	float var_q, inv_var_q, var_f, inv_var_f;
 	register float tmp, fir, iir;
@@ -150,7 +152,10 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
 
-	// Setup pot variables: 0.2us x 6 = 1.6us
+	f_ctr+=0.01;
+	if (f_ctr>1.0) f_ctr=0.0;
+
+	// Calculate the CV/Slider level: 0.2us x 6 = 1.6us
 	for (i=0;i<NUM_CHANNELS;i++){
 
 		//1st order LPF:
@@ -163,6 +168,13 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			f_adc[i] *= adc_lag_decay;
 			f_adc[i] += (1.0f-adc_lag_decay)*env_in;
 		}
+
+		if (SLIDER_LEDS==SHOW_LEVEL){
+			if (f_adc[i]>f_ctr)
+				LED_ON((clip_led[i]));
+			else
+				LED_OFF((clip_led[i]));
+		}
 	}
 
 	//Calculate assign_fade: 1.5us
@@ -172,11 +184,20 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	f_t=1.0/((adc_buffer[MORPH_ADC]+1.0)*1.5);
 
 
+
 	for (j=0;j<NUM_CHANNELS;j++){
 
-		if ((dest_filter_assign_table[j] != filter_assign_table[j]) || assign_fade[j]!=0){ //|| dest_scale[j]!=scale[j]
+		if ((dest_filter_assign_table[j] != filter_assign_table[j]) || assign_fade[j]!=0 || dest_scale[j]!=scale[j])
+		{
 
-			assign_fade[j]+=rot_dir[j]*f_t;
+			//spread takes precedence over rot
+			if (spread_dir[j]!=0.0){
+				assign_fade[j]+=spread_dir[j]*f_t;
+				rot_dir[j]=0;
+
+			} else {
+				assign_fade[j]+=rot_dir[j]*f_t;
+			}
 
 			if (assign_fade[j]>=1){
 
@@ -184,23 +205,29 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 
 				if (filter_assign_table[j]==0 && dest_scale[j]!=scale[j]){
 					scale[j]=dest_scale[j];
+					flag_update_LED_ring=1;
+
 				}
 
-				flag_update_LED_ring=1;
 
-				if (dest_filter_assign_table[j] == filter_assign_table[j]) // && dest_scale[j]==scale[j]
+				if (dest_filter_assign_table[j] == filter_assign_table[j] && dest_scale[j]==scale[j])
 				{
 					assign_fade[j]=0;
 					is_fading_down_across_scales[j]=0;
+					rot_dir[j]=0;
+					spread_dir[j]=0;
 				} else{
 					assign_fade[j]-=1;
+					flag_update_LED_ring=1;
 				}
 			}
 
 			if (assign_fade[j]<=0){
 
-				if (dest_filter_assign_table[j] == filter_assign_table[j]){ //We hit out final destination, so stop.
+				if (dest_filter_assign_table[j] == filter_assign_table[j]  && dest_scale[j]==scale[j]){ //We hit out final destination, so stop.
 					assign_fade[j]=0;
+					rot_dir[j]=0;
+					spread_dir[j]=0;
 					is_fading_down_across_scales[j]=0;
 
 				} else {												//We are moving negative, or we hit a step along the way
@@ -221,18 +248,11 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 	}
 
-	//Calculate our Q value (global)
-					//var_q=adc_buffer[QVAL_ADC]/4096.0;
-					//if (var_q<0.01) var_q=0.0;
-					//if (var_q>0.99) var_q=1.0;
-
-
-	var_q=log_4096[qvalcv];
-	inv_var_q = 1.0-var_q;
 
 	//Figure out the coef tables we're drawing from (Lo-Q and Hi-Q) for each channel
 	//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
 	for (i=0;i<NUM_CHANNELS;i++){
+
 
 		if (scale_bank[i]<0) scale_bank[i]=0;
 		if (scale_bank[i]>=NUMSCALEBANKS) scale_bank[i]=NUMSCALEBANKS-1;
@@ -276,6 +296,7 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			}
 		}
 	}
+
 
 
 	//Calculate all the needed filters: about 14us for 6, 29us for 12
@@ -325,7 +346,6 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			inv_var_f=1.0-var_f;
 
 			//Freq fade
-
 			nudge_filter_num = filter_num + 1;
 			if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
@@ -347,16 +367,37 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			c2=*(c_hiq[channel_num] + scale_num*63 + filter_num*3 + 5)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
 */
 			//Q fade
+
+			if (qval[channel_num]>4065) {
+				var_q=1.0;
+				inv_var_q=0.0;
+			} else {
+				var_q=log_4096[qval[channel_num]];
+				inv_var_q = 1.0-var_q;
+			}
+
 			c0=c0*var_q + a0*inv_var_q;
 			c1=c1*var_q + a1*inv_var_q;
 			c2=c2*var_q + a2*inv_var_q;
 
-			for (i=0;i<MONO_BUFSZ;i++){
+			for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 
 				tmp= buf[channel_num][scale_num][filter_num][0];
-				buf[channel_num][scale_num][filter_num][0]=buf[channel_num][scale_num][filter_num][1];
+				buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
 
 				//Odd inputs go to odd filters numbers (1-20)
+				if (!(left_buffer[i] & 0x80000000)){ //positive number
+					if (left_buffer[i]>0x7F000000)
+						LED_CLIPL_ON;
+					else LED_CLIPL_OFF;
+				}else LED_CLIPL_OFF;
+
+				if (!(right_buffer[i] & 0x80000000)){ //positive number
+					if (right_buffer[i]>0x7F000000)
+						LED_CLIPR_ON;
+					else LED_CLIPR_OFF;
+				}else LED_CLIPR_OFF;
+
 				if (filter_num & 1) iir=left_buffer[i] * c0;
 				else iir=right_buffer[i] * c0;
 
@@ -371,6 +412,7 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 			}
 		}
 	}
+
 //	DEBUGA_OFF(DEBUG2);
 
 
@@ -402,13 +444,14 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 				if (j & 1) filtered_buffer[i]=(int32_t)(s);
 				else filtered_bufferR[i]=(int32_t)(s);
 
-				if (((f_blended*f_adc[j]))>0x60000000)
-					LED_ON((clip_led[j]));
-				else
-					LED_OFF((clip_led[j]));
-
+				if (SLIDER_LEDS==SHOW_CLIPPING){
+					if (((f_blended*f_adc[j]))>0x60000000)
+						LED_ON((clip_led[j]));
+					else
+						LED_OFF((clip_led[j]));
+				}
 			} else {
-				LED_OFF((clip_led[j]));
+				if (SLIDER_LEDS==SHOW_CLIPPING) LED_OFF((clip_led[j]));
 			}
 
 
@@ -437,7 +480,6 @@ void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht)
 	DEBUGA_OFF(DEBUG0);
 
 }
-
 /*
 inline float filter_PkBq(register float val, uint8_t filter_num, float var1, uint8_t qval){
 	DEBUG_ON(DEBUG2);

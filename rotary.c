@@ -83,3 +83,27 @@ uint8_t read_rotary(void){
 	  return state & 0x30;
 
 }
+
+
+/*
+short read_rotary_fullstep(void){
+        static short greycode=0;
+
+        if ((greycode==0b11) && !ROTROTARY_CW){ //greycode was 0b11, now it's 0b01 so rotary went down
+                greycode=0b01;
+                return(1);
+        }
+
+        else if ((greycode==0b11) && !ROTROTARY_CCW){ //greycode was 0b11, now it's 0b10 so rotary went up
+                greycode=0b10;
+                return(-1);
+        }
+
+        else if (ROTROTARY_CW && ROTROTARY_CCW) //greycode is 11
+                greycode=0b11;
+
+        else greycode=0b00;
+
+        return(0);
+}
+*/

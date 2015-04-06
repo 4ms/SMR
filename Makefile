@@ -5,17 +5,17 @@
 # Object files
 OBJECTS = 	startup_stm32f4xx.o system_stm32f4xx.o main.o codec.o i2s.o \
 			adc.o inouts.o audio_util.o filter.o envout_pwm.o led_driver.o \
-			mem.o dac.o rotary.o \
+			mem.o dac.o rotary.o rotation.o \
 			stm32f4xx_gpio.o stm32f4xx_i2c.o stm32f4xx_rcc.o \
 			stm32f4xx_spi.o stm32f4xx_dma.o stm32f4xx_adc.o misc.o \
-			 stm32f4xx_tim.o stm32f4xx_dac.o
+			stm32f4xx_tim.o stm32f4xx_dac.o
 		
 			
  
 # Linker script
 LDSCRIPT = stm32f427.ld
 
-CFLAGS = -g2 -O3 -mlittle-endian -mthumb
+CFLAGS = -g2 -O2 -mlittle-endian -mthumb
 CFLAGS +=  -I. -DARM_MATH_CM4 -D'__FPU_PRESENT=1'
 CFLAGS += -mcpu=cortex-m4 -mfloat-abi=hard
 

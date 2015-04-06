@@ -15,8 +15,9 @@
 #define POST 1
 #define PRE 0
 
-#define FADE 1
-#define BEND 0
+#define SHOW_CLIPPING 0
+#define SHOW_LEVEL 1
+
 
 #define codec_BUFF_LEN 128
 

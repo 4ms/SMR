@@ -153,8 +153,6 @@ void DMA1_Stream3_IRQHandler(void)
 	int16_t *src, *dst, sz;
 	uint8_t i;
 
-	/* Raise activity flag */
-//	LED_ON(LED_WHITE);
 	if (DMA_GetFlagStatus(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_FE) != RESET)
 		i=0;
 
@@ -195,8 +193,6 @@ void DMA1_Stream3_IRQHandler(void)
 		DMA_ClearFlag(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_HT);
 	}
 
-	/* Lower activity flag */
-//	LED_OFF(LED_WHITE);
 }
 
 

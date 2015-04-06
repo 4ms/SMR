@@ -23,7 +23,7 @@ float envspeed_attack, envspeed_decay;
 extern float adc_lag_attack;
 extern float adc_lag_decay;
 uint32_t env_prepost_mode;
-extern __IO uint16_t adc_buffer[NUM_ADCS];
+extern __IO uint16_t adc_buffer[NUM_ADCS+1];
 
 
 const int LED_LOCK[6]={LED_LOCK1, LED_LOCK2, LED_LOCK3, LED_LOCK4, LED_LOCK5, LED_LOCK6};
@@ -47,6 +47,7 @@ void init_inouts(void){
 	// Set up Outputs:
 
 	RCC_AHB1PeriphClockCmd(LED_RCC, ENABLE);
+	RCC_AHB1PeriphClockCmd(LED_CLIPR_RCC, ENABLE);
 
 	GPIO_StructInit(&gpio);
 	gpio.GPIO_Pin = LED_CLIP1 | LED_CLIP2 | LED_CLIP3 | LED_CLIP4 | LED_LOCK1 | LED_LOCK6 | LED_CLIP5 | LED_CLIP6 | LED_RING_OE;
@@ -59,6 +60,11 @@ void init_inouts(void){
 	gpio.GPIO_Pin = LED_LOCK1 | LED_LOCK2 | LED_LOCK3 | LED_LOCK4 | LED_LOCK5 | LED_LOCK6;
 	GPIO_Init(LED_GPIO, &gpio);
 
+	gpio.GPIO_Pin = LED_INCLIPL;
+	GPIO_Init(LED_GPIO, &gpio);
+
+	gpio.GPIO_Pin = LED_INCLIPR;
+	GPIO_Init(LED_INCLIPR_GPIO, &gpio);
 
 	RCC_AHB1PeriphClockCmd(DEBUGA_RCC, ENABLE);
 	gpio.GPIO_Pin = DEBUG0 | DEBUG1 | DEBUG2;
@@ -128,32 +134,32 @@ void init_inouts(void){
 	init_inputread_timer();
 }
 
-TIM_TimeBaseInitTypeDef  tim;
 void init_inputread_timer(void){
-	  uint16_t PrescalerValue = 0;
+	TIM_TimeBaseInitTypeDef  tim;
 
-	  NVIC_InitTypeDef nvic;
+	uint16_t PrescalerValue = 0;
 
-	  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
+	NVIC_InitTypeDef nvic;
 
-	  nvic.NVIC_IRQChannel = TIM4_IRQn;
-	  nvic.NVIC_IRQChannelPreemptionPriority = 0;
-	  nvic.NVIC_IRQChannelSubPriority = 1;
-	  nvic.NVIC_IRQChannelCmd = ENABLE;
-	  NVIC_Init(&nvic);
+	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 
-	  TIM_TimeBaseStructInit(&tim);
-	  tim.TIM_Period = 65535;
-	  tim.TIM_Prescaler = 0;
-	  tim.TIM_ClockDivision = 0;
-	  tim.TIM_CounterMode = TIM_CounterMode_Up;
+	nvic.NVIC_IRQChannel = TIM4_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 0;
+	nvic.NVIC_IRQChannelSubPriority = 1;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
 
-	  TIM_TimeBaseInit(TIM4, &tim);
+	TIM_TimeBaseStructInit(&tim);
+	tim.TIM_Period = 16000; // 5.5kHz or every 0.17778ms
+	tim.TIM_Prescaler = 0;
+	tim.TIM_ClockDivision = 0;
+	tim.TIM_CounterMode = TIM_CounterMode_Up;
 
-	  TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
+	TIM_TimeBaseInit(TIM4, &tim);
 
-	  TIM_Cmd(TIM4, ENABLE);
+	TIM_ITConfig(TIM4, TIM_IT_Update, ENABLE);
 
+	TIM_Cmd(TIM4, ENABLE);
 }
 
 uint16_t State[6] = {0,0,0,0,0,0}; // Current debounce status
@@ -168,19 +174,19 @@ void TIM4_IRQHandler(void)
 
 	if (ROTUP) t=0xe000; else t=0xe001; //1110 0000 0000 000(0/1)
 	State[0]=(State[0]<<1) | t;
-	if (State[0]==0xf000) do_ROTUP=1; //1111 0000 0000 0000
+	if ((State[0] & 0x003F) == 0b111100) do_ROTUP=1; //Pin be measured low 4 times (0.710ms) and high 2 times (0.350ms) maxes out at 700Hz square wave
 
 	if (ROTDOWN) t=0xe000; else t=0xe001;
 	State[1]=(State[1]<<1) | t;
-	if (State[1]==0xf000) do_ROTDOWN=1;
+	if ((State[1] & 0x003F) == 0b111100) do_ROTDOWN=1;
 
 	if (LOCK135) t=0xe000; else t=0xe001;
 	State[2]=(State[2]<<1) | t;
-	if (State[2]==0xf000) do_LOCK135=1;
+	if (State[2]==0xfff8) do_LOCK135=1;
 
 	if (LOCK246) t=0xe000; else t=0xe001;
 	State[3]=(State[3]<<1) | t;
-	if (State[3]==0xf000) do_LOCK246=1;
+	if (State[3]==0xfff8) do_LOCK246=1;
 
 }
 
@@ -258,26 +264,4 @@ void poll_switches(void){
 }
 
 
-/*
-short read_rotary_fullstep(void){
-        static short greycode=0;
-
-        if ((greycode==0b11) && !ROTROTARY_CW){ //greycode was 0b11, now it's 0b01 so rotary went down
-                greycode=0b01;
-                return(1);
-        }
-
-        else if ((greycode==0b11) && !ROTROTARY_CCW){ //greycode was 0b11, now it's 0b10 so rotary went up
-                greycode=0b10;
-                return(-1);
-        }
-
-        else if (ROTROTARY_CW && ROTROTARY_CCW) //greycode is 11
-                greycode=0b11;
-
-        else greycode=0b00;
-
-        return(0);
-}
-*/
 
