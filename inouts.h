@@ -7,8 +7,7 @@
 
 #include "stm32f4xx.h"
 
-#define BUTTON_RCC RCC_AHB1Periph_GPIOD
-#define BUTTON2_RCC RCC_AHB1Periph_GPIOB
+#define BUTTON_RCC (RCC_AHB1Periph_GPIOD | RCC_AHB1Periph_GPIOB | RCC_AHB1Periph_GPIOG)
 
 #define ENV_MODE_pin GPIO_Pin_8
 #define ENV_MODE_GPIO GPIOD
@@ -19,15 +18,11 @@
 #define LOCK3_pin GPIO_Pin_1
 #define LOCK4_pin GPIO_Pin_2
 #define LOCK5_pin GPIO_Pin_3
-#define LOCK6_pin GPIO_Pin_13
 #define LOCKBUT_GPIO GPIOD
 
-#define LOCK1 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
-#define LOCK2 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
-#define LOCK3 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
-#define LOCK4 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
-#define LOCK5 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
-#define LOCK6 (!(LOCKBUT_GPIO->IDR & LOCK0_pin))
+#define LOCKBUT6_GPIO GPIOG
+#define LOCK6_pin GPIO_Pin_15
+
 
 #define LOCK135_pin GPIO_Pin_6
 #define LOCK135_GPIO GPIOB
@@ -59,12 +54,12 @@
 #define CVLAG_GPIO GPIOE
 #define CVLAG ((CVLAG_GPIO->IDR & CVLAG_pin))
 
-#define ENVSPEEDSLOW_pin GPIO_Pin_9
-#define ENVSPEEDSLOW_GPIO GPIOE
+#define ENVSPEEDSLOW_pin GPIO_Pin_3
+#define ENVSPEEDSLOW_GPIO GPIOB
 #define ENVSPEEDSLOW (!(ENVSPEEDSLOW_GPIO->IDR & ENVSPEEDSLOW_pin))
 
-#define ENVSPEEDFAST_pin GPIO_Pin_3
-#define ENVSPEEDFAST_GPIO GPIOB
+#define ENVSPEEDFAST_pin GPIO_Pin_9
+#define ENVSPEEDFAST_GPIO GPIOE
 #define ENVSPEEDFAST (!(ENVSPEEDFAST_GPIO->IDR & ENVSPEEDFAST_pin))
 
 
@@ -78,12 +73,17 @@
 #define LED_OFF(x) LED_GPIO->BSRRH = x
 #define LED_ON(x) LED_GPIO->BSRRL = x
 
-#define LED_CLIP1 GPIO_Pin_15
-#define LED_CLIP2 GPIO_Pin_14
-#define LED_CLIP3 GPIO_Pin_13
-#define LED_CLIP4 GPIO_Pin_12
-#define LED_CLIP5 GPIO_Pin_11
-#define LED_CLIP6 GPIO_Pin_10
+#define LED_SLIDER_RCC RCC_AHB1Periph_GPIOG
+#define LED_SLIDER_GPIO GPIOG
+#define LED_SLIDER_OFF(x) LED_SLIDER_GPIO->BSRRH = x
+#define LED_SLIDER_ON(x) LED_SLIDER_GPIO->BSRRL = x
+
+#define LED_SLIDER1 GPIO_Pin_9
+#define LED_SLIDER2 GPIO_Pin_10
+#define LED_SLIDER3 GPIO_Pin_11
+#define LED_SLIDER4 GPIO_Pin_12
+#define LED_SLIDER5 GPIO_Pin_13
+#define LED_SLIDER6 GPIO_Pin_14
 
 #define LED_INCLIPL GPIO_Pin_7
 
@@ -159,12 +159,14 @@
   	GPIOA: GPIO_Pin_6 | GPIO_Pin_7
 	GPIOB: GPIO_Pin_0 | GPIO_Pin_1
 	GPIOC: GPIO_Pin_1 | GPIO_Pin_2 | GPIO_Pin_3 | GPIO_Pin_4
+	GPIOF: GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9
  */
 #define NUM_ADCS 15
+
 #define MORPH_ADC 0
 #define QVAL_ADC 1
 #define LEVEL_ADC_BASE 2
-//2,3,4,5,6,7 are sliders
+//2,3,4,5,6,7 are Level CV jacks
 #define FREQNUDGE1_ADC 8
 #define FREQNUDGE6_ADC 9
 #define SCALE_ADC 10
@@ -172,7 +174,12 @@
 #define ROTCV_ADC 12
 #define FM_135_ADC 13
 #define FM_246_ADC 14
-#define QPOT_ADC 15
+
+#define NUM_ADC3S 7
+
+#define QPOT_ADC 0
+#define SLIDER_ADC_BASE 1
+//1-6 are sliders
 
 void init_inouts(void);
 void init_inputread_timer(void);

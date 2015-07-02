@@ -13,6 +13,13 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	ADC_InitTypeDef ADC_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+
+	ADC_Cmd(ADC1, DISABLE);
+	ADC_DMACmd(ADC1, DISABLE);
+	DMA_Cmd(DMA2_Stream0, DISABLE);
+	ADC_DeInit();
+
+
 	/* enable clocks for DMA2, ADC1, GPIOs ----------------------------------*/
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2 | RCC_AHB1Periph_GPIOA | RCC_AHB1Periph_GPIOC | RCC_AHB1Periph_GPIOB, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE);
@@ -41,7 +48,7 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	ADC_CommonInitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div8;
 	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;
-	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
+	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_10Cycles;
 	ADC_CommonInit(&ADC_CommonInitStructure);
 
 	/* ADC1 Init ------------------------------------------------------------*/
@@ -87,12 +94,7 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_8, FM_135_ADC+1, ADC_SampleTime_144Cycles);//[13]: PB0: FM_135
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, FM_246_ADC+1, ADC_SampleTime_144Cycles);//[14]: PB1: FM_246
 
-
-	/* Enable Complete DMA interrupt  */
-	//DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, ENABLE);
-    
-	/* ADC DMA IRQ Channel configuration */
-	//NVIC_EnableIRQ(DMA2_Stream0_IRQn);
+	DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, DISABLE);
 	
 	/* Enable DMA request after last transfer (Single-ADC mode) */
 	ADC_DMARequestAfterLastTransferCmd(ADC1, ENABLE);
@@ -108,55 +110,100 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 
 }
 
-void ADC3_Init(void){
+void ADC3_Init(uint16_t *ADC_Buffer){
 	ADC_CommonInitTypeDef ADC_CommonInitStructure;
 	ADC_InitTypeDef ADC_InitStructure;
 	GPIO_InitTypeDef GPIO_InitStructure;
+	DMA_InitTypeDef DMA_InitStructure;
 
+
+	//ADC_Cmd(ADC3, DISABLE);
+	//ADC_DMACmd(ADC3, DISABLE);
+	//DMA_Cmd(DMA2_Stream1, DISABLE);
+	//ADC_DeInit();
+
+
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA2, ENABLE);
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC3, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOF, ENABLE);
+
+
+	/* DMA2 stream1 channel2 configuration ----------------------------------*/
+	DMA_InitStructure.DMA_Channel = DMA_Channel_2;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)&ADC3->DR;
+	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)ADC_Buffer;
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
+	DMA_InitStructure.DMA_BufferSize = NUM_ADC3S;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
+	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_HalfFull;
+	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+	DMA_Init(DMA2_Stream1, &DMA_InitStructure);
+	DMA_Cmd(DMA2_Stream1, ENABLE);
+
+
 
 	/* ADC Common Init ------------------------------------------------------*/
 	ADC_CommonInitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div8;
 	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;
-	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;
+	ADC_CommonInitStructure.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_10Cycles;
 	ADC_CommonInit(&ADC_CommonInitStructure);
 
 	/* ADC3 Init ------------------------------------------------------------*/
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
-	ADC_InitStructure.ADC_ScanConvMode = DISABLE;
+	ADC_InitStructure.ADC_ScanConvMode = ENABLE;
 	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
 	ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
 	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T1_CC1;
 	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-	ADC_InitStructure.ADC_NbrOfConversion = 1;
+	ADC_InitStructure.ADC_NbrOfConversion = NUM_ADC3S;
 	ADC_Init(ADC3, &ADC_InitStructure);
 
 
 	/* Configure analog input pins ------------------------------------------*/
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL ;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6; //Channel 4
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
 
 	/* ADC1 regular channel configuration -----------------------------------*/
-	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_480Cycles); //[0]: PF6: Q Pot
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_480Cycles); //[0]: PF6: Q POT
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 2, ADC_SampleTime_480Cycles); //[1]: PF3: Slider 1
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 3, ADC_SampleTime_480Cycles); //[2]: PF4: Slider 2
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_15, 4, ADC_SampleTime_480Cycles); //[3]: PF5: Slider 3
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_5, 5, ADC_SampleTime_480Cycles); //[4]: PF7: Slider 4
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_6, 6, ADC_SampleTime_480Cycles); //[5]: PF8: Slider 5
+	ADC_RegularChannelConfig(ADC3, ADC_Channel_7, 7, ADC_SampleTime_480Cycles); //[6]: PF9: Slider 6
 
-	/* Enable ADC1 */
+	DMA_ITConfig(DMA2_Stream1, DMA_IT_TC, DISABLE);
+
+	/* Enable DMA request after last transfer (Single-ADC mode) */
+	ADC_DMARequestAfterLastTransferCmd(ADC3, ENABLE);
+
+	/* Enable ADC3 DMA */
+	ADC_DMACmd(ADC3, ENABLE);
+
+	/* Enable ADC3 */
 	ADC_Cmd(ADC3, ENABLE);
 
 	ADC_SoftwareStartConv(ADC3);
 }
 
-uint32_t check_ADC3(void){
+/*uint32_t check_ADC3(void){
 	uint32_t t=ADC3->DR;
 
 	ADC_SoftwareStartConv(ADC3);
 
 	return(t);
 
-}
+}*/
 
 void DMA2_Stream0_IRQHandler(void)
 { 

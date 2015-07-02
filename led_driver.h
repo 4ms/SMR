@@ -32,7 +32,7 @@
 #define LEDDRIVER_FLAG_TIMEOUT             ((uint32_t)0x1000)
 #define LEDDRIVER_LONG_TIMEOUT             ((uint32_t)(300 * LEDDRIVER_FLAG_TIMEOUT))
 
-void LEDDriver_set_LED_ring(uint16_t ring[20][3]);
+void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]);
 
 void LEDDriver_setallLEDs(uint8_t driverAddr, uint32_t rgb1, uint32_t rgb2, uint32_t rgb3, uint32_t rgb4, uint32_t rgb5);
 void LEDDriver_setLED(uint8_t driverAddr, uint8_t led_number, uint16_t ontime, uint16_t offtime);

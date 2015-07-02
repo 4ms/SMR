@@ -14,8 +14,6 @@
  * Set ENVSPEED lpf values (it clips easily)
  *
  *
- *
- *
  * Hardware:
  * Add jumper to select sliders showing clip/cv level
  * (or have a system mode?)
@@ -25,11 +23,6 @@
  * What is that background sound?
  *
  * Add analog white noise circuit
- *
- * ENV OUT LEDs are RGB (add a PCA x 2)??
- *
- * ENV OUT LEDs (white 3mm) are too bright, increase resistor value
- *
  *
  */
 #include "stm32f4xx.h"
@@ -71,22 +64,26 @@ extern uint8_t scale_bank_defaultscale[NUMSCALEBANKS];
 
 uint32_t g_error=0;
 
-__IO uint16_t adc_buffer[NUM_ADCS+1];
+__IO uint16_t adc_buffer[NUM_ADCS];
+__IO uint16_t potadc_buffer[NUM_ADC3S];
 
 uint8_t rotate=0;
+uint8_t note[NUM_CHANNELS];
 uint8_t scale[NUM_CHANNELS];
 uint8_t scale_cv[NUM_CHANNELS];
 uint8_t scale_bank[NUM_CHANNELS];
-uint8_t dest_scale[NUM_CHANNELS];
 
-uint8_t dest_scale_bank=0;
+int8_t motion_rotate[NUM_CHANNELS];
+int8_t motion_spread[NUM_CHANNELS];
+int8_t motion_notejump[NUM_CHANNELS];
+int8_t motion_scale[NUM_CHANNELS];
+uint8_t motion_dst_note[NUM_CHANNELS];
+uint8_t motion_dst_scale[NUM_CHANNELS];
+uint8_t motion_dst_bank[NUM_CHANNELS];
+
 uint8_t hover_scale_bank=0;
 
-
-const uint32_t clip_led[6]={LED_CLIP1, LED_CLIP2, LED_CLIP3, LED_CLIP4, LED_CLIP5, LED_CLIP6};
-
-uint8_t filter_assign_table[NUM_CHANNELS];
-uint8_t dest_filter_assign_table[NUM_CHANNELS];
+const uint32_t slider_led[6]={LED_SLIDER1, LED_SLIDER2, LED_SLIDER3, LED_SLIDER4, LED_SLIDER5, LED_SLIDER6};
 
 uint8_t lock[NUM_CHANNELS];
 uint8_t lock_pressed[NUM_CHANNELS];
@@ -140,15 +137,14 @@ inline uint32_t diff(uint32_t a, uint32_t b){
 	return (a>b)?(a-b):(b-a);
 }
 
-
-extern float assign_fade[NUM_CHANNELS];
 extern float f_adc[NUM_CHANNELS];
+extern float motion_morphpos[NUM_CHANNELS];
 
 
 
 /* ledring.c */
 //#define ASSIGN_COLORS
-#define NUM_COLORSCHEMES 6
+#define NUM_COLORSCHEMES 7
 
 uint8_t cur_colsch=0;
 
@@ -158,23 +154,27 @@ float COLOR_CH[NUM_COLORSCHEMES][NUM_CHANNELS][3]={
 		{{767, 0, 0}, {767, 28, 386}, {0, 0, 764}, {0, 320, 387}, {767, 768, 1}, {767, 774, 765}},
 		{{0, 0, 761}, {106, 0, 508}, {762, 769, 764}, {0, 767, 1}, {706, 697, 1}, {765, 179, 1}},
 		{{0,0,900}, {200,200,816}, {800,900,800},	{900,400,800},	{900,500,202}, {800,200,0}},
-		{{0,0,766}, {766,150,0}, {0,50,766}, {766,100,0}, {0,150,766}, {766,50,0}}
+		{{0,0,766}, {766,150,0}, {0,50,766}, {766,100,0}, {0,150,766}, {766,50,0}},
+		{{0,0,1000}, {0,100,766}, {0,200,666}, {0,300,500}, {0,350,500}, {0,350,400}}
 };
 
 const float SCALE_BANK_COLOR[NUMSCALEBANKS][3]={
 
-		{1000,1000,1000},
-		{1000,0,0},
-		{1000,1000,0},
-		{0,1000,0},
-		{0,800,800},
-		{0,0,1000}
+		{1000,1000,1000}, 	//white: western
+		{1000,0,0},		//red: indian
+		{0,0,1000},		//blue: alpha sp2
+		{0,800,800},		//cyan: alpha sp1
+		{0,1000,0},		//green: gamma sp1
+		{1000,1000,0},		//yellow: 17ET
+		{800,0,800},		//pink: twelve tone
+		{700,0,100}		//orange: diatonic1
 
 };
 
 
 void display_filter_rotation(void){
 	uint16_t ring[20][3];
+	uint16_t env_out_leds[6][3];
 	uint8_t i, next_i,chan=0;
 	float inv_fade[6],fade[6];
 	float t_f;
@@ -187,11 +187,19 @@ void display_filter_rotation(void){
 DEBUG3_ON;
 
 #ifdef TEST_LED_RING
-	for (i=0;i<20;i++){
-		ring[i][0]=1023;
-		ring[i][1]=1023;
-		ring[i][2]=1023;
+	for (chan=0;chan<20;chan++){
+		ring[chan][0]=512;
+		ring[chan][1]=512;
+		ring[chan][2]=512;
 	}
+
+	for (chan=0;chan<6;chan++){
+		env_out_leds[chan][0]=512;
+		env_out_leds[chan][1]=512;
+		env_out_leds[chan][2]=512;
+	}
+
+
 #else
 
 	for (i=0;i<20;i++){
@@ -211,25 +219,22 @@ DEBUG3_ON;
 		t_f = f_adc[chan] < 0.05 ? 0.05 : f_adc[chan];
 
 		if (lock[chan]==0){
-
-			inv_fade[chan] = (1.0-assign_fade[chan])*(t_f);
-			fade[chan] = assign_fade[chan]*(t_f);
+			inv_fade[chan] = (1.0-motion_morphpos[chan])*(t_f);
+			fade[chan] = motion_morphpos[chan]*(t_f);
 
 		} else {
 			fade[chan]=0.0;
 			if (flash) inv_fade[chan]=t_f;
 			else inv_fade[chan]=0.0;
-
 		}
 	}
 
 	for (i=0;i<20;i++){
-		next_i=(i+1) % NUM_FILTS;
+	//	next_i=(i+1) % NUM_FILTS;
 		for (chan=0;chan<6;chan++){
-			if (filter_assign_table[chan]==i){
+			next_i=motion_dst_note[chan];
+			if (note[chan]==i){
 
-				//inv_fade = (1.0-assign_fade[chan])*(f_adc[chan]);
-				//fade = assign_fade[chan]*(f_adc[chan]);
 				if (inv_fade[chan]>0.0){
 					if (ring[i][0]+ring[i][1]+ring[i][2]==0){
 						ring[i][0] = (uint16_t)((COLOR_CH[cur_colsch][chan][0])*inv_fade[chan]);
@@ -267,9 +272,15 @@ DEBUG3_ON;
 	}
 	DEBUG3_OFF;
 
+
+	for (chan=0;chan<6;chan++){
+		env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+		env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+		env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+	}
 #endif
 
-	LEDDriver_set_LED_ring(ring);
+	LEDDriver_set_LED_ring(ring, env_out_leds);
 }
 
 
@@ -278,6 +289,7 @@ void display_scale(void){
 	uint16_t ring[20][3];
 	uint8_t i,j, chan;
 	static uint8_t flash=0;
+	uint16_t env_out_leds[6][3];
 
 
 	uint8_t elacs[NUMSCALES][NUM_CHANNELS];
@@ -290,13 +302,18 @@ void display_scale(void){
 	// Blank out the reverse-hash scale table
 	for (i=0;i<NUMSCALES;i++) {
 		elacs_num[i]=0;
-		elacs[i][0]=99;elacs[i][1]=99;elacs[i][2]=99;elacs[i][3]=99;elacs[i][4]=99;elacs[i][5]=99;
+		elacs[i][0]=99;
+		elacs[i][1]=99;
+		elacs[i][2]=99;
+		elacs[i][3]=99;
+		elacs[i][4]=99;
+		elacs[i][5]=99;
 	}
 
-	// each entry in elacs equals the number of channels
+	// each entry in elacs[][] equals the number of channels
 	for (i=0;i<NUM_CHANNELS;i++){
-		elacs[scale[i]][elacs_num[scale[i]]] = i;
-		elacs_num[scale[i]]++;
+		elacs[motion_dst_scale[i]][elacs_num[motion_dst_scale[i]]] = i;
+		elacs_num[motion_dst_scale[i]]++;
 	}
 
 	for (i=0;i<NUMSCALES;i++) {
@@ -356,13 +373,20 @@ void display_scale(void){
 	ring[19-NUMSCALES/2][2]=0;
 
 
-	LEDDriver_set_LED_ring(ring);
+	for (chan=0;chan<6;chan++){
+		env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+		env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+		env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+	}
+	LEDDriver_set_LED_ring(ring, env_out_leds);
 }
 
 void display_spectral_readout(void){
 
 	uint16_t ring[20][3];
-	uint8_t i;
+	uint16_t env_out_leds[6][3];
+
+	uint8_t i,chan;
 	uint16_t t;
 	uint32_t t32;
 
@@ -379,7 +403,12 @@ void display_spectral_readout(void){
 
 	}
 
-	LEDDriver_set_LED_ring(ring);
+	for (chan=0;chan<6;chan++){
+		env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])*(float)ENVOUT_PWM[chan]);
+		env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])*(float)ENVOUT_PWM[chan]);
+		env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])*(float)ENVOUT_PWM[chan]);
+	}
+	LEDDriver_set_LED_ring(ring, env_out_leds);
 
 }
 
@@ -448,7 +477,8 @@ void main(void)
 	uint32_t is_distinct;
 	uint32_t play_down,play_up;
 
-	uint16_t old_adc_buffer[NUM_ADCS+1];
+	uint16_t old_adc_buffer[NUM_ADCS];
+	uint16_t old_potadc_buffer[NUM_ADC3S];
 	uint8_t rotate_pot, rotate_shift;
 
 	uint32_t din1_down=0,din2_down=0,din3_down=0,din4_down=0;
@@ -488,19 +518,18 @@ void main(void)
 
 	Audio_Init();
 	ADC1_Init((uint16_t *)adc_buffer);
-	ADC3_Init();
+	ADC3_Init((uint16_t *)potadc_buffer);
 
 	Codec_Init(SAMPLERATE);
 	delay();
 	I2S_Block_Init();
-	I2S_Block_PlayRec();
 
 	TIM6_Config();
 	DAC_Ch1_NoiseConfig();
 
 
 	LED_ON(LED_RING_OE); //actually turns the LED ring off
-	LEDDriver_Init(4);
+	LEDDriver_Init(5);
 	for (i=0;i<20;i++)	LEDDriver_setRGBLED(i,0);
 	LED_OFF(LED_RING_OE); //actually turns the LED ring on
 
@@ -510,32 +539,35 @@ void main(void)
 	old_adc_buffer[1]=0xFFFF;
 	old_adc_buffer[SPREAD_ADC]=0xFFFF;
 
-	filter_assign_table[0]=1;
-	filter_assign_table[1]=2;
-	filter_assign_table[2]=3;
-	filter_assign_table[3]=4;
-	filter_assign_table[4]=5;
-	filter_assign_table[5]=6;
-	dest_filter_assign_table[0]=5;
-	dest_filter_assign_table[1]=7;
-	dest_filter_assign_table[2]=9;
-	dest_filter_assign_table[3]=11;
-	dest_filter_assign_table[4]=13;
-	dest_filter_assign_table[5]=15;
+	for (i=0;i<NUM_CHANNELS;i++){
+		scale[i]=6;
+		motion_dst_scale[i]=scale[i];
+		scale_bank[i]=0;
+		rot_dir[i]=0;
+	}
+
+	note[0]=5;
+	note[1]=6;
+	note[2]=7;
+	note[3]=8;
+	note[4]=9;
+	note[5]=10;
+	motion_dst_note[0]=5;
+	motion_dst_note[1]=6;
+	motion_dst_note[2]=7;
+	motion_dst_note[3]=8;
+	motion_dst_note[4]=9;
+	motion_dst_note[5]=10;
 
 	flag_update_LED_ring=1;
 
 	spread=(adc_buffer[SPREAD_ADC] >> 8) + 1;
 
+	old_potadc_buffer[QPOT_ADC]=0xFFFF;
+
+	I2S_Block_PlayRec();
+
 	update_spread(1);
-
-	old_adc_buffer[QPOT_ADC]=0xFFFF;
-
-	for (i=0;i<NUM_CHANNELS;i++){
-		scale[i]=6;
-		dest_scale[i]=scale[i];
-		scale_bank[i]=0;
-	}
 
 	while(1){
 
@@ -561,11 +593,13 @@ void main(void)
 //		COLOR_CH[cur_colsch][(color_assign+1) % 6][2] = adc_buffer[7]>>2;
 #endif
 
+
+
 		/*** SPREAD CV ***/
 		update_spread(0);
 
 
-/**** LOCK JACKS ****/
+		/**** LOCK JACKS ****/
 
 		if (do_LOCK135){
 			do_LOCK135=0;
@@ -711,6 +745,9 @@ void main(void)
 				if (change_scale_mode && !just_switched_to_change_scale_mode && !user_turned_rotary) {
 					change_scale_mode=0;
 					just_switched_to_change_scale_mode=0;
+				} else if (change_scale_mode && just_switched_to_change_scale_mode && user_turned_rotary) {
+					change_scale_mode=0;
+					just_switched_to_change_scale_mode=0;
 				}
 			}
 		}
@@ -731,9 +768,7 @@ void main(void)
 
 			else if (!change_scale_mode){	//ROTATE UP
 
-				// Increment the rotate up queue, and clears the rotate down queue
-				do_rotate_up++;
-				do_rotate_down=0;
+				rotate_up();
 
 			}else{							//CHANGE SCALE
 				do_next_scale=1;
@@ -751,9 +786,7 @@ void main(void)
 
 			} else if (!change_scale_mode){ //ROTATE DOWN
 
-				// Increment the rotate up queue, and clears the rotate down queue
-				do_rotate_down++;
-				do_rotate_up=0;
+				rotate_down();
 
 			}else {							//CHANGE SCALE
 				do_prev_scale=1;
@@ -776,34 +809,14 @@ void main(void)
 
 		if (do_ROTUP){
 			do_ROTUP=0;
-			do_rotate_up++;
+			rotate_up();
 		}
 
 
 		if (do_ROTDOWN){
 			do_ROTDOWN=0;
-			do_rotate_down++;
+			rotate_down();
 		}
-
-/**** ROTATE Up/Down *****/
-	//Only process a rotation in the queue if none of the channels are rotating (Note: we can still rotate if we're spreading)
-
-	if ((rot_dir[0]+rot_dir[1]+rot_dir[2]+rot_dir[3]+rot_dir[4]+rot_dir[5])==0){
-
-		if (do_rotate_up){
-			rotate_up(do_rotate_up);
-			do_rotate_up--;
-		}
-
-		if (do_rotate_down){
-			rotate_down(do_rotate_down);
-			do_rotate_down--;
-		}
-
-	}
-
-
-
 
 
 /****** QVAL/QPOT ADC *****/
@@ -817,11 +830,10 @@ void main(void)
 		}
 
 		//Check pot
-		adc_buffer[QPOT_ADC]=check_ADC3();
 
-		if (diff(adc_buffer[QPOT_ADC], old_adc_buffer[QPOT_ADC]) > QPOT_MIN_CHANGE){
+		if (diff(potadc_buffer[QPOT_ADC], old_potadc_buffer[QPOT_ADC]) > QPOT_MIN_CHANGE){
 
-			old_adc_buffer[QPOT_ADC]=adc_buffer[QPOT_ADC];
+			old_potadc_buffer[QPOT_ADC]=potadc_buffer[QPOT_ADC];
 
 			j=0;
 			for (i=0;i<6;i++){
@@ -829,13 +841,13 @@ void main(void)
 					q_locked[i]=1;
 					user_turned_Q_pot=1;
 
-					qval[i]=adc_buffer[QPOT_ADC];
+					qval[i]=potadc_buffer[QPOT_ADC];
 					j++;
 				}
 			}
 
 			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
-			if (!j) qvalpot=adc_buffer[QPOT_ADC];
+			if (!j) qvalpot=potadc_buffer[QPOT_ADC];
 		}
 
 		for (i=0;i<NUM_CHANNELS;i++){
@@ -848,7 +860,7 @@ void main(void)
 
 /****** ROTATECV ADC *****/
 
-		t=adc_buffer[ROTCV_ADC] - old_adc_buffer[ROTCV_ADC];
+		t=(int16_t)adc_buffer[ROTCV_ADC] - (int16_t)old_adc_buffer[ROTCV_ADC];
 		if (t<(-100) || t>100){
 			/*
 			if (adc_buffer[ROTCV_ADC] > 4000 && old_adc_buffer[ROTCV_ADC] < 100){
@@ -862,17 +874,18 @@ void main(void)
 
 			if (rot_offset < old_rot_offset){
 				do_rotate_down=old_rot_offset - rot_offset;
+				do_rotate_up=0;
 			} else if (rot_offset > old_rot_offset){
 				do_rotate_up=rot_offset - old_rot_offset;
+				do_rotate_down=0;
 			}
 			old_rot_offset = rot_offset;
 		}
 
 
-
 /****** SCALE_ADC *****/
 
-		t=adc_buffer[SCALE_ADC] - old_adc_buffer[SCALE_ADC];
+		t=(int16_t)adc_buffer[SCALE_ADC] - (int16_t)old_adc_buffer[SCALE_ADC];
 		if (t<(-100) || t>100){
 
 			old_adc_buffer[SCALE_ADC]=adc_buffer[SCALE_ADC];
@@ -890,20 +903,31 @@ void main(void)
 
 
 /*** FREQ ADC***/
+		t_f=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FM_135_ADC])/4096.0;
+		if (t_f>1.0) t_f=1.0;
+
+		freq_nudge[0]=t_f;
 
 		if (mod_mode_135==135){
-			freq_nudge[2]=(float)adc_buffer[FM_135_ADC]/4096.0;
-			freq_nudge[4]=(float)adc_buffer[FM_135_ADC]/4096.0;
+			freq_nudge[2]=t_f;
+			freq_nudge[4]=t_f;
+		} else {
+			freq_nudge[2]=0.0;
+			freq_nudge[4]=0.0;
 		}
-		freq_nudge[0]=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FM_135_ADC])/4096.0;
-		if (freq_nudge[0]>1.0) freq_nudge[0]=1.0;
+
+		t_f=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FM_246_ADC])/4096.0;
+		if (t_f>1.0) t_f=1.0;
 
 		if (mod_mode_246==246){
-			freq_nudge[1]=(float)adc_buffer[FM_246_ADC]/4096.0;
-			freq_nudge[3]=(float)adc_buffer[FM_246_ADC]/4096.0;
+			freq_nudge[1]=t_f;
+			freq_nudge[3]=t_f;
+		} else {
+			freq_nudge[1]=0.0;
+			freq_nudge[3]=0.0;
 		}
-		freq_nudge[5]=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FM_246_ADC])/4096.0;
-		if (freq_nudge[5]>1.0) freq_nudge[5]=1.0;
+
+		freq_nudge[5]=t_f;
 
 
 	} //end main loop

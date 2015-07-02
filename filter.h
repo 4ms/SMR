@@ -11,7 +11,7 @@
 
 
 
-void I2S_RX_CallBack(int16_t *src, int16_t *dst, uint16_t ht);
+void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht);
 
 
 

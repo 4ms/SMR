@@ -32,11 +32,11 @@
 #define READ_BUFF_OVERRUN (1<<7)
 
 #define NUMSCALES 11
-#define NUMSCALEBANKS 6
+#define NUMSCALEBANKS 8
 
-//#define SAMPLERATE 24000
+#define SAMPLERATE 24000
 //#define SAMPLERATE 48000
-#define SAMPLERATE 96000
+//#define SAMPLERATE 96000
 
 
 #endif /* GLOBALS_H_ */

@@ -36,7 +36,8 @@ inline void LOCKLED_OFF(int led){
 
 const int _lockbutton[6]={LOCK1_pin, LOCK2_pin, LOCK3_pin, LOCK4_pin, LOCK5_pin, LOCK6_pin};
 inline uint8_t LOCKBUTTON(uint8_t x){
-	return (!(LOCKBUT_GPIO->IDR & _lockbutton[x]));
+	if (x!=5) return (!(LOCKBUT_GPIO->IDR & _lockbutton[x]));
+	else return (!(LOCKBUT6_GPIO->IDR & _lockbutton[5]));
 }
 
 void init_inouts(void){
@@ -46,11 +47,13 @@ void init_inouts(void){
 
 	// Set up Outputs:
 
+
+
 	RCC_AHB1PeriphClockCmd(LED_RCC, ENABLE);
 	RCC_AHB1PeriphClockCmd(LED_CLIPR_RCC, ENABLE);
 
 	GPIO_StructInit(&gpio);
-	gpio.GPIO_Pin = LED_CLIP1 | LED_CLIP2 | LED_CLIP3 | LED_CLIP4 | LED_LOCK1 | LED_LOCK6 | LED_CLIP5 | LED_CLIP6 | LED_RING_OE;
+	gpio.GPIO_Pin = LED_LOCK1 | LED_LOCK6 | LED_RING_OE;
 	gpio.GPIO_Mode = GPIO_Mode_OUT;
 	gpio.GPIO_Speed = GPIO_Speed_50MHz;
 	gpio.GPIO_OType = GPIO_OType_PP;
@@ -65,6 +68,13 @@ void init_inouts(void){
 
 	gpio.GPIO_Pin = LED_INCLIPR;
 	GPIO_Init(LED_INCLIPR_GPIO, &gpio);
+
+	RCC_AHB1PeriphClockCmd(LED_SLIDER_RCC, ENABLE);
+	gpio.GPIO_Pin = LED_SLIDER1 | LED_SLIDER2 | LED_SLIDER3 | LED_SLIDER4  | LED_SLIDER5 | LED_SLIDER6 ;
+	GPIO_Init(LED_SLIDER_GPIO, &gpio);
+
+
+
 
 	RCC_AHB1PeriphClockCmd(DEBUGA_RCC, ENABLE);
 	gpio.GPIO_Pin = DEBUG0 | DEBUG1 | DEBUG2;
@@ -85,7 +95,7 @@ void init_inouts(void){
 	//Set up Inputs:
 
 	RCC_AHB1PeriphClockCmd(BUTTON_RCC, ENABLE);
-	RCC_AHB1PeriphClockCmd(BUTTON2_RCC, ENABLE);
+
 	RCC_AHB1PeriphClockCmd(ROT_RCC, ENABLE);
 
 
@@ -102,8 +112,11 @@ void init_inouts(void){
 	gpio.GPIO_Pin = ENVSPEEDFAST_pin;
 	GPIO_Init(ENVSPEEDFAST_GPIO, &gpio);
 
-	gpio.GPIO_Pin = LOCK1_pin | LOCK2_pin | LOCK3_pin | LOCK4_pin | LOCK5_pin | LOCK6_pin;
+	gpio.GPIO_Pin = LOCK1_pin | LOCK2_pin | LOCK3_pin | LOCK4_pin | LOCK5_pin;
 	GPIO_Init(LOCKBUT_GPIO, &gpio);
+
+	gpio.GPIO_Pin = LOCK6_pin;
+	GPIO_Init(LOCKBUT6_GPIO, &gpio);
 
 	gpio.GPIO_Pin = RANGE_pin;
 	GPIO_Init(RANGE_GPIO, &gpio);
@@ -224,16 +237,16 @@ void poll_switches(void){
 		}
 
 		//float ga = exp(-1.0f/(SampleRate*AttackTimeInSecond));
-		if (ENVSPEEDSLOW) {
+		if (ENVSPEEDFAST) {
 			envspeed_attack=0.999170;
 			envspeed_decay=0.999170;
 		} else {
-			if (ENVSPEEDFAST){
+			if (ENVSPEEDSLOW){
 				envspeed_attack=0.999896;
 				envspeed_decay=0.999896;
-			} else {
-				envspeed_attack=0.999896;
-				envspeed_decay=0.999170;
+			} else { //mixed
+				envspeed_attack=0.999170;
+				envspeed_decay=0.999896;
 			}
 		}
 

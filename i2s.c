@@ -171,7 +171,7 @@ void DMA1_Stream3_IRQHandler(void)
 		dst = (int16_t *)(txbuf) + sz;
 
 		/* Handle 2nd half */
-		I2S_RX_CallBack(src, dst, 0);
+		process_audio_block(src, dst, 0);
 
 
 		/* Clear the Interrupt flag */
@@ -187,7 +187,7 @@ void DMA1_Stream3_IRQHandler(void)
 		dst = (int16_t *)(txbuf);
 
 		/* Handle 1st half */
-		I2S_RX_CallBack(src, dst, 1);
+		process_audio_block(src, dst, 1);
 
 		/* Clear the Interrupt flag */
 		DMA_ClearFlag(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_HT);

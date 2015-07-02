@@ -12,11 +12,11 @@
 #include "stm32f4xx_rcc.h"
 #include "misc.h"
 
-#define MIN_ADC_CHANGE 4
+#define MIN_ADC_CHANGE 20
 #define MIN_SCALE_ADC_CHANGE 100
 
 void ADC1_Init(uint16_t *ADC_Buffer);
-void ADC3_Init(void);
-uint32_t check_ADC3(void);
+void ADC3_Init(uint16_t *ADC_Buffer);
+//uint32_t check_ADC3(void);
 
 #endif

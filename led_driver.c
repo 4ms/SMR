@@ -193,7 +193,8 @@ inline void LEDDriver_endxfer(void){
 
 }
 
-void LEDDriver_set_LED_ring(uint16_t ring[20][3]){
+
+void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]){
 	uint8_t i,driverAddr;
 
 	for (driverAddr=0;driverAddr<4;driverAddr++){
@@ -215,10 +216,58 @@ void LEDDriver_set_LED_ring(uint16_t ring[20][3]){
 			LEDDriver_senddata(0);
 			LEDDriver_senddata(ring[i][2] & 0xFF); //off-time = brightness
 			LEDDriver_senddata((ring[i][2] >> 8) & 0xFF);
+
+		}
+
+		//Channel 6 ENVOUT LED: Blue
+		if (driverAddr==2){
+			LEDDriver_senddata(0);
+			LEDDriver_senddata(0);
+			LEDDriver_senddata(env_out[5][2] & 0xFF);
+			LEDDriver_senddata((env_out[5][2] >> 8) & 0xFF);
+		}
+
+		//Channel 6 ENVOUT LED: Green
+		if (driverAddr==3){
+			LEDDriver_senddata(0);
+			LEDDriver_senddata(0);
+			LEDDriver_senddata(env_out[5][1] & 0xFF);
+			LEDDriver_senddata((env_out[5][1] >> 8) & 0xFF);
 		}
 
 		LEDDriver_endxfer();
 	}
+
+	driverAddr=4;
+	LEDDriver_startxfer(driverAddr);
+	LEDDriver_senddata(PCA9685_LED0);
+
+	for (i=0;i<5;i++){
+		LEDDriver_senddata(0); //on-time = 0
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(env_out[i][0] & 0xFF); //off-time = brightness
+		LEDDriver_senddata((env_out[i][0] >> 8) & 0xFF);
+
+		LEDDriver_senddata(0); //on-time = 0
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(env_out[i][1] & 0xFF); //off-time = brightness
+		LEDDriver_senddata((env_out[i][1] >> 8) & 0xFF);
+
+		LEDDriver_senddata(0); //on-time = 0
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(env_out[i][2] & 0xFF); //off-time = brightness
+		LEDDriver_senddata((env_out[i][2] >> 8) & 0xFF);
+
+	}
+
+	//Channel 6 ENVOUT LED: Red
+	LEDDriver_senddata(0); //on-time = 0
+	LEDDriver_senddata(0);
+	LEDDriver_senddata(env_out[5][0] & 0xFF); //off-time = brightness
+	LEDDriver_senddata((env_out[5][0] >> 8) & 0xFF);
+
+	LEDDriver_endxfer();
+
 }
 
 void LEDDriver_setallLEDs(uint8_t driverAddr, uint32_t rgb1, uint32_t rgb2, uint32_t rgb3, uint32_t rgb4, uint32_t rgb5){
