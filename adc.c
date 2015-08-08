@@ -91,8 +91,8 @@ void ADC1_Init(uint16_t *ADC_Buffer)
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_14, SCALE_ADC+1, ADC_SampleTime_144Cycles); //[10]: PC4: Scale CV
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_15, SPREAD_ADC+1, ADC_SampleTime_144Cycles); //[11]: PC5: spread CV
 	ADC_RegularChannelConfig(ADC1, ADC_Channel_5, ROTCV_ADC+1, ADC_SampleTime_144Cycles);//[12]: PA5: Rot CV/Reset
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_8, FM_135_ADC+1, ADC_SampleTime_144Cycles);//[13]: PB0: FM_135
-	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, FM_246_ADC+1, ADC_SampleTime_144Cycles);//[14]: PB1: FM_246
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_8, FREQCV1_ADC+1, ADC_SampleTime_144Cycles);//[13]: PB0: FM_135
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_9, FREQCV6_ADC+1, ADC_SampleTime_144Cycles);//[14]: PB1: FM_246
 
 	DMA_ITConfig(DMA2_Stream0, DMA_IT_TC, DISABLE);
 	
@@ -117,9 +117,9 @@ void ADC3_Init(uint16_t *ADC_Buffer){
 	DMA_InitTypeDef DMA_InitStructure;
 
 
-	//ADC_Cmd(ADC3, DISABLE);
-	//ADC_DMACmd(ADC3, DISABLE);
-	//DMA_Cmd(DMA2_Stream1, DISABLE);
+	ADC_Cmd(ADC3, DISABLE);
+	ADC_DMACmd(ADC3, DISABLE);
+	DMA_Cmd(DMA2_Stream1, DISABLE);
 	//ADC_DeInit();
 
 
@@ -173,7 +173,7 @@ void ADC3_Init(uint16_t *ADC_Buffer){
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3 | GPIO_Pin_4 | GPIO_Pin_5 | GPIO_Pin_6 | GPIO_Pin_7 | GPIO_Pin_8 | GPIO_Pin_9;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
 
-	/* ADC1 regular channel configuration -----------------------------------*/
+	/* ADC3 regular channel configuration -----------------------------------*/
 	ADC_RegularChannelConfig(ADC3, ADC_Channel_4, 1, ADC_SampleTime_480Cycles); //[0]: PF6: Q POT
 	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 2, ADC_SampleTime_480Cycles); //[1]: PF3: Slider 1
 	ADC_RegularChannelConfig(ADC3, ADC_Channel_14, 3, ADC_SampleTime_480Cycles); //[2]: PF4: Slider 2
@@ -194,29 +194,4 @@ void ADC3_Init(uint16_t *ADC_Buffer){
 	ADC_Cmd(ADC3, ENABLE);
 
 	ADC_SoftwareStartConv(ADC3);
-}
-
-/*uint32_t check_ADC3(void){
-	uint32_t t=ADC3->DR;
-
-	ADC_SoftwareStartConv(ADC3);
-
-	return(t);
-
-}*/
-
-void DMA2_Stream0_IRQHandler(void)
-{ 
-	//This takes about 800ns - 950ns, and there's as little as 1000ns between occurances
-
-	/* Transfer complete interrupt */
-	if (DMA_GetFlagStatus(DMA2_Stream0, DMA_FLAG_TCIF0) != RESET)
-	{
-		/* Clear the Interrupt flag */
-		DMA_ClearFlag(DMA2_Stream0, DMA_FLAG_TCIF0);
-		
-		/* Start ADC1 Software Conversion */ 
-		//ADC_SoftwareStartConv(ADC1);
-	}
-
 }

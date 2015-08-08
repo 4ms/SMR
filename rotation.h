@@ -12,8 +12,10 @@ void update_spread(uint8_t force_update);
 inline void rotate_down(void);
 inline void rotate_up(void);
 
-uint32_t change_scale_up(uint32_t t_scalecv, uint32_t t_old_scalecv);
-uint32_t change_scale_down(uint32_t t_scale_cv, uint32_t t_old_scalecv);
+uint32_t change_scale_up(void);
+uint32_t change_scale_down(void);
+void jump_scale_with_cv(int8_t shift_amt);
 
-
+inline uint8_t is_morphing(void);
+inline uint8_t is_spreading(void);
 #endif /* ROTATION_H_ */

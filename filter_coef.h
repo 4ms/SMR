@@ -18,11 +18,13 @@
 #include "filter_coef_indian.h"
 #include "filter_coef_twelvetone.h"
 #include "filter_coef_diatonic1.h"
-//#include "filter_coef_diatonic2.h"
-
-
-
-// One bank adds 5544 Bytes to Flash RAM.
-// const float [231][3] x 2 (800Q and 2Q) = 231 * 3 * 2 * 4bytes/entry = 5544 bytes
+#include "filter_coef_diatonic2.h"
+#include "filter_coef_western_twointerval.h"
+#include "filter_coef_mesopotamian.h"
+#include "filter_coef_shrutis.h"
+#include "filter_coef_b296.h"
+#include "filter_coef_gamelan.h"
+#include "filter_coef_bohlen_pierce.h"
+#include "filter_coef_video.h"
 
 #endif /* FILTER_COEF_H_ */

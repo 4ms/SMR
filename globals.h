@@ -8,35 +8,35 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
+#define FW_VERSION 0x01
 
+//Number of components
 #define NUM_FILTS 20
 #define NUM_CHANNELS 6
+#define NUMSCALES 11
+#define NUMSCALEBANKS 16
+#define NUM_COLORSCHEMES 16
 
-#define POST 1
-#define PRE 0
-
+//Parameter values
 #define SHOW_CLIPPING 0
-#define SHOW_LEVEL 1
+#define DONT_SHOW_CLIPPING 1
+#define SLIDER_CLIP_LEVEL 0x50000000
+#define INPUT_LED_CLIP_LEVEL 0x58000000
 
 
+enum Filter_Types {
+	BPRE,
+	MAXQ
+};
+
+#define PRE 0
+#define POST 1
+
+//Backend
 #define codec_BUFF_LEN 128
 
-
-#define OUT_OF_MEM (1<<0)
-#define OUT_OF_SAMPLES (1<<1)
-#define SPIERROR_1 (1<<2)
-#define SPIERROR_2 (1<<3)
-#define DMA_OVR_ERROR (1<<4)
-#define sFLASH_BAD_ID (1<<5)
-#define WRITE_BUFF_OVERRUN (1<<6)
-#define READ_BUFF_OVERRUN (1<<7)
-
-#define NUMSCALES 11
-#define NUMSCALEBANKS 8
-
-#define SAMPLERATE 24000
-//#define SAMPLERATE 48000
-//#define SAMPLERATE 96000
+//#define SAMPLERATE 24000 /*Use only for debugging*/
+#define SAMPLERATE 96000
 
 
 #endif /* GLOBALS_H_ */

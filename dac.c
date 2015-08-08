@@ -30,24 +30,27 @@ void DAC_Ch1_NoiseConfig(void)
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 
 
-	gpio.GPIO_Pin = GPIO_Pin_4 | GPIO_Pin_5;
+	gpio.GPIO_Pin = GPIO_Pin_4;
 	gpio.GPIO_Mode = GPIO_Mode_AN;
 	gpio.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOA, &gpio);
 
-
- /* DAC channel1 Configuration */
 	dac.DAC_Trigger = DAC_Trigger_T6_TRGO;
 	dac.DAC_WaveGeneration = DAC_WaveGeneration_Noise;
-	dac.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bits10_0;
+	dac.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bits11_0;
 	dac.DAC_OutputBuffer = DAC_OutputBuffer_Enable;
 	DAC_Init(DAC_Channel_1, &dac);
 
-	/* Enable DAC Channel1 */
 	DAC_Cmd(DAC_Channel_1, ENABLE);
 
-	/* Set DAC Channel1 DHR12L register */
-	DAC_SetChannel1Data(DAC_Align_12b_L, 0x7FF0);
+//	DAC_SetChannel1Data(DAC_Align_12b_L, 0x7FF0);
+	DAC_SetChannel1Data(DAC_Align_12b_R, 0);
+
+}
+
+void update_TIM6(uint32_t period){
+	TIM6->ARR = period;
+
 }
 
 

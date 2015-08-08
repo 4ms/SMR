@@ -32,53 +32,73 @@ FLASH_Status flash_erase_sector(uint32_t address){
 	FLASH_Lock();
 }
 
-//Must be erased, does not automatically check!
-FLASH_Status flash_program_word(uint32_t word, uint32_t address){
+FLASH_Status flash_open_erase_sector(uint32_t address){
+	uint8_t i;
+
+	for (i = 0; i < 12; ++i) {
+		if (address == kSectorBaseAddress[i]) {
+		  FLASH_EraseSector(i * 8, VoltageRange_3);
+		}
+	}
+}
+
+
+FLASH_Status flash_begin_open_program(void){
 	FLASH_Unlock();
 	FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
 				  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
+}
+
+
+FLASH_Status flash_open_program_byte(uint8_t byte, uint32_t address){
+	FLASH_ProgramByte(address, byte);
+}
+
+FLASH_Status flash_open_program_word(uint32_t word, uint32_t address){
 	FLASH_ProgramWord(address, word);
+}
+
+FLASH_Status flash_end_open_program(void){
 	FLASH_Lock();
+}
+
+
+
+//size is in # of bytes
+FLASH_Status flash_open_program_array(uint8_t* arr, uint32_t address, uint32_t size) {
+
+//	FLASH_Unlock();
+//	FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
+//				  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
+
+//	FLASH_ProgramWord(address, size);
+//	address += 4;
+
+	while(size--) {
+		FLASH_ProgramByte(address, *arr++);
+		address++;
+	}
+
+//	FLASH_Lock();
+}
+
+
+//size in # of bytes
+FLASH_Status flash_read_array(uint8_t* arr, uint32_t address, uint32_t size) {
+
+	while(size--) {
+		*arr++ = (uint8_t)(*(__IO uint32_t*)address);
+		address++;
+	}
 
 }
+
 
 uint32_t flash_read_word(uint32_t address){
     return( *(__IO uint32_t*)address);
 }
 
-
-//size in # of bytes
-//programs size of array, followed by the array itself
-FLASH_Status flash_program_array(uint32_t* arr, uint32_t address, uint32_t size) {
-	int32_t i;
-
-	FLASH_Unlock();
-	FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR |
-				  FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR|FLASH_FLAG_PGSERR);
-
-	FLASH_ProgramWord(address, size);
-	address += 4;
-
-	for (i = 0; i < size; i += 4) {
-		FLASH_ProgramWord(address, *arr++);
-		address += 4;
-	}
-
-	FLASH_Lock();
+uint8_t flash_read_byte(uint32_t address){
+    return((uint8_t) (*(__IO uint32_t*)address));
 }
 
-
-//size in # of bytes
-//reads the size of array and the array itself
-FLASH_Status flash_read_array(uint32_t* arr, uint32_t address, uint32_t* size) {
-	int32_t i;
-
-	*size=*(__IO uint32_t*)address;
-	address += 4;
-
-	for (i = 0; i < *size; i += 4) {
-		*arr++ = *(__IO uint32_t*)address;
-		address += 4;
-	}
-
-}

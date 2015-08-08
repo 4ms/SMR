@@ -108,26 +108,15 @@
 #define LED_CLIPR_OFF LED_INCLIPR_GPIO->BSRRH = LED_INCLIPR
 
 
-#define DEBUG0 GPIO_Pin_5
-#define DEBUG1 GPIO_Pin_6
-#define DEBUG2 GPIO_Pin_7
+#define DEBUG0 GPIO_Pin_2
+#define DEBUG1 GPIO_Pin_3
+#define DEBUG2 GPIO_Pin_5
+#define DEBUG3 GPIO_Pin_6
 
-#define DEBUGA_GPIO GPIOD
-#define DEBUGA_RCC RCC_AHB1Periph_GPIOD
+#define DEBUGA_GPIO GPIOG
+#define DEBUGA_RCC RCC_AHB1Periph_GPIOG
 #define DEBUGA_OFF(x) DEBUGA_GPIO->BSRRH = x
 #define DEBUGA_ON(x) DEBUGA_GPIO->BSRRL = x
-
-#define DEBUG3 GPIO_Pin_12
-#define DEBUGB_GPIO GPIOC
-#define DEBUGB_RCC RCC_AHB1Periph_GPIOC
-#define DEBUG3_OFF DEBUGB_GPIO->BSRRH = DEBUG3
-#define DEBUG3_ON DEBUGB_GPIO->BSRRL = DEBUG3
-
-#define DEBUG4 GPIO_Pin_6
-#define DEBUGC_GPIO GPIOF
-#define DEBUGC_RCC RCC_AHB1Periph_GPIOF
-#define DEBUG4_OFF DEBUGC_GPIO->BSRRH = DEBUG4
-#define DEBUG4_ON DEBUGC_GPIO->BSRRL = DEBUG4
 
 #define ENVOUT_PWM_pins_12 (GPIO_Pin_8 | GPIO_Pin_9)
 #define ENVOUT_PWM_GPIO_12 GPIOC
@@ -172,8 +161,8 @@
 #define SCALE_ADC 10
 #define SPREAD_ADC 11
 #define ROTCV_ADC 12
-#define FM_135_ADC 13
-#define FM_246_ADC 14
+#define FREQCV1_ADC 13
+#define FREQCV6_ADC 14
 
 #define NUM_ADC3S 7
 
@@ -185,7 +174,10 @@ void init_inouts(void);
 void init_inputread_timer(void);
 inline void LOCKLED_ON(int led);
 inline void LOCKLED_OFF(int led);
+inline void LOCKLED_ALLON(void);
+inline void LOCKLED_ALLOFF(void);
+
+
 inline uint8_t LOCKBUTTON(uint8_t x);
-void poll_switches(void);
 
 #endif /* INOUTS_H_ */

@@ -7,12 +7,19 @@
  */
 #include "stm32f4xx.h"
 #include "stm32f4xx_tim.h"
-
+#include "params.h"
 #include "globals.h"
 #include "inouts.h"
 #include "envout_pwm.h"
 
 uint32_t ENVOUT_PWM[NUM_CHANNELS];
+float ENVOUT_preload[NUM_CHANNELS];
+
+extern enum Env_Out_Modes env_track_mode;
+extern uint32_t env_prepost_mode;
+extern float envspeed_attack, envspeed_decay;
+
+extern float channel_level[NUM_CHANNELS];
 
 void init_envout_pwm(void){
 	TIM_TimeBaseInitTypeDef tim;
@@ -25,7 +32,7 @@ void init_envout_pwm(void){
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
 
 	gpio.GPIO_Mode = GPIO_Mode_AF;
-	gpio.GPIO_Speed = GPIO_Speed_50MHz;
+	gpio.GPIO_Speed = GPIO_Speed_2MHz;
 	gpio.GPIO_OType = GPIO_OType_PP;
 	gpio.GPIO_PuPd = GPIO_PuPd_UP ;
 
@@ -54,7 +61,7 @@ void init_envout_pwm(void){
 
 
 	TIM_TimeBaseStructInit(&tim);
-	tim.TIM_Period = 4096;
+	tim.TIM_Period = 4096; //168M / 2 / 4096 = 20.5kHz
 	tim.TIM_Prescaler = 0;
 	tim.TIM_ClockDivision = 0;
 	tim.TIM_CounterMode = TIM_CounterMode_Up;
@@ -92,8 +99,62 @@ void init_envout_pwm(void){
 }
 
 
+//The filter routine sets ENVOUT_preload representing each channel's absolute value output (full-wave rectified)
+//update_ENVOUT_PWM() smooths this out with a LPF for attack and decay times
+//and converts it to a 12-bit value for feeding into the PWM outputs
 
 void update_ENVOUT_PWM(void){
+	uint8_t j;
+	static uint32_t env_trigout[NUM_CHANNELS];
+	static uint32_t env_low_ctr[NUM_CHANNELS];
+	static float envelope[NUM_CHANNELS];
+
+	if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST){
+
+		for (j=0;j<NUM_CHANNELS;j++){
+			//Apply LPF
+			if(envelope[j] < ENVOUT_preload[j]) {
+				envelope[j] *= envspeed_attack;
+				envelope[j] += (1.0-envspeed_attack)*ENVOUT_preload[j];
+			} else {
+				envelope[j] *= envspeed_decay;
+				envelope[j] += (1.0-envspeed_decay)*ENVOUT_preload[j];
+			}
+
+			//Pre-CV (input) or Post faders (quieter)
+			//To-Do: Attenuate by a global system parameter
+			if (env_prepost_mode==PRE)
+				ENVOUT_PWM[j]=((uint32_t)envelope[j])>>18;
+			else
+				ENVOUT_PWM[j]=(uint32_t)(envelope[j]*channel_level[j])>>16;
+		}
+
+	} else { //trigger mode
+		for (j=0;j<NUM_CHANNELS;j++){
+
+			//Pre-CV (input) or Post-CV (output)
+			if (env_prepost_mode!=PRE) ENVOUT_preload[j]=ENVOUT_preload[j]*channel_level[j];
+
+			if (env_trigout[j]){ //keep the trigger high for about 100ms, ignoring the input signal
+				env_trigout[j]--;
+
+			} else {
+				if (((uint32_t)ENVOUT_preload[j])>0x02000000) { //about 12.5% of max, or 1V envelope output
+					env_low_ctr[j]=0;
+					env_trigout[j]=2000; //about 100ms
+					ENVOUT_PWM[j]=4090;
+
+				} else {
+					if (++env_low_ctr[j]>=2000) //only set the output low if the input signal has stayed low for a bit
+						ENVOUT_PWM[j]=0;
+				}
+
+			}
+		}
+
+	}
+
+
 	TIM3->ENVOUT_PWM_CC_1=ENVOUT_PWM[0];
 	TIM3->ENVOUT_PWM_CC_2=ENVOUT_PWM[1];
 

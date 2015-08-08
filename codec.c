@@ -40,6 +40,93 @@
 #define W8731_ADDR_1 0x1B
 #define W8731_NUM_REGS 10
 
+#define INBOTH 8
+#define INMUTE 7
+#define INVOL 0
+
+#define VOL_p12dB	0b11111 /*+12dB*/
+#define VOL_0dB		0b10111 /*0dB*/
+#define VOL_n1dB	0b10110 /*-1.5dB*/
+#define VOL_n3dB	0b10101 /*-3dB*/
+#define VOL_n6dB	0b10011 /*-6dB*/
+#define VOL_n12dB	15 		/*-12dB*/
+#define VOL_n15dB	13 		/*-15dB*/
+/*1.5dB steps down to..*/
+#define VOL_n34dB	0b00000 /*-34.5dB*/
+
+//Register 4: Analogue Audio Path Control
+#define MICBOOST 		(1 << 0)	/* Boost Mic level */
+#define MUTEMIC			(1 << 1)	/* Mute Mic to ADC */
+#define INSEL_mic		(1 << 2)	/* Mic Select*/
+#define INSEL_line		(0 << 2)	/* LineIn Select*/
+#define BYPASS			(1 << 3)	/* Bypass Enable */
+#define DACSEL			(1 << 4)	/* Select DAC */
+#define SIDETONE		(1 << 5)	/* Enable Sidetone */
+#define SIDEATT_neg15dB	(0b11 << 6)
+#define SIDEATT_neg12dB	(0b10 << 6)
+#define SIDEATT_neg9dB	(0b01 << 6)
+#define SIDEATT_neg6dB	(0b00 << 6)
+
+
+//Register 5: Digital Audio Path Control
+#define ADCHPFDisable 1 				/* ADC High Pass Filter */
+#define ADCHPFEnable 0
+#define DEEMPH_48k		(0b11 << 1) 	/* De-emphasis Control */
+#define DEEMPH_44k		(0b10 << 1)
+#define DEEMPH_32k 		(0b01 << 1)
+#define DEEMPH_disable	(0b00 << 1)
+#define DACMU_enable	(1 << 3) 		/* DAC Soft Mute Control */
+#define DACMU_disable	(0 << 3)
+#define HPOR_store		(1 << 4) 		/* Store DC offset when HPF disabled */
+#define HPOR_clear		(0 << 4)
+
+//Register 7: Digital Audio Interface Format
+#define format_MSB_Right 0
+#define format_MSB_Left 1
+#define format_I2S 2
+#define format_DSP 3
+#define format_16b (0<<2)
+#define format_20b (1<<2)
+#define format_24b (2<<2)
+#define format_32b (3<<2)
+
+// Oddness:
+// format_I2S does not work with I2S2 on the STM32F427Z (works on the 427V) in Master TX mode (I2S2ext is RX)
+// The RX data is shifted left 2 bits (x4) as it comes in, causing digital wrap-around clipping.
+// Using format_MSB_Left works (I2S periph has to be set up I2S_Standard_LSB or I2S_Standard_MSB).
+// Also, format_MSB_Right does not seem to work at all (with the I2S set to LSB or MSB)
+
+const uint16_t w8731_init_data[] =
+{
+	VOL_n6dB,			// Reg 00: Left Line In
+
+	VOL_n6dB,			// Reg 01: Right Line In
+
+	0b0101111,			// Reg 02: Left Headphone out (Mute)
+
+	0b0101111,			// Reg 03: Right Headphone out (Mute)
+
+	(MUTEMIC 			// Reg 04: Analog Audio Path Control (maximum attenuation on sidetone, sidetone disabled, DAC selected, Mute Mic, no bypass)
+	| INSEL_line
+	| DACSEL
+	| SIDEATT_neg6dB),
+
+	(DEEMPH_48k			// Reg 05: Digital Audio Path Control: HPF, De-emp at 48kHz on DAC, do not soft mute dac
+	| ADCHPFEnable),
+
+	0x062,				// Reg 06: Power Down Control (Clkout, Osc, Mic Off)
+
+	(format_24b			// Reg 07: Digital Audio Interface Format (24-bit, slave)
+	| format_I2S),
+
+	0x000,				// Reg 08: Sampling Control (Normal, 256x, 48k ADC/DAC)
+
+	0x001				// Reg 09: Active Control
+};
+
+
+
+/*
 const uint16_t w8731_init_data[] = 
 {
 	0x017,			// Reg 00: Left Line In (0dB, mute off)
@@ -49,11 +136,10 @@ const uint16_t w8731_init_data[] =
 	0x012,			// Reg 04: Analog Audio Path Control (DAC sel, Mute Mic)
 	0x000,			// Reg 05: Digital Audio Path Control
 	0x062,			// Reg 06: Power Down Control (Clkout, Osc, Mic Off)
-/*	0x002,			// Reg 07: Digital Audio Interface Format (i2s, 16-bit, slave)*/
 	0x00A,			// Reg 07: Digital Audio Interface Format (i2s, 24-bit, slave)
 	0x000,			// Reg 08: Sampling Control (Normal, 256x, 48k ADC/DAC)
 	0x001			// Reg 09: Active Control
-};
+};*/
 
 /* The 7 bits Codec address (sent through I2C interface) */
 #define CODEC_ADDRESS           (W8731_ADDR_0<<1)
@@ -285,7 +371,7 @@ void Codec_GPIO_Init(void)
 	/* CODEC_I2C SCL and SDA pins configuration -------------------------------------*/
 	GPIO_InitStructure.GPIO_Pin = CODEC_I2C_SCL_PIN | CODEC_I2C_SDA_PIN; 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
 	GPIO_Init(CODEC_I2C_GPIO, &GPIO_InitStructure);
@@ -297,7 +383,7 @@ void Codec_GPIO_Init(void)
 	/* CODEC_I2S output pins configuration: WS, SCK SD0 and SDI pins ------------------*/
 	GPIO_InitStructure.GPIO_Pin = CODEC_I2S_SCK_PIN | CODEC_I2S_SDO_PIN | CODEC_I2S_SDI_PIN | CODEC_I2S_WS_PIN; 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(CODEC_I2S_GPIO, &GPIO_InitStructure);

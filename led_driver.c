@@ -32,7 +32,7 @@ void LEDDriver_GPIO_Init(void)
 	/* LEDDRIVER_I2C SCL and SDA pins configuration -------------------------------------*/
 	GPIO_InitStructure.GPIO_Pin = LEDDRIVER_I2C_SCL_PIN | LEDDRIVER_I2C_SDA_PIN;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
 	GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_NOPULL;
 	GPIO_Init(LEDDRIVER_I2C_GPIO, &GPIO_InitStructure);
@@ -270,107 +270,46 @@ void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]){
 
 }
 
-void LEDDriver_setallLEDs(uint8_t driverAddr, uint32_t rgb1, uint32_t rgb2, uint32_t rgb3, uint32_t rgb4, uint32_t rgb5){
-		uint8_t led_number;
+void LEDDriver_set_one_LED(uint8_t element_number, uint16_t brightness){	//sets one LED element
+	uint8_t driverAddr;
 
-		LEDDriver_startxfer(driverAddr);
-		LEDDriver_senddata(PCA9685_LED0);
+	//element_number is 0..(NUM_LEDS*3-1) or 0..77
 
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb1 >> 20) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb1 >> 28) & 0xFF);
+	//Treat each driver as if it has 15 elements. The 16th element for drivers 2, 3, and 4 is for LED elements 75, 76, and 77 respectively.
 
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb1 >> 10) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb1 >> 18) & 0xFF);
+	if (element_number<=74){
+		driverAddr = (element_number/15);
+		element_number = element_number - (driverAddr * 15);
+	} else {
+		driverAddr = element_number - 73;
+		element_number = 15;
+	}
+	LEDDriver_startxfer(driverAddr); //20us
+	LEDDriver_senddata(PCA9685_LED0 + (element_number*4)); //4 registers per LED element
+	LEDDriver_senddata(0); //on-time = 0
+	LEDDriver_senddata(0);
+	LEDDriver_senddata(brightness & 0xFF); //off-time = brightness
+	LEDDriver_senddata(brightness >> 8);
+	LEDDriver_endxfer();
 
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata(rgb1 & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb1 >> 8) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb2 >> 20) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb2 >> 28) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb2 >> 10) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb2 >> 18) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata(rgb2 & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb2 >> 8) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb3 >> 20) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb3 >> 28) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb3 >> 10) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb3 >> 18) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata(rgb3 & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb3 >> 8) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb4 >> 20) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb4 >> 28) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb4 >> 10) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb4 >> 18) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata(rgb4 & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb4 >> 8) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb5 >> 20) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb5 >> 28) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata((rgb5 >> 10) & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb5 >> 18) & 0xFF);
-
-		LEDDriver_senddata(0); //on-time = 0
-		LEDDriver_senddata(0);
-		LEDDriver_senddata(rgb5 & 0xFF); //off-time = brightness
-		LEDDriver_senddata((rgb5 >> 8) & 0xFF);
-
-
-		LEDDriver_endxfer();
 }
 
-void LEDDriver_setRGBLED(uint8_t led_number, uint32_t rgb){ //10+10+10 bit color
+void LEDDriver_setRGBLED(uint8_t led_number, uint32_t rgb){ //sets one RGB LED with a 10+10+10 bit color value
+	uint8_t driverAddr;
 
-	if (led_number >=0 && led_number <= 19)	{
+	uint16_t c_red= (rgb >> 20) & 0b1111111111;
+	uint16_t c_green= (rgb >> 10) & 0b1111111111;
+	uint16_t c_blue= rgb & 0b1111111111;
 
-		uint8_t driverAddr;
+
+	if (led_number >=0 && led_number <= 24)	{
 
 		driverAddr = (led_number/5);
 		led_number = led_number - (driverAddr * 5);
 
-		uint16_t c_red= (rgb >> 20) & 0b1111111111;
-		uint16_t c_green= (rgb >> 10) & 0b1111111111;
-		uint16_t c_blue= rgb & 0b1111111111;
-
 		LEDDriver_startxfer(driverAddr); //20us
 
-		LEDDriver_senddata(PCA9685_LED0 + (led_number*12));
+		LEDDriver_senddata(PCA9685_LED0 + (led_number*12)); //12 registers per LED (4 registers per LED element) = 12*16 registers per driver
 		LEDDriver_senddata(0); //on-time = 0
 		LEDDriver_senddata(0);
 		LEDDriver_senddata(c_red & 0xFF); //off-time = brightness
@@ -385,6 +324,40 @@ void LEDDriver_setRGBLED(uint8_t led_number, uint32_t rgb){ //10+10+10 bit color
 		LEDDriver_senddata(0);
 		LEDDriver_senddata(c_blue & 0xFF); //off-time = brightness
 		LEDDriver_senddata(c_blue >> 8);
+
+		LEDDriver_endxfer();
+
+	} else if (led_number==25){
+
+		driverAddr = 2;
+		LEDDriver_startxfer(driverAddr); //20us
+
+		LEDDriver_senddata(PCA9685_LED0 + 4*15); //PCA9685_LED15
+		LEDDriver_senddata(0); //on-time = 0
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(c_blue & 0xFF); //off-time = brightness
+		LEDDriver_senddata(c_blue >> 8);
+
+		LEDDriver_endxfer();
+
+		driverAddr = 3;
+		LEDDriver_startxfer(driverAddr); //20us
+
+		LEDDriver_senddata(PCA9685_LED0 + 4*15);
+		LEDDriver_senddata(0); //on-time = 0 //four senddata commands take 140us
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(c_green & 0xFF); //off-time = brightness
+		LEDDriver_senddata(c_green >> 8);
+		LEDDriver_endxfer();
+
+		driverAddr = 4;
+		LEDDriver_startxfer(driverAddr); //20us
+
+		LEDDriver_senddata(PCA9685_LED0 + 4*15);
+		LEDDriver_senddata(0); //on-time = 0
+		LEDDriver_senddata(0);
+		LEDDriver_senddata(c_red & 0xFF); //off-time = brightness
+		LEDDriver_senddata(c_red >> 8);
 
 		LEDDriver_endxfer();
 	}

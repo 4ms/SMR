@@ -7,6 +7,8 @@
 #include "stm32f4xx.h"
 #include "rotary.h"
 
+uint32_t rotary_state=0;
+
 #define R_START 0x0
 
 #ifdef HALF_STEP
@@ -47,13 +49,13 @@ const unsigned char ttable[7][4] = {
   // R_CW_BEGIN
   {R_CW_NEXT,  R_CW_BEGIN,  R_START,     R_START},
   // R_CW_NEXT
-  {R_CW_NEXT,  R_CW_BEGIN,  R_CW_FINAL,  R_START},
+  {R_CW_NEXT,  R_CW_BEGIN,  R_CW_FINAL,  R_START | DIR_CW},  /* last entry was R_START */
   // R_CCW_BEGIN
   {R_CCW_NEXT, R_START,     R_CCW_BEGIN, R_START},
   // R_CCW_FINAL
   {R_CCW_NEXT, R_CCW_FINAL, R_START,     R_START | DIR_CCW},
   // R_CCW_NEXT
-  {R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, R_START},
+  {R_CCW_NEXT, R_CCW_FINAL, R_CCW_BEGIN, R_START | DIR_CCW}, /* last entry was R_START */
 };
 #endif
 
@@ -65,7 +67,7 @@ void init_rotary(void){
 	RCC_AHB1PeriphClockCmd(ROTARY_RCC, ENABLE);
 
 	gpio.GPIO_Mode = GPIO_Mode_IN;
-	gpio.GPIO_Speed = GPIO_Speed_50MHz;
+	gpio.GPIO_Speed = GPIO_Speed_2MHz;
 	gpio.GPIO_PuPd = GPIO_PuPd_UP;
 	gpio.GPIO_Pin = (ROTARY_A_pin | ROTARY_B_pin | ROTARY_SW_pin);
 	GPIO_Init(ROTARY_GPIO, &gpio);
@@ -74,9 +76,13 @@ void init_rotary(void){
 
 }
 
+//extern uint8_t do_ROTA;
+//extern uint8_t do_ROTB;
+
 uint8_t read_rotary(void){
 
 	  unsigned char pinstate = ((ROTARY_A?1:0) << 1) | (ROTARY_B?1:0);
+	  //unsigned char pinstate = ((do_ROTA?1:0) << 1) | (do_ROTB?1:0);
 	  // Determine new state from the pins and state table.
 	  state = ttable[state & 0xf][pinstate];
 	  // Return emit bits, ie the generated event.
@@ -84,22 +90,22 @@ uint8_t read_rotary(void){
 
 }
 
-
 /*
-short read_rotary_fullstep(void){
+
+uint8_t read_rotary(void){
         static short greycode=0;
 
-        if ((greycode==0b11) && !ROTROTARY_CW){ //greycode was 0b11, now it's 0b01 so rotary went down
+        if ((greycode==0b11) && !ROTARY_A){ //greycode was 0b11, now it's 0b01 so rotary went down
                 greycode=0b01;
-                return(1);
+                return(DIR_CW);
         }
 
-        else if ((greycode==0b11) && !ROTROTARY_CCW){ //greycode was 0b11, now it's 0b10 so rotary went up
+        else if ((greycode==0b11) && !ROTARY_B){ //greycode was 0b11, now it's 0b10 so rotary went up
                 greycode=0b10;
-                return(-1);
+                return(DIR_CCW);
         }
 
-        else if (ROTROTARY_CW && ROTROTARY_CCW) //greycode is 11
+        else if (ROTARY_A && ROTARY_B) //greycode is 11
                 greycode=0b11;
 
         else greycode=0b00;
