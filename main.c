@@ -16,7 +16,6 @@
 #include "i2s.h"
 #include "adc.h"
 #include "audio_util.h"
-#include "memory.h"
 #include "inouts.h"
 #include "globals.h"
 #include "filter.h"

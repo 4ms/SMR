@@ -11,8 +11,6 @@
 #include "stm32f4xx_tim.h"
 #include "misc.h"
 #include "dac.h"
-
-#include "memory.h"
 #include "inouts.h"
 #include "globals.h"
 
