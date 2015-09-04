@@ -1,0 +1,7 @@
+ To Do
+ 
+ 1V/Oct outputs on ENV_OUT jacks. Use best possible voltage resolution available (hopefully 12-bit resolution is possible)
+  
+ Global system parameter: envelope output attenuation
+ 
+ Bug: factory_reset leaves us in the current scale_bank, but on power cycle we are restored to scale_bank 0

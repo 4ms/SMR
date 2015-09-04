@@ -1,18 +1,37 @@
 /*
- * params.c
+ * params.c - Parameters
  *
- *  Created on: Jun 17, 2015
- *      Author: design
+ * Author: Dan Green (danngreen1@gmail.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
 
 #include "globals.h"
 #include "params.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "exp_1voct.h"
 #include "system_mode.h"
 #include "rotary.h"
-
-//extern float exp_4096[4096];
 
 extern __IO uint16_t adc_buffer[NUM_ADCS];
 extern __IO uint16_t potadc_buffer[NUM_ADC3S];
@@ -39,7 +58,6 @@ uint16_t mod_mode_246;
 
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
-
 
 //LOCK BUTTONS
 uint8_t lock[NUM_CHANNELS];
@@ -445,7 +463,6 @@ void process_lock_buttons(void){
 				//Handle button release
 
 				lock_pressed[i]=0;
-				//scale_display_chan = figureout_which_channel_scale_to_show();
 
 				if (ui_mode==PLAY){
 					if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
@@ -643,8 +660,6 @@ void process_rotary_button(void){
 }
 
 void process_rotary_rotation(void){
-//	static uint8_t user_turned_rotary=0;
-
 	rotary_state=read_rotary();
 
 	if (rotary_state==DIR_CW) {
@@ -708,7 +723,6 @@ void process_rotary_rotation(void){
 
 //Reads ADC, applies hysteresis correction and returns 1 if spread value has changed
 int8_t read_spread(void){
-	//static int8_t old_spread=1;
 
 	uint8_t test_spread=0, hys_spread=0;
 	uint16_t temp_u16;
@@ -726,7 +740,6 @@ int8_t read_spread(void){
 			temp_u16 = 4095;
 
 		hys_spread = (temp_u16 >> 8) + 1;
-		//old_spread=spread;
 
 	} else if (test_spread > spread){
 		if (adc_buffer[SPREAD_ADC] > SPREAD_ADC_HYSTERESIS)
@@ -735,7 +748,6 @@ int8_t read_spread(void){
 			temp_u16 = 0;
 
 		hys_spread = (temp_u16 >> 8) + 1;
-		//old_spread=spread;
 
 	} else {
 		hys_spread=0xFF; //adc has not changed, do nothing

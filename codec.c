@@ -3,12 +3,32 @@
  *
  * Cut from stm32f4_discovery_audio_codec.c
  *
+ * Modified by: Dan Green (danngreen1@gmail.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
 
-/*========================
 
-                CS43L22 Audio Codec Control Functions
-                                                ==============================*/
 /**
   * @brief  Initializes the audio codec and all related interfaces (control 
   *         interface: I2C and audio interface: I2S)
@@ -125,21 +145,6 @@ const uint16_t w8731_init_data[] =
 };
 
 
-
-/*
-const uint16_t w8731_init_data[] = 
-{
-	0x017,			// Reg 00: Left Line In (0dB, mute off)
-	0x017,			// Reg 01: Right Line In (0dB, mute off)
-	0b0101111,			// Reg 02: Left Headphone out (Mute)
-	0b0101111,			// Reg 03: Right Headphone out (Mute)
-	0x012,			// Reg 04: Analog Audio Path Control (DAC sel, Mute Mic)
-	0x000,			// Reg 05: Digital Audio Path Control
-	0x062,			// Reg 06: Power Down Control (Clkout, Osc, Mic Off)
-	0x00A,			// Reg 07: Digital Audio Interface Format (i2s, 24-bit, slave)
-	0x000,			// Reg 08: Sampling Control (Normal, 256x, 48k ADC/DAC)
-	0x001			// Reg 09: Active Control
-};*/
 
 /* The 7 bits Codec address (sent through I2C interface) */
 #define CODEC_ADDRESS           (W8731_ADDR_0<<1)

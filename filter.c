@@ -1,9 +1,29 @@
 /*
- * filter.c
-
+ * filter.c - DSP bandpass resonant filter
  *
- *  Created on: Nov 8, 2014
- *      Author: design
+ * Author: Dan Green (danngreen1@gmail.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
 
 #include "arm_math.h"
@@ -11,10 +31,9 @@
 #include "filter.h"
 #include "filter_coef.h"
 #include "audio_util.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "mem.h"
 #include "log_4096.h"
-//#include "exp_4096.h"
 #include "system_mode.h"
 #include "params.h"
 
@@ -43,11 +62,8 @@ extern uint16_t rotate_to_next_scale;
 
 extern uint8_t g_error;
 
-//extern uint32_t env_prepost_mode;
-
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern float ENVOUT_preload[NUM_CHANNELS];
-
 
 extern const uint32_t slider_led[6];
 
@@ -56,9 +72,6 @@ extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 
 extern uint32_t qval[NUM_CHANNELS];
 
-//extern float spectral_readout[NUM_FILTS];
-
-//extern uint8_t strike;
 extern enum Filter_Types filter_type;
 
 extern float freq_nudge[NUM_CHANNELS];
@@ -66,7 +79,6 @@ extern float freq_shift[NUM_CHANNELS];
 
 extern int8_t motion_fadeto_note[NUM_CHANNELS];
 extern int8_t motion_fadeto_scale[NUM_CHANNELS];
-//extern int8_t motion_fadeto_bank[NUM_CHANNELS];
 
 extern float motion_morphpos[NUM_CHANNELS];;
 
@@ -82,10 +94,9 @@ float *c_hiq[6];
 float *c_loq[6];
 float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3];
 
-//uint32_t env_trigout[NUM_CHANNELS];
-
 enum Filter_Types new_filter_type;
 uint8_t filter_type_changed=0;
+
 
 void change_filter_type(enum Filter_Types newtype){
 
@@ -95,59 +106,42 @@ void change_filter_type(enum Filter_Types newtype){
 }
 
 inline void check_input_clipping(int32_t left_signal, int32_t right_signal){
-//	if (!(left_signal & 0x80000000)){ //positive number
 		if (left_signal>INPUT_LED_CLIP_LEVEL)
 			LED_CLIPL_ON;
 		else
 			LED_CLIPL_OFF;
-//	} else
-//		LED_CLIPL_OFF;
 
-//	if (!(right_signal & 0x80000000)){ //positive number
 		if (right_signal>INPUT_LED_CLIP_LEVEL)
 			LED_CLIPR_ON;
 		else
 			LED_CLIPR_OFF;
-//	} else
-//		LED_CLIPR_OFF;
 }
 
 void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 {
-	//DEBUGA_ON(DEBUG0); //100us, 125us when morphing. Runs @5.26kHz-->83k??
+	//~78us static, ~104us morphing, every 166us = 6kHz ( = 96k / 16 samples)
+
 	int16_t i,j;
 	uint8_t k;
 	int32_t s;
 	uint32_t t;
-
-//	static float envelope[NUM_CHANNELS];
 	float env_in;
-
 	float f_start;
 	float f_end;
 	float f_blended;
-
 	float *ff;
-
 	float adc_lag[NUM_CHANNELS];
-
 	float filter_out[NUM_FILTS][MONO_BUFSZ];
-
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
-
 	float var_q, inv_var_q, var_f, inv_var_f;
 	register float tmp, fir, iir;
 	float c0,c1,c2;
 	float a0,a1,a2;
 	float freq_comp[NUM_CHANNELS];
-
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
-
 	uint8_t nudge_filter_num;
-
-	//~78us static, ~104us morphing, every 166us = 6kHz ( = 96k / 16 samples)
 
 	if (filter_type==BPRE && (
 			scale_bank[0]>=NUMSCALEBANKS || scale_bank[1]>=NUMSCALEBANKS
@@ -158,26 +152,26 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	// Convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
-	update_slider_LEDs(); //can we move this?
+	update_slider_LEDs(); //To-Do: move this somewhere else, so it runs on a timer
 
 	//Handle motion
-	update_motion(); //also this?
+	update_motion(); //To-Do: move this somewhere else, so it runs on a timer
 
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
 	//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
 	//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
-
+	//To-Do: move this somewhere else, so it runs on a timer
 	for (i=0;i<NUM_CHANNELS;i++){
 
-		//range check scale_bank and scale
+		//Range check scale_bank and scale
 		if (scale_bank[i]<0) scale_bank[i]=0;
 		if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
 		if (scale[i]<0) scale[i]=0;
 		if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
 
-		if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed /*|| scale[i]!=old_scale[i]*/){
+		if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed){
 
 			old_scale_bank[i]=scale_bank[i];
 
@@ -300,12 +294,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 
-	//Calculate all the needed filters: about 14us for 6, 29us for 12
-//	DEBUGA_ON(DEBUG2);
-
 	//Calculate filter_out[]
 	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. filter_out[6-11] are the morph destination values
-
 	if (filter_type==MAXQ){
 		for (j=0;j<NUM_CHANNELS*2;j++){
 
@@ -340,34 +330,19 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 				c0 = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; //exp[200...3125]
 
-
 			//FREQ: c1 = 2 * pi * freq / samplerate
 				c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
 				c1 *= freq_shift[channel_num];
 				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 				freq_comp[channel_num] = 1.0;
-				//freq_comp[channel_num] = 1.0/(float)exp_4096[(uint16_t)(c1*200)];
-
-				//c2=8.0/c1;
-				//if (c2>4095.0) c2=4095.0;
-				//if (c2<0.0) c2=0.0;
-				//freq_comp[channel_num] = 1.0/(float)log_4096[(uint16_t)(c2)];
 
 			//AMPLITUDE: Boost high freqs and boost low resonance
-			//	c2= 0.030 * c1 + 0.25 * (1-c0) + 0.005;
-			//	c2= 0.030 * c1 + 1.0 * (1-c0) + 0.0015;
-			//	c2= 0.030 * c1 + 0.005/loga_4096[qval[channel_num]] + 0.002;
-			//	c2= (0.05 * c1) + (3.0/(qval[channel_num]+1)) + 0.0015;
-
 				c2= (0.003 * c1) - (0.1*c0) + 0.102;
 				c2 *= ((4096.0-qval[channel_num])/1024.0) + 1.04;
 
 
 				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 					check_input_clipping(left_buffer[i], right_buffer[i]);
-
-					//if (filter_num & 1) tmp=left_buffer[i];
-					//else tmp=right_buffer[i];
 
 					if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
@@ -465,10 +440,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	}
 
-
-//	DEBUGA_OFF(DEBUG2);
-
-
 	for (i=0;i<MONO_BUFSZ;i++){
 
 		filtered_buffer[i]=0;
@@ -476,15 +447,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 		for (j=0;j<NUM_CHANNELS;j++){
 
-			//when blending, 1.5us/sample. When static, 0.7us/sample = 11-24us total
+			//When blending, 1.5us/sample. When static, 0.7us/sample = 11-24us total
 
 			if (motion_morphpos[j]==0)
 				f_blended = filter_out[j][i];
 			else
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]);
 
-			//1.4us/sample = 22us total
-			//if (channel_level[j]>0.0){
 
 				if (j & 1)
 					s = filtered_buffer[i] + (f_blended*channel_level[j]);
@@ -520,7 +489,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	}
 
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
-	//DEBUGA_OFF(DEBUG0);
+
 	filter_type_changed=0;
 
 }

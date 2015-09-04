@@ -12,5 +12,6 @@ void display_filter_rotation(void);
 void display_scale(void);
 void display_spectral_readout(void);
 void update_LED_ring(void);
+void set_default_color_scheme(void);
 
 #endif /* LED_RING_H_ */

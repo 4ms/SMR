@@ -1,17 +1,40 @@
 /*
- * user_scales.c
+ * user_scales.c - Handles UI for user-inputted scales
  *
- *  Created on: Jul 9, 2015
- *      Author: design
+ * Author: Dan Green (danngreen1@gmail.com)
+ * 2015
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
+
+
 
 #include "globals.h"
 #include "params.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "rotary.h"
 #include "system_mode.h"
 #include "user_scales.h"
-//#include "exp_1voct.h"
 
 extern float exp_1voct[4096];
 
@@ -40,29 +63,7 @@ float DEFAULT_user_scalebank[21]={
 		0.06276094007383184,
 		0.06649289977552018
 };
-/*
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,
-		0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05,0.05
-};*/
+
 
 uint8_t editscale_notelocked=0;
 
@@ -121,7 +122,6 @@ const float octaves[11]={1,2,4,8,16,32,64,128,256,512,1024};
 const float TwelfthRootTwo[12]={1.05946309436, 1.12246204831087, 1.1892071150051, 1.25992104989823, 1.33483985417448, 1.41421356237875, 1.49830707688367,
 		1.58740105197666, 1.68179283051751, 1.78179743629254, 1.88774862537721, 2.0};
 
-//onst float As[11]={13.75,27.5,55,110,220,440,880,1760,3520,7040,14080};
 #define TWELFTHROOTTWO 1.05946309436
 #define ROOT 13.75
 #define SLIDEREDITNOTE_LPF 0.980
@@ -131,8 +131,6 @@ void handle_edit_scale(void){
 	float freq;
 	uint8_t octave_sel;
 	uint8_t semitone_sel;
-//	uint8_t semitone1_sel;
-//	uint8_t semitone2_sel;
 	uint8_t microtone_sel;
 	uint8_t nanotone_sel;
 
@@ -164,13 +162,9 @@ void handle_edit_scale(void){
 
 		semitone_sel = (uint16_t)(slider_lpf[1]/342); //0..6
 
-		//semitone1_sel = (uint16_t)(slider_lpf[1]/586); //0..6
-		//semitone2_sel = (uint16_t)(slider_lpf[2]/683); //0..5
-
 		microtone_sel = (uint16_t)(slider_lpf[2]/79); //0..51
 		nanotone_sel = (uint16_t)(slider_lpf[3]/300); //0..13
 
-		//freq = ROOT * octaves[octave_sel] * TwelfthRootTwo[semitone1_sel +  semitone2_sel] * exp_1voct[microtone_sel] * exp_1voct[nanotone_sel];
 		freq = ROOT * octaves[octave_sel] * TwelfthRootTwo[semitone_sel] * exp_1voct[microtone_sel] * exp_1voct[nanotone_sel];
 
 		user_scalebank[scale[0]*21 +  note[0]] = COEF_COEF * freq;

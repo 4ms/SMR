@@ -58,7 +58,7 @@ LDSCRIPT = $(DEVICE)/$(LOADFILE).ld
 LFLAGS  = -Map $(BINARYNAME).map -nostartfiles -T $(LDSCRIPT)
 
 
-all: Makefile $(BIN)
+all: Makefile $(BIN) $(HEX)
 
 $(BIN): $(ELF)
 	$(OBJCPY) -O binary $< $@
@@ -80,7 +80,6 @@ $(BUILDDIR)/%.o: %.c
 $(BUILDDIR)/%.o: %.s
 	mkdir -p $(dir $@)
 	$(AS) $(AFLAGS) $< -o $@ > $(addprefix $(BUILDDIR)/, $(addsuffix .lst, $(basename $<)))
-#	$(CC) -c $(CFLAGS) $< -o $@
 
 
 flash: $(BIN)
@@ -93,13 +92,13 @@ clean:
 wav: fsk-wav
 
 qpsk-wav: $(BIN)
-	python stm_audio_bootloader/qpsk/encoder.py \
+	python ../stm_audio_bootloader/qpsk/encoder.py \
 		-t stm32f4 -s 48000 -b 12000 -c 6000 -p 256 \
 		$(BIN)
 
 
 fsk-wav: $(BIN)
-	python stm_audio_bootloader/fsk/encoder.py \
+	python ../stm_audio_bootloader/fsk/encoder.py \
 		-s 48000 -b 16 -n 8 -z 4 -p 256 -g 16384 -k 1100 \
 		$(BIN)
 	

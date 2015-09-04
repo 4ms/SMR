@@ -1,12 +1,18 @@
 /*
  * rotary.h
  *
- *  Created on: Jan 13, 2015
- *      Author: design
+ * Copyright 2011 Ben Buxton. Licenced under the GNU GPL Version 3.
+ * Contact: bb@cactii.net
+ *
+ * Conversion for use with STM32, in 2015 by: Dan Green (danngreen1@gmail.com)
+ *
  */
 
 #ifndef ROTARY_H_
 #define ROTARY_H_
+
+#include <stm32f4xx.h>
+
 
 // Enable this to emit codes twice per step.
 #define HALF_STEP

@@ -1,10 +1,13 @@
 /*
- * rotary.c
+ * rotary.c - State machine for the rotary encoder, decode the Grey Codes
  *
- *  Created on: Jan 13, 2015
- *      Author: design
+ * Copyright 2011 Ben Buxton. Licenced under the GNU GPL Version 3.
+ * Contact: bb@cactii.net
+ *
+ * Conversion for use with STM32, in 2015 by: Dan Green (danngreen1@gmail.com)
+ *
  */
-#include "stm32f4xx.h"
+
 #include "rotary.h"
 
 uint32_t rotary_state=0;
@@ -76,40 +79,14 @@ void init_rotary(void){
 
 }
 
-//extern uint8_t do_ROTA;
-//extern uint8_t do_ROTB;
-
 uint8_t read_rotary(void){
 
 	  unsigned char pinstate = ((ROTARY_A?1:0) << 1) | (ROTARY_B?1:0);
-	  //unsigned char pinstate = ((do_ROTA?1:0) << 1) | (do_ROTB?1:0);
+
 	  // Determine new state from the pins and state table.
 	  state = ttable[state & 0xf][pinstate];
+
 	  // Return emit bits, ie the generated event.
 	  return state & 0x30;
 
 }
-
-/*
-
-uint8_t read_rotary(void){
-        static short greycode=0;
-
-        if ((greycode==0b11) && !ROTARY_A){ //greycode was 0b11, now it's 0b01 so rotary went down
-                greycode=0b01;
-                return(DIR_CW);
-        }
-
-        else if ((greycode==0b11) && !ROTARY_B){ //greycode was 0b11, now it's 0b10 so rotary went up
-                greycode=0b10;
-                return(DIR_CCW);
-        }
-
-        else if (ROTARY_A && ROTARY_B) //greycode is 11
-                greycode=0b11;
-
-        else greycode=0b00;
-
-        return(0);
-}
-*/

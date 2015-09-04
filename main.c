@@ -1,22 +1,39 @@
 /*
- * To Do
+ * main.c - Spectral Mulitband Resonator v1.0
  *
+ * Author: Dan Green (danngreen1@gmail.com)
  *
- * Scale Rotate CV so that a QCD does a nice jump. Try PEG ENV, QCD TAPOUT, PEG +5V ENV, QPLFO OUT...
- * -->may require a resistor change?
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * global system parameter: envelope output attenuation
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Bug: factory_reset leaves us in the current scale_bank, but on power cycle we are restored to scale_bank 0
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
  *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
-#include "stm32f4xx.h"
+
+
+#include <stm32f4xx.h>
 
 #include "codec.h"
 #include "i2s.h"
 #include "adc.h"
 #include "audio_util.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "globals.h"
 #include "filter.h"
 #include "envout_pwm.h"
@@ -27,17 +44,6 @@
 #include "params.h"
 #include "system_mode.h"
 #include "user_scales.h"
-
-/*
-#define LAG_ATTACK 0.9895838758489;
-#define LAG_DECAY 0.99895838758489;
-
-#define MAX_LAG_ATTACK 0.005
-#define MIN_LAG_ATTACK 0.05
-
-#define MAX_LAG_DECAY 0.001
-#define MIN_LAG_DECAY 0.01
-*/
 
 extern uint8_t scale_bank_defaultscale[NUMSCALEBANKS];
 
@@ -55,8 +61,6 @@ extern int8_t motion_scale_dest[NUM_CHANNELS];
 
 extern int8_t motion_fadeto_note[NUM_CHANNELS];
 extern int8_t motion_fadeto_scale[NUM_CHANNELS];
-//extern int8_t motion_fadeto_bank[NUM_CHANNELS];
-
 
 extern enum UI_Modes ui_mode;
 extern uint32_t u_NUM_COLORSCHEMES;
@@ -95,7 +99,6 @@ void check_errors(void){
 inline uint32_t diff(uint32_t a, uint32_t b){
 	return (a>b)?(a-b):(b-a);
 }
-
 
 
 void main(void)
@@ -142,9 +145,6 @@ void main(void)
 
 	TIM6_Config();
 	DAC_Ch1_NoiseConfig();
-
-
-
 
 	spread=(adc_buffer[SPREAD_ADC] >> 8) + 1;
 

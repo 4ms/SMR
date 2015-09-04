@@ -1,17 +1,34 @@
 /*
- * dac.c
-
+ * dac.c - interfacing the on-board STM32F4 DAC for noise generation
  *
- *  Created on: Jul 28, 2014
- *      Author: design
+ * Author: Dan Green (danngreen1@gmail.com)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
-#include "stm32f4xx.h"
-#include "stm32f4xx_dac.h"
-#include "stm32f4xx_dma.h"
-#include "stm32f4xx_tim.h"
-#include "misc.h"
+
+#include <stm32f4xx.h>
 #include "dac.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "globals.h"
 
 
@@ -41,7 +58,6 @@ void DAC_Ch1_NoiseConfig(void)
 
 	DAC_Cmd(DAC_Channel_1, ENABLE);
 
-//	DAC_SetChannel1Data(DAC_Align_12b_L, 0x7FF0);
 	DAC_SetChannel1Data(DAC_Align_12b_R, 0);
 
 }

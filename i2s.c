@@ -1,23 +1,33 @@
 /*
  * i2s.c - I2S feeder routines
  *
- * Problem: Seems that just enabling the I2S_EXT DMA without enabling the I2S (main) DMA does not actually run the EXT DMA
- * --MCLK does not turn on, thus nothing is recorded
- * --interrupt does not run (except once when we DISABLE the EXT DMA)
+ * Author: Dan Green (danngreen1@gmail.com)
  *
- * Proposed solution#1: Use a second CODEC (or ADC?) for Recording/RX. How about the WM8731 on the busted board? Tie into the I2C bus (set different address by cutting that pin, ugh)
- * But the I2S3 shares pins with the SD card access, so that's a bummer
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
  *
- * Proposed solution#2: Code this CODEC for Recording and use the STM32's DAC for output. Basically what we were trying before, dunno why that was glitchy?
- * Could easily jump PA4/PA5 on header pins through two opamps (1:1 + 1:16 = 12 + 4 bits = 16-bit) to C23
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
  *
- * Proposed solution#3: Use the WM8731 in master mode, so it's always generating MCLK.
- * Disadvantage: We can't play and record at different rates
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ * See http://creativecommons.org/licenses/MIT/ for more information.
+ *
+ * -----------------------------------------------------------------------------
  */
 
 #include "i2s.h"
-//#include "memory.h"
-#include "inouts.h"
+#include "dig_inouts.h"
 #include "globals.h"
 
 DMA_InitTypeDef dma_tx, dma_rx;
@@ -25,11 +35,8 @@ uint32_t txbuf, rxbuf;
 
 extern uint32_t g_error;
 
-
-
 volatile int16_t tx_buffer[codec_BUFF_LEN];
 volatile int16_t rx_buffer[codec_BUFF_LEN];
-
 
 DMA_InitTypeDef DMA_InitStructure, DMA_InitStructure2;
 void I2S_Block_Init(void)
@@ -42,7 +49,7 @@ void I2S_Block_Init(void)
 	/* Configure the TX DMA Stream */
 	DMA_Cmd(AUDIO_I2S_DMA_STREAM, DISABLE);
 	DMA_DeInit(AUDIO_I2S_DMA_STREAM);
-	/* Set the parameters to be configured */
+
 	DMA_InitStructure.DMA_Channel = AUDIO_I2S_DMA_CHANNEL;
 	DMA_InitStructure.DMA_PeripheralBaseAddr = AUDIO_I2S_DMA_DREG;
 	DMA_InitStructure.DMA_Memory0BaseAddr = (uint32_t)0;      /* This field will be configured in play function */
@@ -67,8 +74,6 @@ void I2S_Block_Init(void)
 	DMA_Cmd(AUDIO_I2S_EXT_DMA_STREAM, DISABLE);
 	DMA_DeInit(AUDIO_I2S_EXT_DMA_STREAM);
 
-	/* Set the parameters to be configured */
-	/* why is a separate initstructure needed here? */
 	DMA_InitStructure2.DMA_Channel = AUDIO_I2S_EXT_DMA_CHANNEL;
 	DMA_InitStructure2.DMA_PeripheralBaseAddr = AUDIO_I2S_EXT_DMA_DREG;
 	DMA_InitStructure2.DMA_Memory0BaseAddr = (uint32_t)0;      /* This field will be configured in play function */
@@ -97,12 +102,6 @@ void I2S_Block_Init(void)
 
 }
 
-/**
-  * @brief  Starts playing & recording audio stream from/to the audio Media.
-  * @param  None
-  * @retval None
-  */
-//void I2S_Block_PlayRec(uint32_t txAddr, uint32_t rxAddr, uint32_t Size)
 void I2S_Block_PlayRec(void)
 {
 	uint32_t i;
@@ -143,11 +142,6 @@ void I2S_Block_PlayRec(void)
 }
 
 
-/**
-  * @brief  This function handles I2S RX DMA block interrupt.
-  * @param  None
-  * @retval none
-  */
 void DMA1_Stream3_IRQHandler(void)
 {
 	int16_t *src, *dst, sz;
@@ -162,34 +156,27 @@ void DMA1_Stream3_IRQHandler(void)
 	if (DMA_GetFlagStatus(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_DME) != RESET)
 		i=0;
 
-	/* Transfer complete interrupt */
+	// Transfer complete interrupt
 	if (DMA_GetFlagStatus(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_TC) != RESET)
 	{
-		/* Point to 2nd half of buffers */
 		sz = codec_BUFF_LEN/2;
 		src = (int16_t *)(rxbuf) + sz;
 		dst = (int16_t *)(txbuf) + sz;
 
-		/* Handle 2nd half */
 		process_audio_block(src, dst, 0);
 
-
-		/* Clear the Interrupt flag */
 		DMA_ClearFlag(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_TC);
 	}
 
-	/* Half Transfer complete interrupt */
+	// Half Transfer complete interrupt
 	if (DMA_GetFlagStatus(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_HT) != RESET)
 	{
-		/* Point to 1st half of buffers */
 		sz = codec_BUFF_LEN/2;
 		src = (int16_t *)(rxbuf);
 		dst = (int16_t *)(txbuf);
 
-		/* Handle 1st half */
 		process_audio_block(src, dst, 1);
 
-		/* Clear the Interrupt flag */
 		DMA_ClearFlag(AUDIO_I2S_EXT_DMA_STREAM, AUDIO_I2S_EXT_DMA_FLAG_HT);
 	}
 
