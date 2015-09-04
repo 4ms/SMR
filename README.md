@@ -76,7 +76,7 @@ This requires python to run. It creates the file main.wav in the build/ director
 
 
 ## Bootloader
-The bootloader is a [separate project](https://github.com/stm-audio-bootloader), slightly modifed from the stm-audio-bootloader from [pichenettes](https://github.com/pichenettes/eurorack). 
+The bootloader is a [separate project](https://github.com/4ms/stm-audio-bootloader), slightly modifed from the stm-audio-bootloader from [pichenettes](https://github.com/pichenettes/eurorack). 
 
 The bootloader is already installed on all factory-built SMRs.
 
