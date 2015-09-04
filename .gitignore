@@ -1,3 +1,6 @@
+build/
+build
+build/*
 Makefile-old
 .DS_Store
 DS_Store/
