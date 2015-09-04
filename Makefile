@@ -1,6 +1,3 @@
-#Based on https://github.com/nitsky/stm32-example 
-#Modified by Dan Green https://github.com/4ms
-
 BINARYNAME = main
 
 STARTUP = startup_stm32f4xx
