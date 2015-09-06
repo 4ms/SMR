@@ -44,7 +44,7 @@ CFLAGS +=  -mfpu=fpv4-sp-d16 -fsingle-precision-constant -Wdouble-promotion
 AFLAGS  = -mlittle-endian -mthumb -mcpu=cortex-m4 
 
 LDSCRIPT = $(DEVICE)/$(LOADFILE).ld
-LFLAGS  = -Map $(BINARYNAME).map -nostartfiles -T $(LDSCRIPT)
+LFLAGS  = -Map $(BUILDDIR)/$(BINARYNAME).map -nostartfiles -T $(LDSCRIPT)
 
 
 all: Makefile $(BIN) $(HEX)
