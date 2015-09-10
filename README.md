@@ -7,6 +7,7 @@ The SMR is a 6-channel highly resonant filter ("resonator") with a ring of RGB L
 
 The SMR would make a nice platform for other audio projects, the hardware contains:
 
+*	180MHz 32-bit ARM chip with FPU (STM32F427)
 *	Stereo codec chip (running at 96kHz/16bit in this firmware)
 	*	Two audio inputs, two audio outputs
 *	Five 16-channel PCA9685 LED drivers (10-bits per channel)  
@@ -23,16 +24,17 @@ The SMR would make a nice platform for other audio projects, the hardware contai
 As of writing this (Sept, 2015), there are two PCB versions: 1.0 and 1.0.1. These are functionally identical and this firmware will run exactly the same on both versions.
 
 ## Setting up your environment
-You need to install the GCC ARM toolchain, and programming software (ST-UTIL or Texane stlink/st-flash). The Texane stlink package contains a gdb debugger, which works with ST-LINK programmers such as the [STM32 Discovery boards](http://www.mouser.com/ProductDetail/STMicroelectronics/STM32F4DISCOVERY/?qs=J2qbEwLrpCGdWLY96ibNeQ%3D%3D&gclid=CKb6u6Cz48cCFZGBfgodfHwH-g&kpid=608656256) to connect to the Spectral's 4-pin SWD header.
+You need to install the GCC ARM toolchain.
+This project is known to compile with arm-none-eabi-gcc version 4.8.3, and version 4.9.3.
 
-You do not **need to** install ST-UTIL/stlink since you can update the firmware using the audio bootloader, but it's much faster to use a programmer (5-20 seconds vs. 5-6 minutes).
+It's recommended (but not necessary) to install ST-UTIL/stlink. Without it, you will have to update using the audio bootloader, which is very slow (5 minutes per update).
+With ST-UTIL or stlink and a programmer, you can update in 5-20 seconds.
+The Texane stlink package contains a gdb debugger, which works with ST-LINK programmers such as the [STM32 Discovery boards](http://www.mouser.com/ProductDetail/STMicroelectronics/STM32F4DISCOVERY/?qs=J2qbEwLrpCGdWLY96ibNeQ%3D%3D&gclid=CKb6u6Cz48cCFZGBfgodfHwH-g&kpid=608656256) to connect to the Spectral's 4-pin SWD header. The STM32F4 Discovery Board is low-cost (under US$15) and works great as a programmer and debugger.
 
-
-You also may wish to install and IDE such as Eclipse. There are many resources online for setting up GCC ARM with Eclipse (as well as commerical software).
+You also may wish to install and IDE such as Eclipse. There are many resources online for setting up GCC ARM with Eclipse (as well as commerical software). This is totally optional. Instead of an IDE you can use your favorite text editor and a few commands on the command line (Terminal) which are given below.
 
 Continue below for Max OSX, Linux, or Windows instructions.
 
-This project is known to compile with arm-none-eabi-gcc version 4.8.3, and version 4.9.3.
 
 ### Mac OSX
 
@@ -54,6 +56,7 @@ For linux, check your package manager to see if there is a package for arm-none-
 Next, install st-link from texane:
 
 	sudo apt-get install git libusb-1.0.0-dev pkg-config autotools-dev
+	cd (your work directory)
 	git clone https://github.com/texane/stlink.git
 	cd stlink
 	./autogen.sh
@@ -70,12 +73,12 @@ That's it! Continue below to **Clone the Projects**
 
 [Download ST-UTIL](http://www.st.com/web/en/catalog/tools/PF258168)
 
-Install both. Please contact me if you run into problems that you can't google your way out of!
+Install both. Please contact me if you run into problems that you can't google your way out of! 
 
 
 ## Clone the Projects
 
-Make sure git is installed on your system. (OSX: brew install git)
+Make sure git is installed on your system. (OSX: type "brew install git" into the Terminal)
 
 Create a work directory, and enter it.
 
