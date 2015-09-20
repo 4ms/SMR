@@ -178,52 +178,56 @@ void param_read_freq_nudge(void){
 
 	if (!lock[0]){
 		freq_nudge[0]=f_nudge_odds;
-		freq_shift[0]=f_shift_odds;
 	}
+	freq_shift[0]=f_shift_odds;
 
 	if (mod_mode_135==135){
 		if (!lock[2]){
 			freq_nudge[2]=f_nudge_odds;
-			freq_shift[2]=f_shift_odds;
 		}
+		freq_shift[2]=f_shift_odds;
+
 		if (!lock[4]){
 			freq_nudge[4]=f_nudge_odds;
-			freq_shift[4]=f_shift_odds;
 		}
+		freq_shift[4]=f_shift_odds;
 	} else {
 		if (!lock[2]){
 			freq_nudge[2]=0.0;
-			freq_shift[2]=1.0;
 		}
+		freq_shift[2]=1.0;
+
 		if (!lock[4]){
-			freq_shift[4]=1.0;
 			freq_nudge[4]=0.0;
 		}
+		freq_shift[4]=1.0;
 	}
 
 	if (!lock[5]){
 		freq_nudge[5]=f_nudge_evens;
-		freq_shift[5]=f_shift_evens;
 	}
+	freq_shift[5]=f_shift_evens;
 
 	if (mod_mode_246==246){
 		if (!lock[1]){
 			freq_nudge[1]=f_nudge_evens;
-			freq_shift[1]=f_shift_evens;
 		}
+		freq_shift[1]=f_shift_evens;
+
 		if (!lock[3]){
 			freq_nudge[3]=f_nudge_evens;
-			freq_shift[3]=f_shift_evens;
 		}
+		freq_shift[3]=f_shift_evens;
 	} else {
 		if (!lock[1]){
 			freq_nudge[1]=0.0;
-			freq_shift[1]=1.0;
 		}
+		freq_shift[1]=1.0;
+
 		if (!lock[3]){
 			freq_nudge[3]=0.0;
-			freq_shift[3]=1.0;
 		}
+		freq_shift[3]=1.0;
 	}
 }
 
