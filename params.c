@@ -191,7 +191,6 @@ void param_read_freq_nudge(void){
 			freq_nudge[4]=f_nudge_odds;
 		}
 		freq_shift[4]=f_shift_odds;
-
 	} else {
 		if (!lock[2]){
 			freq_nudge[2]=0.0;
@@ -202,7 +201,6 @@ void param_read_freq_nudge(void){
 			freq_nudge[4]=0.0;
 		}
 		freq_shift[4]=1.0;
-
 	}
 
 	if (!lock[5]){
@@ -220,7 +218,6 @@ void param_read_freq_nudge(void){
 			freq_nudge[3]=f_nudge_evens;
 		}
 		freq_shift[3]=f_shift_evens;
-
 	} else {
 		if (!lock[1]){
 			freq_nudge[1]=0.0;
@@ -231,7 +228,6 @@ void param_read_freq_nudge(void){
 			freq_nudge[3]=0.0;
 		}
 		freq_shift[3]=1.0;
-
 	}
 }
 
