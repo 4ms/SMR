@@ -132,12 +132,19 @@ void set_default_color_scheme(void){
 
 void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	uint8_t chan=0;
+	uint8_t fw_ctr;
 
 	if (ui_mode==SELECT_PARAMS || ui_mode==EDIT_COLORS || ui_mode==PRE_SELECT_PARAMS || ui_mode==PRE_EDIT_COLORS){
 		for (chan=0;chan<6;chan++){
 			env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])  );
 			env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])  );
 			env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])  );
+		}
+	} else if (ui_mode==EDIT_SCALES) {
+		for (chan=0;chan<6;chan++){
+			env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
+			env_out_leds[chan][1]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
+			env_out_leds[chan][2]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
 		}
 	} else {
 		for (chan=0;chan<6;chan++){
