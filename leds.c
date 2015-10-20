@@ -98,8 +98,8 @@ void update_slider_LEDs(void){
 
 		// f_slider_pwm is the PWM counter for slider LED brightness
 
-		f_slider_pwm-=0.08; 		//8.0/0.08 = 50 steps
-		if (f_slider_pwm<0.0) {
+		f_slider_pwm-=0.08; 		//8.0/0.08 = 100 steps
+		if (f_slider_pwm<=0.0) {
 			f_slider_pwm=4.0;		 //1.0/4.0 = 25% PWM max brigtness
 
 			for (i=0;i<NUM_CHANNELS;i++){
