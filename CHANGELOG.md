@@ -1,11 +1,14 @@
 ## Version 2:
- * **Env Out LEDs:** Channel 1 Green, Channels 2-6 off
+ * **How to tell if you have version 2:** Tap the ROTATE button 10 times. The Channel 1 ENV OUT LED is Green, LEDs Channels 2-6 are off
  
  * **New Features:**
    * 1V per octave was at 1.5V per octave, changed to 1.0V/oct
    * Added firmware version display in change scale mode
-   * Reduced flickering for LED sliders, increased turn-on threshold. (Rev 1)
+   * *Rev 1:* Reduced flickering for LED sliders, increased turn-on threshold
+   * *Rev 2:* Fixed tuning, now runs at A = 440Hz for default scale  
+   
  * **Shipping history:**
+   * Version 2, Rev 2 shipped Nov 12, 2015
    * Version 2, Rev 1 shipped Oct 19, 2015
    * Version 2, Rev 0 shipped Oct 3, 2015
 
