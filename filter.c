@@ -68,9 +68,6 @@ extern float ENVOUT_preload[NUM_CHANNELS];
 
 extern const uint32_t slider_led[6];
 
-extern __IO uint16_t adc_buffer[NUM_ADCS];
-extern __IO uint16_t potadc_buffer[NUM_ADC3S];
-
 extern uint32_t qval[NUM_CHANNELS];
 
 extern enum Filter_Types filter_type;

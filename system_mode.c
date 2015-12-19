@@ -67,6 +67,9 @@ extern uint8_t hover_scale_bank;
 
 extern uint8_t slider_led_mode;
 
+extern float trackcomp;
+extern int16_t trackoffset;
+
 extern float user_scalebank[231];
 
 #define FLASH_ADDR_userparams 0x08004000
@@ -77,11 +80,23 @@ extern float user_scalebank[231];
 #define FLASH_ADDR_startupbank	(FLASH_ADDR_firmware_version	+ SZ_FV)		/* 4 		*/
 #define SZ_SB 1
 
-#define FLASH_ADDR_clipmode 		(FLASH_ADDR_startupbank 		+ SZ_SB) 	/* 5 		*/
+#define FLASH_ADDR_clipmode 		(FLASH_ADDR_startupbank 	+ SZ_SB) 		/* 5 		*/
 #define SZ_CM 1
 
-#define FLASH_ADDR_future_globals	(FLASH_ADDR_clipmode			+ SZ_CM)	/* 6  ..133 */
-#define SZ_FG 128
+#define FLASH_ADDR_padding_1		(FLASH_ADDR_clipmode		+ SZ_CM)		/* 6  ..7	*/
+#define SZ_P1 2
+
+#define FLASH_ADDR_trackcomp 		(FLASH_ADDR_padding_1 		+ SZ_P1) 		/* 8  ..11	*/
+#define SZ_TC 4
+
+#define FLASH_ADDR_trackoffset 		(FLASH_ADDR_trackcomp 		+ SZ_TC) 		/* 12 ..15	*/
+#define SZ_TO 4
+
+#define FLASH_ADDR_future_globals	(FLASH_ADDR_trackoffset		+ SZ_TO)		/* 16 ..133 */
+#define SZ_FG 118
+
+//#define FLASH_ADDR_future_globals	(FLASH_ADDR_clipmode		+ SZ_CM)		/* 6  ..133 */
+//#define SZ_FG 128
 
 //Parameter banks:
 #define FLASH_ADDR_START_PARAMBANKS		(FLASH_ADDR_future_globals	+ SZ_FG)		/* 134 		*/
@@ -121,6 +136,8 @@ extern float user_scalebank[231];
 uint32_t flash_firmware_version=0;
 uint8_t flash_startupbank=0;
 uint8_t flash_clipmode=0;
+float flash_trackcomp=1.0;
+int32_t flash_trackoffset=0;
 uint8_t flash_bankstatus[FLASH_NUM_parambanks];
 uint8_t flash_note[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint8_t flash_scale[FLASH_NUM_parambanks][NUM_CHANNELS];
@@ -143,6 +160,8 @@ void factory_reset(void){
 	flash_firmware_version = FW_VERSION;
 	flash_startupbank=0;
 	flash_clipmode=SHOW_CLIPPING;
+	flash_trackcomp=1.0;
+	flash_trackoffset=0;
 
 	for (i=0;i<FLASH_NUM_parambanks;i++){
 		flash_bankstatus[i] 		= 0xFF;
@@ -265,6 +284,11 @@ void load_global_params(void){
 
 	slider_led_mode = (flash_clipmode==DONT_SHOW_CLIPPING) ? DONT_SHOW_CLIPPING : SHOW_CLIPPING;
 
+	trackcomp = flash_trackcomp;
+	if (trackcomp<0.5 || trackcomp>2.0) trackcomp=1.0; //sanity check
+
+	trackoffset = flash_trackoffset;
+	if (trackoffset < -100 || trackoffset > 100) trackoffset=0; //sanity check
 }
 
 //stores active global params into SRAM
@@ -290,6 +314,9 @@ void store_globals_into_sram(void){
 	flash_cur_colsch[flash_startupbank]	= cur_colsch;
 
 	flash_clipmode = (slider_led_mode==DONT_SHOW_CLIPPING) ? DONT_SHOW_CLIPPING : SHOW_CLIPPING;
+
+	flash_trackcomp = trackcomp;
+	flash_trackoffset = trackoffset;
 }
 
 
@@ -323,12 +350,19 @@ uint8_t load_startup_params(void){
 //Reads from FLASH memory and stores it in SRAM variables
 void read_all_params_from_FLASH(void){ //~200uS
 	uint8_t bank_i;
+	uint32_t t;
 
 	flash_firmware_version = flash_read_word(FLASH_ADDR_firmware_version) - FLASH_SYMBOL_firmwareoffset;
 
 	flash_startupbank = flash_read_byte(FLASH_ADDR_startupbank) - FLASH_SYMBOL_startupoffset;
 
 	flash_clipmode = flash_read_byte(FLASH_ADDR_clipmode);
+
+	t = flash_read_word(FLASH_ADDR_trackcomp);
+	flash_trackcomp=*(float *)&t;
+
+	flash_trackoffset = flash_read_word(FLASH_ADDR_trackoffset);
+
 
 	for (bank_i=0;bank_i<6;bank_i++){
 		flash_bankstatus[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_bankstatus + (FLASH_SIZE_parambank * bank_i));
@@ -409,6 +443,10 @@ void write_all_params_to_FLASH(void){
 	flash_open_program_array((uint8_t *)flash_COLOR_CH, FLASH_ADDR_colschem, FLASH_SIZE_colschem);
 
 	flash_open_program_array((uint8_t *)flash_user_scalebank, FLASH_ADDR_user_scalebank, FLASH_SIZE_user_scalebank);
+
+	flash_open_program_word(*(uint32_t *)&flash_trackoffset, FLASH_ADDR_trackoffset);
+
+	flash_open_program_word(*(uint32_t *)&flash_trackcomp, FLASH_ADDR_trackcomp);
 
 	flash_end_open_program();
 }

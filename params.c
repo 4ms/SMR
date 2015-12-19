@@ -43,11 +43,15 @@ enum Filter_Types filter_type=MAXQ;
 extern enum UI_Modes ui_mode;
 
 extern uint8_t editscale_notelocked;
+extern uint8_t editscale_tracklocked;
 
 uint16_t old_adc_buffer[NUM_ADCS];
 uint16_t old_potadc_buffer[NUM_ADC3S];
 
 extern uint32_t rotary_state;
+
+float trackcomp=1.0;
+int16_t trackoffset=0;
 
 
 //FREQ NUDGE/LOCK JACKS
@@ -138,13 +142,17 @@ void set_default_param_values(void){
 	motion_notejump=0;
 	motion_rotate=0;
 	filter_type=MAXQ;
-}
 
+	trackcomp=1.0;
+	trackoffset=0;
+}
 
 void param_read_freq_nudge(void){
 	float t_fo, t_fe;
 	static float f_nudge_odds=1, f_nudge_evens=1;
 	static float f_shift_odds=1, f_shift_evens=1;
+
+	int32_t freq_jack_cv;
 
 	//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
 	//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
@@ -152,11 +160,19 @@ void param_read_freq_nudge(void){
 		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC])/4096.0;
 		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC])/4096.0;
 
+		freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset) * trackcomp;
+		if (freq_jack_cv<0) freq_jack_cv=0;
+		if (freq_jack_cv>4095) freq_jack_cv=4095;
+
 		f_shift_odds *= FREQCV_LPF;
-		f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[adc_buffer[FREQCV1_ADC]]);
+		f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]) ;
+
+		freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset) * trackcomp;
+		if (freq_jack_cv<0) freq_jack_cv=0;
+		if (freq_jack_cv>4095) freq_jack_cv=4095;
 
 		f_shift_evens *= FREQCV_LPF;
-		f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[adc_buffer[FREQCV6_ADC]]);
+		f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]);
 
 	}else{
 
@@ -235,6 +251,7 @@ void param_read_freq_nudge(void){
 void param_read_channel_level(void){
 	float level_lpf;
 	uint8_t i;
+	uint16_t t;
 
 	if (ui_mode==EDIT_SCALES){
 		channel_level[0]=1.0;
@@ -248,12 +265,21 @@ void param_read_channel_level(void){
 
 		for (i=0;i<NUM_CHANNELS;i++){
 
-			//This is to be used if the sliders provide offset to the CV:
+			//This is to be used if the sliders provide offset to the CV (hardware should be modified to remove Vref from switch tab of CV jacks)
 			//level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0)  +  ((float)(potadc_buffer[i+SLIDER_ADC_BASE])/4096.0f);
 			//if (level_lpf>1.0f) level_lpf=1.0f;
 
+
 			//This is to be used if the sliders attenuate the CV:
-			level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(potadc_buffer[i+SLIDER_ADC_BASE])/4096.0;
+
+			//Account for error on faceplate that doesn't allow slider to go to zero
+			t=potadc_buffer[i+SLIDER_ADC_BASE];
+			if (t<20)
+				t=0;
+			else
+				t=t-20;
+
+			level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
 
 			if (level_lpf<=0.007) level_lpf=0.0;
 
@@ -499,7 +525,11 @@ void process_lock_buttons(void){
 					}
 				}
 				if (ui_mode==EDIT_SCALES){
-					editscale_notelocked=1-editscale_notelocked;
+					if (i<4)
+						editscale_notelocked=1-editscale_notelocked;
+					else
+						editscale_tracklocked=1-editscale_tracklocked;
+
 				}
 
 				if (ui_mode==SELECT_PARAMS){

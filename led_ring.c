@@ -38,7 +38,6 @@
 
 //#define TEST_LED_RING
 
-
 extern float channel_level[NUM_CHANNELS];
 extern uint8_t lock[NUM_CHANNELS];
 
@@ -56,7 +55,6 @@ extern enum UI_Modes ui_mode;
 
 uint8_t flag_update_LED_ring=0;
 float spectral_readout[NUM_FILTS];
-
 
 
 //Default values, that should be overwritten when reading flash
@@ -142,7 +140,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		}
 	} else if (ui_mode==EDIT_SCALES) {
 		for (chan=0;chan<6;chan++){
-			env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
+			env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 800 : 0;
 			env_out_leds[chan][1]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
 			env_out_leds[chan][2]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
 		}
@@ -229,11 +227,11 @@ void display_filter_rotation(void){
 						ring[i][0] += (uint16_t)((COLOR_CH[cur_colsch][chan][0])*inv_fade[chan]);
 						ring[i][1] += (uint16_t)((COLOR_CH[cur_colsch][chan][1])*inv_fade[chan]);
 						ring[i][2] += (uint16_t)((COLOR_CH[cur_colsch][chan][2])*inv_fade[chan]);
-
-						if (ring[i][0]>1023) ring[i][0]=1023;
-						if (ring[i][1]>1023) ring[i][1]=1023;
-						if (ring[i][2]>1023) ring[i][2]=1023;
 					}
+
+					if (ring[i][0]>1023) ring[i][0]=1023;
+					if (ring[i][1]>1023) ring[i][1]=1023;
+					if (ring[i][2]>1023) ring[i][2]=1023;
 				}
 				if (fade[chan]>0.0){
 					if (ring[next_i][0]+ring[next_i][1]+ring[next_i][2]==0){
@@ -244,12 +242,13 @@ void display_filter_rotation(void){
 						ring[next_i][0]+=(uint16_t)((COLOR_CH[cur_colsch][chan][0])*fade[chan]);
 						ring[next_i][1]+=(uint16_t)((COLOR_CH[cur_colsch][chan][1])*fade[chan]);
 						ring[next_i][2]+=(uint16_t)((COLOR_CH[cur_colsch][chan][2])*fade[chan]);
-
-						if (ring[next_i][0]>1023) ring[next_i][0]=1023;
-						if (ring[next_i][1]>1023) ring[next_i][1]=1023;
-						if (ring[next_i][2]>1023) ring[next_i][2]=1023;
-
 					}
+
+					if (ring[next_i][0]>1023) ring[next_i][0]=1023;
+					if (ring[next_i][1]>1023) ring[next_i][1]=1023;
+					if (ring[next_i][2]>1023) ring[next_i][2]=1023;
+
+
 				}
 				chan=6;//break;
 			}

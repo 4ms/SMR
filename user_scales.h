@@ -35,6 +35,7 @@
 void exit_edit_scale(uint8_t save);
 void enter_edit_scale(void);
 void handle_edit_scale(void);
+void handle_edit_tracking(void);
 void set_default_user_scalebank(void);
 void check_rotary_pressed_repeatedly(void);
 

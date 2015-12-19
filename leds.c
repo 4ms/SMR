@@ -38,6 +38,7 @@ extern float channel_level[NUM_CHANNELS];
 extern uint8_t 	cur_param_bank;
 extern uint8_t lock[NUM_CHANNELS];
 extern uint8_t editscale_notelocked;
+extern uint8_t editscale_tracklocked;
 
 uint8_t slider_led_mode=SHOW_CLIPPING;
 
@@ -62,6 +63,21 @@ void update_slider_LEDs(void){
 		}
 
 		LED_SLIDER_OFF(slider_led[3] | slider_led[4] | slider_led[5]);
+
+	} else if (ui_mode==EDIT_SCALES){
+
+		if (flash++>1000){
+			LED_SLIDER_ON(slider_led[0] | slider_led[1] | slider_led[2] | slider_led[3]);
+		}
+		if (flash>2000){
+			flash=0;
+			LED_SLIDER_OFF(slider_led[0] | slider_led[1] | slider_led[2] | slider_led[3]);
+		}
+
+		if ((flash & 0b111111) == 0b000000)
+			LED_SLIDER_OFF(slider_led[4] | slider_led[5]);
+		else if ((flash & 0b111111) == 0b111111)
+			LED_SLIDER_ON(slider_led[4] | slider_led[5]);
 
 	} else if (ui_mode==SELECT_PARAMS || ui_mode==PRE_SELECT_PARAMS){
 
@@ -149,8 +165,12 @@ inline void update_lock_leds(void){
 		}
 
 	} else if (ui_mode==EDIT_SCALES){
-		for (i=0;i<NUM_CHANNELS;i++){
+		for (i=0;i<4;i++){
 			if (editscale_notelocked) LOCKLED_ON(i);
+			else LOCKLED_OFF(i);
+		}
+		for (i=4;i<6;i++){
+			if (editscale_tracklocked) LOCKLED_ON(i);
 			else LOCKLED_OFF(i);
 		}
 

@@ -185,8 +185,10 @@ void main(void)
 		if (ui_mode==PLAY)
 			check_rotary_pressed_repeatedly();
 
-		if (ui_mode==EDIT_SCALES)
+		if (ui_mode==EDIT_SCALES){
 			handle_edit_scale();
+			handle_edit_tracking();
+		}
 
 		if (ui_mode==EDIT_COLORS)
 			handle_edit_colors();

@@ -37,6 +37,8 @@
 #include "user_scales.h"
 
 extern float exp_1voct[4096];
+extern float trackcomp;
+extern int16_t trackoffset;
 
 float user_scalebank[231];
 
@@ -66,6 +68,7 @@ float DEFAULT_user_scalebank[21]={
 
 
 uint8_t editscale_notelocked=0;
+uint8_t editscale_tracklocked=0;
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
@@ -95,6 +98,7 @@ void enter_edit_scale(void){
 	}
 
 	editscale_notelocked=1;
+	editscale_tracklocked=1;
 
 	ui_mode=EDIT_SCALES;
 }
@@ -172,6 +176,30 @@ void handle_edit_scale(void){
 
 	}
 
+}
+
+void handle_edit_tracking(void){
+
+	uint16_t track_adc;
+
+	if (!editscale_tracklocked){
+
+		track_adc=potadc_buffer[4+SLIDER_ADC_BASE];
+
+		if (track_adc>2047)
+			trackcomp = exp_1voct[(track_adc-2048) >> 7]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.025
+		else
+			trackcomp = 1.0 / exp_1voct[(2047-track_adc) >> 7]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.975
+
+		if (trackcomp<0.5 || trackcomp>2.0) trackcomp=1.0; //sanity check!
+
+		track_adc=potadc_buffer[5+SLIDER_ADC_BASE];
+
+		if (track_adc>2047)
+			trackoffset = (track_adc-2048) >> 7; //0..31
+		else
+			trackoffset = 0-((2047-track_adc) >> 7); //-31..0
+	}
 }
 
 void set_default_user_scalebank(void){
