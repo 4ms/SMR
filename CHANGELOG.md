@@ -1,6 +1,26 @@
+## How to tell what version you have
+
+ 1. Tap the ROTATE button 10 times
+
+ 2. Look at the color of the Channel 1 Env Out LED.
+
+     * If it's Yellow, then you have Version 3
+
+     * If it's Green, you have Version 2
+
+     * If it's Blue and all the other Env Out lights are on, then you have Version 1.
+
+## Version 3:
+ * **New Features:**
+   * 1V/oct tracking and root note offset can be adjusted in system mode
+   * Further reduced flickering of sliders 
+   * Fixed display issue when editting the channel colors
+
+ * **Shipping history:**
+   * Version 3, Rev 0 shipped Dec 21, 2015
+
+
 ## Version 2:
- * **How to tell if you have version 2:** Tap the ROTATE button 10 times. The Channel 1 ENV OUT LED is Green, LEDs Channels 2-6 are off
- 
  * **New Features:**
    * 1V per octave was at 1.5V per octave, changed to 1.0V/oct
    * Added firmware version display in change scale mode
