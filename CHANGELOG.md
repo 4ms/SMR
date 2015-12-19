@@ -8,7 +8,7 @@
 
      * If it's Green, you have Version 2
 
-     * If it's Blue and all the other Env Out lights are on, then you have Version 1.
+     * If it's any color and all the Env Out lights are on, then you have Version 1.
 
 ## Version 3:
  * **New Features:**
@@ -40,7 +40,7 @@
   * Version 1, Rev 0 shipped Aug 6, 2015
 
 
-## How to determine firmware version
+## Technical details of how the firmware version is displayed
 To view the firmware version, tap the ROTATE button 10 times rapidly to enter “Custom Scales” mode.
 
 Starting with Firmware version 2, the Blue/Green/Red elements of the Env. Outs LEDs read as a binary code of the firmware version number, with Channel 1 Red being the least significant bit, and Channel 6 Blue being the most significant bit. 
@@ -55,7 +55,7 @@ Like this:
 `(??? ??? ??? ??? ??? ???)`
 **Firmware version 2:** Channel 1 Green
 `(000 000 000 000 000 010)`
-*Future firmware versions will follow the same format:***Firmware version 3:** Channel 1 Yellow (green+red)
+*Firmware version 3:** Channel 1 Yellow (green+red)
 `(000 000 000 000 000 011)`
 
 **Firmware version 4:** Channel 1 Blue
