@@ -137,7 +137,15 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 			env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])  );
 			env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])  );
 			env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])  );
+
+			if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
+			if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
+			if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
+
 		}
+
+
+
 	} else if (ui_mode==EDIT_SCALES) {
 		for (chan=0;chan<6;chan++){
 			env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 800 : 0;
