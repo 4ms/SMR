@@ -157,6 +157,10 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 			env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
 			env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
 			env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+
+			if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
+			if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
+			if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
 		}
 	}
 

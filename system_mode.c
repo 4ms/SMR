@@ -566,19 +566,10 @@ void handle_edit_colors(void){
 
 	for (i=0;i<6;i++) {
 		if (lock[i]==0){
-	//		COLOR_CH[cur_colsch][i][0] = potadc_buffer[0+SLIDER_ADC_BASE]>>2;
-	//		COLOR_CH[cur_colsch][i][1] = potadc_buffer[1+SLIDER_ADC_BASE]>>2;
-	//		COLOR_CH[cur_colsch][i][2] = potadc_buffer[2+SLIDER_ADC_BASE]>>2;
 
-			//0..4095
-			//COLOR_CH[cur_colsch][i][0] = (uint16_t)(exp_4096[4095-potadc_buffer[0+SLIDER_ADC_BASE]]*1024.0);
-			//COLOR_CH[cur_colsch][i][1] = (uint16_t)(exp_4096[4095-potadc_buffer[1+SLIDER_ADC_BASE]]*1024.0);
-			//COLOR_CH[cur_colsch][i][2] = (uint16_t)(exp_4096[4095-potadc_buffer[2+SLIDER_ADC_BASE]]*1024.0);
-
-
-			COLOR_CH[cur_colsch][i][0] = (uint16_t)(exp_1voct[potadc_buffer[0+SLIDER_ADC_BASE]]*10.0);
-			COLOR_CH[cur_colsch][i][1] = (uint16_t)(exp_1voct[potadc_buffer[1+SLIDER_ADC_BASE]]*10.0);
-			COLOR_CH[cur_colsch][i][2] = (uint16_t)(exp_1voct[potadc_buffer[2+SLIDER_ADC_BASE]]*10.0);
+			COLOR_CH[cur_colsch][i][0] = (uint16_t)(exp_1voct[potadc_buffer[0+SLIDER_ADC_BASE]]);
+			COLOR_CH[cur_colsch][i][1] = (uint16_t)(exp_1voct[potadc_buffer[1+SLIDER_ADC_BASE]]);
+			COLOR_CH[cur_colsch][i][2] = (uint16_t)(exp_1voct[potadc_buffer[2+SLIDER_ADC_BASE]]);
 
 		}
 	}

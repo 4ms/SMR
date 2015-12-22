@@ -187,9 +187,9 @@ void handle_edit_tracking(void){
 		track_adc=potadc_buffer[4+SLIDER_ADC_BASE];
 
 		if (track_adc>2047)
-			trackcomp = exp_1voct[(track_adc-2048) >> 7]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.025
+			trackcomp = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
 		else
-			trackcomp = 1.0 / exp_1voct[(2047-track_adc) >> 7]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.975
+			trackcomp = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
 
 		if (trackcomp<0.5 || trackcomp>2.0) trackcomp=1.0; //sanity check!
 
