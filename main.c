@@ -75,7 +75,6 @@ extern uint8_t do_ROTDOWN;
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
 
-extern uint16_t mod_mode_135, mod_mode_246;
 extern uint16_t rotate_to_next_scale;
 
 extern int8_t spread;

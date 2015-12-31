@@ -53,6 +53,8 @@ extern int16_t change_scale_mode;
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
+extern enum Env_Out_Modes env_track_mode;
+
 uint8_t flag_update_LED_ring=0;
 float spectral_readout[NUM_FILTS];
 
@@ -210,7 +212,11 @@ void display_filter_rotation(void){
 
 	for (chan=0;chan<6;chan++){
 		if (ui_mode==EDIT_COLORS) t_f=1.0;
-		else if (ui_mode==EDIT_SCALES) t_f = (chan==0) ? 1.0 : 0.0;
+		else if (ui_mode==EDIT_SCALES) {
+			t_f=0.0;
+			if (chan==0 && env_track_mode!=ENV_SLOW) t_f = 1.0;
+			if (chan==5 && env_track_mode!=ENV_FAST) t_f = 1.0;
+		}
 		else
 			t_f = channel_level[chan] < 0.05 ? 0.05 : channel_level[chan];
 
@@ -334,12 +340,17 @@ void display_scale(void){
 	for (i=0;i<NUM_CHANNELS;i++){
 		j=13-i; //13, 12, 11, 10, 9, 8
 
+		if (ui_mode==EDIT_SCALES){
+			ring[j][0]=USER_SCALE_BANK[0];
+			ring[j][1]=USER_SCALE_BANK[1];
+			ring[j][2]=USER_SCALE_BANK[2];
+		} else 
 		if (lock[i]!=1) {
 			ring[j][0]=SCALE_BANK_COLOR[hover_scale_bank][0];
 			ring[j][1]=SCALE_BANK_COLOR[hover_scale_bank][1];
 			ring[j][2]=SCALE_BANK_COLOR[hover_scale_bank][2];
 		} else
-		if (scale_bank[i]==0xFF){
+		if (scale_bank[i]==0xFF ) {
 			ring[j][0]=USER_SCALE_BANK[0];
 			ring[j][1]=USER_SCALE_BANK[1];
 			ring[j][2]=USER_SCALE_BANK[2];

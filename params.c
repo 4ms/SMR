@@ -50,8 +50,8 @@ uint16_t old_potadc_buffer[NUM_ADC3S];
 
 extern uint32_t rotary_state;
 
-float trackcomp=1.0;
-int16_t trackoffset=0;
+float trackcomp[NUM_CHANNELS]={1.0,1.0};
+int16_t trackoffset[NUM_CHANNELS]={0,0};
 
 
 //FREQ NUDGE/LOCK JACKS
@@ -143,8 +143,10 @@ void set_default_param_values(void){
 	motion_rotate=0;
 	filter_type=MAXQ;
 
-	trackcomp=1.0;
-	trackoffset=0;
+	trackcomp[0]=1.0;
+	trackcomp[1]=1.0;
+	trackoffset[0]=0;
+	trackoffset[1]=0;
 }
 
 void param_read_freq_nudge(void){
@@ -160,14 +162,18 @@ void param_read_freq_nudge(void){
 		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC])/4096.0;
 		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC])/4096.0;
 
-		freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset) * trackcomp;
+		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
+
+		freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0]) * trackcomp[0];
 		if (freq_jack_cv<0) freq_jack_cv=0;
 		if (freq_jack_cv>4095) freq_jack_cv=4095;
 
 		f_shift_odds *= FREQCV_LPF;
 		f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]) ;
 
-		freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset) * trackcomp;
+		if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
+
+		freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1]) * trackcomp[1];
 		if (freq_jack_cv<0) freq_jack_cv=0;
 		if (freq_jack_cv>4095) freq_jack_cv=4095;
 
@@ -254,12 +260,16 @@ void param_read_channel_level(void){
 	uint16_t t;
 
 	if (ui_mode==EDIT_SCALES){
-		channel_level[0]=1.0;
+		if (env_track_mode!=ENV_SLOW) channel_level[0]=1.0;
+		else channel_level[0]=0.0;
+
+		if (env_track_mode!=ENV_FAST) channel_level[5]=1.0;
+		else channel_level[5]=0.0;
+
 		channel_level[1]=0.0;
 		channel_level[2]=0.0;
 		channel_level[3]=0.0;
 		channel_level[4]=0.0;
-		channel_level[5]=0.0;
 
 	} else {
 

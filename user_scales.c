@@ -37,8 +37,9 @@
 #include "user_scales.h"
 
 extern float exp_1voct[4096];
-extern float trackcomp;
-extern int16_t trackoffset;
+extern float trackcomp[NUM_CHANNELS];
+extern int16_t trackoffset[NUM_CHANNELS];
+extern enum Env_Out_Modes env_track_mode;
 
 float user_scalebank[231];
 
@@ -123,8 +124,7 @@ void exit_edit_scale(uint8_t save){
 #define COEF_COEF (2.0 * 3.14159265358979323846 / 96000.0)
 
 const float octaves[11]={1,2,4,8,16,32,64,128,256,512,1024};
-const float TwelfthRootTwo[12]={1.05946309436, 1.12246204831087, 1.1892071150051, 1.25992104989823, 1.33483985417448, 1.41421356237875, 1.49830707688367,
-		1.58740105197666, 1.68179283051751, 1.78179743629254, 1.88774862537721, 2.0};
+const float TwelfthRootTwo[12]={1.0, 1.05946309436, 1.12246204831087, 1.1892071150051, 1.25992104989823, 1.33483985417448, 1.41421356237875, 1.49830707688367, 1.58740105197666, 1.68179283051751, 1.78179743629254, 1.88774862537721};
 
 #define TWELFTHROOTTWO 1.05946309436
 #define ROOT 13.75
@@ -142,19 +142,19 @@ void handle_edit_scale(void){
 
 	static float slider_lpf[6]={0,0,0,0,0,0};
 
-	if (diff(old_potadc[0],potadc_buffer[0+SLIDER_ADC_BASE]) > 100){
+	if (diff(old_potadc[0],potadc_buffer[0+SLIDER_ADC_BASE]) > 25){
 		old_potadc[0] = potadc_buffer[0+SLIDER_ADC_BASE];
 		slider_lpf[0] = old_potadc[0];
 	}
-	if (diff(old_potadc[1],potadc_buffer[1+SLIDER_ADC_BASE]) > 100){
+	if (diff(old_potadc[1],potadc_buffer[1+SLIDER_ADC_BASE]) > 25){
 		old_potadc[1] = potadc_buffer[1+SLIDER_ADC_BASE];
 		slider_lpf[1] = old_potadc[1];
 	}
-	if (diff(old_potadc[2],potadc_buffer[2+SLIDER_ADC_BASE]) > 50){
+	if (diff(old_potadc[2],potadc_buffer[2+SLIDER_ADC_BASE]) > 25){
 		old_potadc[2] = potadc_buffer[2+SLIDER_ADC_BASE];
 		slider_lpf[2] = old_potadc[2];
 	}
-	if (diff(old_potadc[3],potadc_buffer[3+SLIDER_ADC_BASE]) > 50){
+	if (diff(old_potadc[3],potadc_buffer[3+SLIDER_ADC_BASE]) > 25){
 		old_potadc[3] = potadc_buffer[3+SLIDER_ADC_BASE];
 		slider_lpf[3] = old_potadc[3];
 	}
@@ -171,8 +171,12 @@ void handle_edit_scale(void){
 
 		freq = ROOT * octaves[octave_sel] * TwelfthRootTwo[semitone_sel] * exp_1voct[microtone_sel] * exp_1voct[nanotone_sel];
 
-		user_scalebank[scale[0]*21 +  note[0]] = COEF_COEF * freq;
+		if (env_track_mode!=ENV_SLOW) 
+			user_scalebank[scale[0]*21 +  note[0]] = COEF_COEF * freq;
 
+		if (env_track_mode!=ENV_FAST) 
+			user_scalebank[scale[5]*21 +  note[5]] = COEF_COEF * freq;
+		
 
 	}
 
@@ -186,19 +190,26 @@ void handle_edit_tracking(void){
 
 		track_adc=potadc_buffer[4+SLIDER_ADC_BASE];
 
-		if (track_adc>2047)
-			trackcomp = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
-		else
-			trackcomp = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+		if (track_adc>2047){
+			if (env_track_mode!=ENV_SLOW) trackcomp[0] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
+			if (env_track_mode!=ENV_FAST) trackcomp[1] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
+		}else{
+			if (env_track_mode!=ENV_SLOW) trackcomp[0] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+			if (env_track_mode!=ENV_FAST) trackcomp[1] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+		}
 
-		if (trackcomp<0.5 || trackcomp>2.0) trackcomp=1.0; //sanity check!
+		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check!
+		if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check!
 
 		track_adc=potadc_buffer[5+SLIDER_ADC_BASE];
 
-		if (track_adc>2047)
-			trackoffset = (track_adc-2048) >> 7; //0..31
-		else
-			trackoffset = 0-((2047-track_adc) >> 7); //-31..0
+		if (track_adc>2047){
+			if (env_track_mode!=ENV_SLOW) trackoffset[0] = (track_adc-2048) >> 7; //0..31
+			if (env_track_mode!=ENV_FAST) trackoffset[1] = (track_adc-2048) >> 7; //0..31
+		}else{
+			if (env_track_mode!=ENV_SLOW) trackoffset[0] = 0-((2047-track_adc) >> 7); //-31..0
+			if (env_track_mode!=ENV_FAST) trackoffset[1] = 0-((2047-track_adc) >> 7); //-31..0
+		}
 	}
 }
 

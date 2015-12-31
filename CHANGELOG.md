@@ -4,11 +4,22 @@
 
  2. Look at the color of the Channel 1 Env Out LED.
 
+     * If it's Blue (and all the other Env Out LEDs are off), then you have Version 4
+
      * If it's Yellow, then you have Version 3
 
      * If it's Green, you have Version 2
 
-     * If it's any color and all the Env Out lights are on, then you have Version 1.
+     * If it's blue or any color and all the Env Out lights are on, then you have Version 1.
+
+## Version 4:
+ * **New Features:**
+   * 1V/oct tracking and root note offset adjustments can be made independantly to the Evens and Odds channels
+   * Added ability to set two notes at once, or A/B notes using the Fast|Slow switch in Custom Scale Edit mode
+   * Cleaned up some display issues in Custom Scale Edit mode (wrong bank was displayed sometimes)
+
+ * **Shipping history:**
+   * Version 4, Rev 0 shipped Jan 2, 2015
 
 ## Version 3:
  * **New Features:**
@@ -18,7 +29,6 @@
 
  * **Shipping history:**
    * Version 3, Rev 0 shipped Dec 21, 2015
-
 
 ## Version 2:
  * **New Features:**

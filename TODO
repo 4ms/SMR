@@ -5,3 +5,4 @@
  Global system parameter: envelope output attenuation
  
  Bug: factory_reset leaves us in the current scale_bank, but on power cycle we are restored to scale_bank 0
+

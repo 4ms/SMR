@@ -67,8 +67,8 @@ extern uint8_t hover_scale_bank;
 
 extern uint8_t slider_led_mode;
 
-extern float trackcomp;
-extern int16_t trackoffset;
+extern float trackcomp[NUM_CHANNELS];
+extern int16_t trackoffset[NUM_CHANNELS];
 
 extern float user_scalebank[231];
 
@@ -86,17 +86,20 @@ extern float user_scalebank[231];
 #define FLASH_ADDR_padding_1		(FLASH_ADDR_clipmode		+ SZ_CM)		/* 6  ..7	*/
 #define SZ_P1 2
 
-#define FLASH_ADDR_trackcomp 		(FLASH_ADDR_padding_1 		+ SZ_P1) 		/* 8  ..11	*/
-#define SZ_TC 4
+#define FLASH_ADDR_trackcomp1 		(FLASH_ADDR_padding_1 		+ SZ_P1) 		/* 8  ..11	*/
+#define SZ_TC1 4
 
-#define FLASH_ADDR_trackoffset 		(FLASH_ADDR_trackcomp 		+ SZ_TC) 		/* 12 ..15	*/
-#define SZ_TO 4
+#define FLASH_ADDR_trackcomp2 		(FLASH_ADDR_trackcomp1 		+ SZ_TC1) 		/* 12 ..15	*/
+#define SZ_TC2 4
 
-#define FLASH_ADDR_future_globals	(FLASH_ADDR_trackoffset		+ SZ_TO)		/* 16 ..133 */
-#define SZ_FG 118
+#define FLASH_ADDR_trackoffset1 	(FLASH_ADDR_trackcomp2 		+ SZ_TC2) 		/* 16 ..19	*/
+#define SZ_TO1 4
 
-//#define FLASH_ADDR_future_globals	(FLASH_ADDR_clipmode		+ SZ_CM)		/* 6  ..133 */
-//#define SZ_FG 128
+#define FLASH_ADDR_trackoffset2 	(FLASH_ADDR_trackoffset1 	+ SZ_TO1) 		/* 20 ..23	*/
+#define SZ_TO2 4
+
+#define FLASH_ADDR_future_globals	(FLASH_ADDR_trackoffset2	+ SZ_TO2)		/* 24 ..133 */
+#define SZ_FG 110
 
 //Parameter banks:
 #define FLASH_ADDR_START_PARAMBANKS		(FLASH_ADDR_future_globals	+ SZ_FG)		/* 134 		*/
@@ -136,8 +139,8 @@ extern float user_scalebank[231];
 uint32_t flash_firmware_version=0;
 uint8_t flash_startupbank=0;
 uint8_t flash_clipmode=0;
-float flash_trackcomp=1.0;
-int32_t flash_trackoffset=0;
+float flash_trackcomp[NUM_CHANNELS]={1.0,1.0};
+int32_t flash_trackoffset[NUM_CHANNELS]={0,0};
 uint8_t flash_bankstatus[FLASH_NUM_parambanks];
 uint8_t flash_note[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint8_t flash_scale[FLASH_NUM_parambanks][NUM_CHANNELS];
@@ -160,8 +163,10 @@ void factory_reset(void){
 	flash_firmware_version = FW_VERSION;
 	flash_startupbank=0;
 	flash_clipmode=SHOW_CLIPPING;
-	flash_trackcomp=1.0;
-	flash_trackoffset=0;
+	flash_trackcomp[0]=1.0;
+	flash_trackcomp[1]=1.0;
+	flash_trackoffset[0]=0;
+	flash_trackoffset[1]=0;
 
 	for (i=0;i<FLASH_NUM_parambanks;i++){
 		flash_bankstatus[i] 		= 0xFF;
@@ -264,7 +269,7 @@ void store_params_into_sram(uint8_t bank_num){
 
 //load SRAM globals into active params
 void load_global_params(void){
-
+	uint8_t chan;
 	uint32_t sz;
 	uint8_t *src;
 	uint8_t *dst;
@@ -284,11 +289,13 @@ void load_global_params(void){
 
 	slider_led_mode = (flash_clipmode==DONT_SHOW_CLIPPING) ? DONT_SHOW_CLIPPING : SHOW_CLIPPING;
 
-	trackcomp = flash_trackcomp;
-	if (trackcomp<0.5 || trackcomp>2.0) trackcomp=1.0; //sanity check
+	for (chan=0;chan<NUM_CHANNELS;chan++){
+		trackcomp[chan] = flash_trackcomp[chan];
+		if (trackcomp[chan]<0.5 || trackcomp[chan]>2.0) trackcomp[chan]=1.0; //sanity check
 
-	trackoffset = flash_trackoffset;
-	if (trackoffset < -100 || trackoffset > 100) trackoffset=0; //sanity check
+		trackoffset[chan] = flash_trackoffset[chan];
+		if (trackoffset[chan] < -100 || trackoffset[chan] > 100) trackoffset[chan]=0; //sanity check
+	}
 }
 
 //stores active global params into SRAM
@@ -315,8 +322,10 @@ void store_globals_into_sram(void){
 
 	flash_clipmode = (slider_led_mode==DONT_SHOW_CLIPPING) ? DONT_SHOW_CLIPPING : SHOW_CLIPPING;
 
-	flash_trackcomp = trackcomp;
-	flash_trackoffset = trackoffset;
+	flash_trackcomp[0] = trackcomp[0];
+	flash_trackoffset[0] = trackoffset[0];
+	flash_trackcomp[1] = trackcomp[1];
+	flash_trackoffset[1] = trackoffset[1];
 }
 
 
@@ -358,10 +367,16 @@ void read_all_params_from_FLASH(void){ //~200uS
 
 	flash_clipmode = flash_read_byte(FLASH_ADDR_clipmode);
 
-	t = flash_read_word(FLASH_ADDR_trackcomp);
-	flash_trackcomp=*(float *)&t;
+	t = flash_read_word(FLASH_ADDR_trackcomp1);
+	if (t==0xFFFFFFFF) t=1;
+	flash_trackcomp[0]=*(float *)&t;
 
-	flash_trackoffset = flash_read_word(FLASH_ADDR_trackoffset);
+	t = flash_read_word(FLASH_ADDR_trackcomp2);
+	if (t==0xFFFFFFFF) t=1;
+	flash_trackcomp[1]=*(float *)&t;
+
+	flash_trackoffset[0] = flash_read_word(FLASH_ADDR_trackoffset1);
+	flash_trackoffset[1] = flash_read_word(FLASH_ADDR_trackoffset2);
 
 
 	for (bank_i=0;bank_i<6;bank_i++){
@@ -444,9 +459,11 @@ void write_all_params_to_FLASH(void){
 
 	flash_open_program_array((uint8_t *)flash_user_scalebank, FLASH_ADDR_user_scalebank, FLASH_SIZE_user_scalebank);
 
-	flash_open_program_word(*(uint32_t *)&flash_trackoffset, FLASH_ADDR_trackoffset);
+	flash_open_program_word(*(uint32_t *)&(flash_trackoffset[0]), FLASH_ADDR_trackoffset1);
+	flash_open_program_word(*(uint32_t *)&(flash_trackoffset[1]), FLASH_ADDR_trackoffset2);
 
-	flash_open_program_word(*(uint32_t *)&flash_trackcomp, FLASH_ADDR_trackcomp);
+	flash_open_program_word(*(uint32_t *)&(flash_trackcomp[0]), FLASH_ADDR_trackcomp1);
+	flash_open_program_word(*(uint32_t *)&(flash_trackcomp[1]), FLASH_ADDR_trackcomp2);
 
 	flash_end_open_program();
 }
