@@ -19,7 +19,7 @@
    * Cleaned up some display issues in Custom Scale Edit mode (wrong bank was displayed sometimes)
 
  * **Shipping history:**
-   * Version 4, Rev 0 shipped Jan 2, 2015
+   * Version 4, Rev 0 shipped Jan 2, 2016
 
 ## Version 3:
  * **New Features:**
@@ -61,18 +61,22 @@ Like this:
 
 `(BGR BGR BGR BGR BGR BGR)`
 
-**Firmware version 1:** All Env Out LEDs normal colors (no binary code)
-`(??? ??? ??? ??? ??? ???)`
-**Firmware version 2:** Channel 1 Green
-`(000 000 000 000 000 010)`
-*Firmware version 3:** Channel 1 Yellow (green+red)
-`(000 000 000 000 000 011)`
+**Firmware version 1:** All Env Out LEDs normal colors (no binary code)
+`(??? ??? ??? ??? ??? ???)`
 
-**Firmware version 4:** Channel 1 Blue
-`(000 000 000 000 000 100)`
-**Firmware version 5:** Channel 1 Purple (blue+red)
-`(000 000 000 000 000 101)`
-...
-**Firmware version 15:** Channel 1 White (blue+green+red), Channel 2 Red
-`(000 000 000 000 001 111)`
-...etc
+**Firmware version 2:** Channel 1 Green
+`(000 000 000 000 000 010)`
+
+*Firmware version 3:** Channel 1 Yellow (green+red)
+`(000 000 000 000 000 011)`
+
+**Firmware version 4:** Channel 1 Blue
+`(000 000 000 000 000 100)`
+
+**Firmware version 5:** Channel 1 Purple (blue+red)
+`(000 000 000 000 000 101)`
+...
+
+**Firmware version 15:** Channel 1 White (blue+green+red), Channel 2 Red
+`(000 000 000 000 001 111)`
+..etc
