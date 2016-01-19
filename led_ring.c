@@ -215,7 +215,7 @@ void display_filter_rotation(void){
 		else if (ui_mode==EDIT_SCALES) {
 			t_f=0.0;
 			if (chan==0 && env_track_mode!=ENV_SLOW) t_f = 1.0;
-			if (chan==5 && env_track_mode!=ENV_FAST) t_f = 1.0;
+			if (chan==5 && env_track_mode!=ENV_FAST && env_track_mode!=ENV_VOLTOCT) t_f = 1.0;
 		}
 		else
 			t_f = channel_level[chan] < 0.05 ? 0.05 : channel_level[chan];

@@ -88,6 +88,8 @@ extern float channel_level[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
 
+extern enum Env_Out_Modes env_track_mode;
+
 float *c_hiq[6];
 float *c_loq[6];
 float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3];
@@ -136,7 +138,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	register float tmp, fir, iir;
 	float c0,c1,c2;
 	float a0,a1,a2;
-	float freq_comp[NUM_CHANNELS];
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
@@ -332,7 +333,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
 				c1 *= freq_shift[channel_num];
 				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-				freq_comp[channel_num] = 1.0;
+
+				if (env_track_mode==ENV_VOLTOCT){
+					if (j<6)
+						ENVOUT_preload[j]=c1;
+					else if (j>=6 && CVLAG)
+						ENVOUT_preload[j-6] = (ENVOUT_preload[j-6] * (1.0f-motion_morphpos[j-6])) + (c1 * motion_morphpos[j-6]);
+				}
 
 			//AMPLITUDE: Boost high freqs and boost low resonance
 				c2= (0.003 * c1) - (0.1*c0) + 0.102;
@@ -475,12 +482,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					}
 				}
 
-
-			if (f_blended>0)
-				ENVOUT_preload[j]=f_blended*(freq_comp[j]);
-			else
-				ENVOUT_preload[j]=-1.0*f_blended*(freq_comp[j]);
-
+			if (env_track_mode != ENV_VOLTOCT){
+				if (f_blended>0)
+					ENVOUT_preload[j]=f_blended;
+				else
+					ENVOUT_preload[j]=-1.0*f_blended;
+			}
 
 		}
 

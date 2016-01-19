@@ -32,5 +32,6 @@
 
 void update_ENVOUT_PWM(void);
 void init_envout_pwm(void);
+void init_PWM_voltperoctave_lut(void);
 
 #endif /* ENVOUT_PWM_H_ */

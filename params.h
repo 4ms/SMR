@@ -68,7 +68,8 @@ void param_read_lock_buttons(void);
 enum Env_Out_Modes{
 ENV_SLOW,
 ENV_FAST,
-ENV_TRIG
+ENV_TRIG,
+ENV_VOLTOCT
 
 };
 
