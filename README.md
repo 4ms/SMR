@@ -8,7 +8,7 @@ The SMR is a 6-channel highly resonant filter ("resonator") with a ring of RGB L
 The SMR would make a nice platform for other audio projects, the hardware contains:
 
 *	180MHz 32-bit ARM chip with FPU (STM32F427)
-*	Stereo codec chip (running at 96kHz/16bit in this firmware)
+*	Stereo codec chip (running at 96kHz/24bit in this firmware)
 	*	Two audio inputs, two audio outputs
 *	Five 16-channel PCA9685 LED drivers (10-bits per channel)  
 *	26 RGB LEDs, 20 are arranged in a circle/ellipse, 6 are arranged in a line  
@@ -21,11 +21,11 @@ The SMR would make a nice platform for other audio projects, the hardware contai
 *	Six gate/digital inputs (can be used as unscaled CV inputs)
 *	Six CV outputs (0V-8V), driven by PWM  
   
-As of writing this (Sept, 2015), there are two PCB versions: 1.0 and 1.0.1. These are functionally identical and this firmware will run exactly the same on both versions.
+As of writing this (Feb 2016), there are three PCB versions: 1.0, and 1.0.1, and 1.0.2. These are functionally identical and this firmware will run exactly the same on all versions. The later versions reflect improvements in manufacturability, not in circuit performance.
 
 ## Setting up your environment
 You need to install the GCC ARM toolchain.
-This project is known to compile with arm-none-eabi-gcc version 4.8.3, and version 4.9.3.
+This project is known to compile with arm-none-eabi-gcc version 4.8.3, and version 4.9.3. It is likely that it will compile with future versions as well.
 
 It's recommended (but not necessary) to install ST-UTIL/stlink. Without it, you will have to update using the audio bootloader, which is very slow (5 minutes per update).
 With ST-UTIL or stlink and a programmer, you can update in 5-20 seconds.
@@ -133,5 +133,4 @@ Then try this command:
 The bootloader is a [separate project](https://github.com/4ms/stm-audio-bootloader), slightly modifed from the stm-audio-bootloader from [pichenettes](https://github.com/pichenettes/eurorack). 
 
 The bootloader is already installed on all factory-built SMRs.
-
 
