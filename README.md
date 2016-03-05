@@ -8,7 +8,7 @@ The SMR is a 6-channel highly resonant filter ("resonator") with a ring of RGB L
 The SMR would make a nice platform for other audio projects, the hardware contains:
 
 *	180MHz 32-bit ARM chip with FPU (STM32F427)
-*	Stereo codec chip (running at 96kHz/16bit in this firmware)
+*	Stereo codec chip (running at 96kHz/24bit in this firmware)
 	*	Two audio inputs, two audio outputs
 *	Five 16-channel PCA9685 LED drivers (10-bits per channel)  
 *	26 RGB LEDs, 20 are arranged in a circle/ellipse, 6 are arranged in a line  
@@ -21,7 +21,7 @@ The SMR would make a nice platform for other audio projects, the hardware contai
 *	Six gate/digital inputs (can be used as unscaled CV inputs)
 *	Six CV outputs (0V-8V), driven by PWM  
   
-As of writing this (Sept, 2015), there are two PCB versions: 1.0 and 1.0.1. These are functionally identical and this firmware will run exactly the same on both versions.
+As of writing this (March 2016), there are three PCB versions: 1.0, 1.0.1, and 1.0.2. These are functionally identical and this firmware will run exactly the same on all versions.
 
 ## Setting up your environment
 You need to install the GCC ARM toolchain.
