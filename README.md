@@ -134,3 +134,15 @@ The bootloader is a [separate project](https://github.com/4ms/stm-audio-bootload
 
 The bootloader is already installed on all factory-built SMRs.
 
+## License
+The code (software) is licensed by the MIT license.
+
+The hardware is licensed by the [CC BY-NC-SA license](https://creativecommons.org/licenses/by-nc-sa/4.0/) (Creative Commons, Attribution, NonCommercial, ShareAlike).
+
+See LICENSE file.
+
+I would like to see others build and modify the SMR and SMR-influenced works, in a non-commercial manner. My intent is not to limit the educational use nor to prevent people buying hardware components/PCBs collectively in a group. If you have any questions regarding the license or appropriate use, please do not hesitate to contact me! 
+
+## Guidelines for derivative works
+
+Do not include the text "4ms" or "4ms Company" or the graphic 4ms logo on any derivative works. This includes faceplates, enclosures, or front-panels. It's OK (but not required) to include the text "Spectral Multiband Resonator" or "SMR" if you wish.
