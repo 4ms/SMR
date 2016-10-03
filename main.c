@@ -44,6 +44,8 @@
 #include "params.h"
 #include "system_mode.h"
 #include "user_scales.h"
+#include "limiter.h"
+//#include "compressor.h"
 
 extern uint8_t scale_bank_defaultscale[NUMSCALEBANKS];
 
@@ -106,7 +108,11 @@ void main(void)
 	uint32_t i;
 
     NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x8000);
-
+	
+	// setup compressor and limiter
+	init_limiter(1<<31, 0.51);
+	//init_compressor(1<<31, 1200);
+	
 	LED_ON(LED_RING_OE); //actually turns the LED ring off
 	LEDDriver_Init(5);
 	for (i=0;i<26;i++)	LEDDriver_setRGBLED(i,0);

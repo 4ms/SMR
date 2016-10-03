@@ -85,7 +85,7 @@ float LEVEL_LPF_DECAY=0;
 
 
 //Q POT AND CV
-uint32_t qval[NUM_CHANNELS];
+uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];
 uint32_t qvalcv, qvalpot;
 uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
 uint8_t user_turned_Q_pot=0;
@@ -313,6 +313,9 @@ void param_read_q(void){
 	static uint32_t old_qpot_lpf=0xFFFF;
 	static poll_ctr=0;
 
+	// save current qval in buffer before updating so we can track changes.
+	qbuf[i]=qval[i];
+		
 	if (poll_ctr++>10){poll_ctr=0;
 
 		//Check jack
