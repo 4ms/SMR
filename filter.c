@@ -53,8 +53,6 @@ extern float user_scalebank[231];
 #define DMA_xfer_BUFF_LEN (codec_BUFF_LEN/2)
 #define STEREO_BUFSZ (DMA_xfer_BUFF_LEN/2)
 #define MONO_BUFSZ (STEREO_BUFSZ/2)
-#define WINDOW_SIZE_C 1200;
-#define fact_c = 1.0 - 1.0 / WINDOW_SIZE_C;
 					
 int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_BUFSZ], filtered_bufferR[MONO_BUFSZ];
 
@@ -127,8 +125,6 @@ inline void check_input_clipping(int32_t left_signal, int32_t right_signal){
 void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 {
 	//~78us static, ~104us morphing, every 166us = 6kHz ( = 96k / 16 samples)
-	DEBUGA_ON(DEBUG0);
-
 	int16_t i,j;
 	uint8_t k;
 	int32_t s;
@@ -145,9 +141,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float filter_out_b[NUM_FILTS][MONO_BUFSZ]; 			// second filter out for two-pass
 	float cross_point; 									// crossfade point between one and two pass filter
 	float crossfade_a, crossfade_b;
-	float comp_buf[NUM_CHANNELS];
-	float comp_gain[NUM_CHANNELS] = {1.0};
-	float sum_c[NUM_CHANNELS]={2576980376400.0}; 
 		
 	float max_val, threshold, thresh_compiled, thresh_val;
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
@@ -159,9 +152,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float a0,a1,a2;
 	float freq_comp[NUM_CHANNELS];
 	float MAX_SAMPLEVAL_C = 1<<31;
-	float fact_c;
-	float WINDOW_SIZE_C;
-	float sum_c[NUM_CHANNELS]; 
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
@@ -184,7 +174,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
-	//###################### 2-PASS + COMP ###################################
+	//###################### 2-PASS + SOFT LIMITER ###################################
 	
 	if (!ENV_MODE){
 	// TWO-PASS:
@@ -367,10 +357,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 						nudge_filter_num = filter_num + 1;
 						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
+						qval_adj[channel_num] = qval[channel_num] * 0.75 ; // adjusted scaling for Q knob to avoid extreme resonance on two-pass
 
 						//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-						c0_a     = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-						c0       = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; 
+						c0_a  = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+						c0    = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+
 		
 						//FREQ: c1 = 2 * pi * freq / samplerate
 						c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
@@ -382,7 +374,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						// Use env mode button to switch between 1-pass ans 2-pass filter-type FIXME -> testing only
 						// Pre: standard 1-pass
 						// Post: 2-Pass
-						qval_adj[channel_num] = qval[channel_num] * (1 - exp_4096[(uint32_t)(qval[channel_num]/1.4)]) ; // scaling for Q knob
 						c2_a = (0.003 * c1) - (0.1 * c0_a) + 0.102; 
 						c2_a *= ((4096.0-qval_adj[channel_num])/1024.0);
 						c2    =  (0.003 * c1) - (0.1 * c0) + 0.102;
@@ -420,18 +411,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							ratio_b 		   = ( cross_point / ( 4095.0 * (1 - cross_point) ) ) * qval[channel_num] + 1 - ( cross_point / ( 1 - cross_point ) ); 
 							filter_out[j][i]   = (filter_out_a[j][i] * ratio_a) + (filter_out_b[j][i] * ratio_b);
 			
-							
-							// Compressor
-							sum_c[j] *= fact_c ; 				
-							sum_c[j] += filter_out[j][i]; 	
-							comp_gain[j] = sum_c[j] / WINDOW_SIZE_C;
-							filter_out[j][i] *= comp_gain[j] ;
-
-							
-							
-														 
-							// Dan's DLD limiter
-							//filter_out[j][i] = limiter(filter_out[j][i])  ;
+													 
+							//Dan's DLD soft limiter
+							filter_out[j][i] = limiter(filter_out[j][i])  ;
 						}									
 					}
 				}
@@ -716,8 +698,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
 						//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-						c0_a     = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-						c0       = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; 
+						qval_adj[channel_num] = qval[channel_num] * 0.75 ; // adjusted scaling for Q knob to avoid extreme resonance on two-pass
+						c0_a  = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+						c0    = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
 		
 						//FREQ: c1 = 2 * pi * freq / samplerate
 						c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
@@ -729,7 +712,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						// Use env mode button to switch between 1-pass ans 2-pass filter-type FIXME -> testing only
 						// Pre: standard 1-pass
 						// Post: 2-Pass
-						qval_adj[channel_num] = qval[channel_num] * (1 - exp_4096[(uint32_t)(qval[channel_num]/1.4)]) ; // scaling for Q knob
 						c2_a = (0.003 * c1) - (0.1 * c0_a) + 0.102; 
 						c2_a *= ((4096.0-qval_adj[channel_num])/1024.0);
 						c2    =  (0.003 * c1) - (0.1 * c0) + 0.102;
@@ -1148,8 +1130,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					}
 				}
-			} 	// each channel #
-		} 		// MAXQ / BPRE filter				
+			}
+		}
 	} 			// env-mode
 	
 	// ##########################################################
@@ -1221,5 +1203,4 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	filter_type_changed=0;
 
-DEBUGA_OFF(DEBUG0);
 }
