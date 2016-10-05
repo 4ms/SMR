@@ -315,7 +315,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					scale_num=motion_fadeto_scale[channel_num];
 				}
 
-
 				//Freq nudge vector
 				var_f=freq_nudge[channel_num];
 				if (var_f<0.002) var_f=0.0;
