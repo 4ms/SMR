@@ -150,109 +150,166 @@ void set_default_param_values(void){
 }
 
 void param_read_freq_nudge(void){
+	uint8_t i,j;
 	float t_fo, t_fe;
 	static float f_nudge_odds=1, f_nudge_evens=1;
+	static float old_f_nudge_odds=1, old_f_nudge_evens=1;
 	static float f_shift_odds=1, f_shift_evens=1;
-
+	static float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+	int odds[3]={1, 3, 5};
+	int evens[3]={2, 4, 6};
 	int32_t freq_jack_cv;
 
-	//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
-	//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
-	if (filter_type==MAXQ){
-		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC])/4096.0;
-		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC])/4096.0;
+	// FREQ SHIFT
+		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
+		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
+		if (filter_type==MAXQ){
+		
+			// Read buffer knob and normalize input: 0-1
+				t_fo=(float)(adc_buffer[FREQNUDGE1_ADC])/4096.0;
+				t_fe=(float)(adc_buffer[FREQNUDGE6_ADC])/4096.0;
 
-		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
+			// Freq shift odds
+			// is odds cv input Low-passed and adjusted for 1V/Oct
+				if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
 
-		freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0]) * trackcomp[0];
-		if (freq_jack_cv<0) freq_jack_cv=0;
-		if (freq_jack_cv>4095) freq_jack_cv=4095;
+				freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0]) * trackcomp[0];
+				if (freq_jack_cv<0) freq_jack_cv=0;
+				if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-		f_shift_odds *= FREQCV_LPF;
-		f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]) ;
+				f_shift_odds *= FREQCV_LPF; 
+				f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]) ;
 
-		if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
+			// Freq shift evens
+			// is odds cv input Low-passed and adjusted for 1V/Oct
+				if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
 
-		freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1]) * trackcomp[1];
-		if (freq_jack_cv<0) freq_jack_cv=0;
-		if (freq_jack_cv>4095) freq_jack_cv=4095;
+				freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1]) * trackcomp[1];
+				if (freq_jack_cv<0) freq_jack_cv=0;
+				if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-		f_shift_evens *= FREQCV_LPF;
-		f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]);
+				f_shift_evens *= FREQCV_LPF;
+				f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]);
 
-	}else{
+		}else{
 
-		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FREQCV1_ADC])/4096.0;
-		if (t_fo>1.0) t_fo=1.0;
+			t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FREQCV1_ADC])/4096.0;
+			if (t_fo>1.0) t_fo=1.0;
 
-		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FREQCV6_ADC])/4096.0;
-		if (t_fe>1.0) t_fe=1.0;
+			t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FREQCV6_ADC])/4096.0;
+			if (t_fe>1.0) t_fe=1.0;
 
-		f_shift_odds=1.0;
-		f_shift_evens=1.0;
-	}
-
-	f_nudge_odds *= FREQNUDGE_LPF;
-	f_nudge_odds += (1.0f-FREQNUDGE_LPF)*t_fo;
-
-	f_nudge_evens *= FREQNUDGE_LPF;
-	f_nudge_evens += (1.0f-FREQNUDGE_LPF)*t_fe;
-
-	if (!lock[0]){
-		freq_nudge[0]=f_nudge_odds;
-	}
-	freq_shift[0]=f_shift_odds;
-
-	if (mod_mode_135==135){
-		if (!lock[2]){
-			freq_nudge[2]=f_nudge_odds;
+			f_shift_odds=1.0;
+			f_shift_evens=1.0;
 		}
-		freq_shift[2]=f_shift_odds;
+	
+	// FREQ NUDGE	
+		// Freq nudge odds
+		// apply LPF
+//		f_nudge_odds *= FREQNUDGE_LPF;
+//		f_nudge_odds += (1.0f-FREQNUDGE_LPF)*t_fo;
+		
+		//switch to -/+ semitone factor
+		// 0.94 - 1 - 1.06
+		f_nudge_odds = 1.0 + ((t_fo - 0.5) * 0.12);
+			
+		// Freq nudge evens
+		// apply LPF
+//		f_nudge_evens *= FREQNUDGE_LPF;
+//		f_nudge_evens += (1.0f-FREQNUDGE_LPF)*t_fe;
+	
+		//switch to -/+ semitone factor
+		// 0.94 - 1 - 1.06
+		f_nudge_evens = 1.0 + ((t_fe - 0.5) * 0.12);
 
-		if (!lock[4]){
-			freq_nudge[4]=f_nudge_odds;
+	
+	
+	// 12-SEMITONE COARSE TUNE
+		// ODDS
+		if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
+		old_f_nudge_odds=f_nudge_odds;
+			for (i=0;i<3;i++){
+				if (lock_pressed[i]){
+					j = odds[i];
+					//coarse_adj[j] = (int)((f_nudge_odds * 12.0 * 12.0)/12.0);
+		 		}
+		 	}
 		}
-		freq_shift[4]=f_shift_odds;
-	} else {
-		if (!lock[2]){
-			freq_nudge[2]=0.0;
+		// EVENS
+		if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
+		old_f_nudge_evens=f_nudge_evens;
+			for (i=0;i<3;i++){
+				if (lock_pressed[i]){
+					j = evens[i];
+					//coarse_adj[j] = (int)((f_nudge_evens * 12.0 * 12.0)/12.0);
+		 		}
+		 	}	
 		}
-		freq_shift[2]=1.0;
+		//coarse_adj[i] = (float)(coarse_adj[i]) * 1.05946309436 ; //... x 2^(1/12)
 
-		if (!lock[4]){
-			freq_nudge[4]=0.0;
+		
+	// LOCK TOGGLES
+	// nudge and shift always enabled on 1 and 6
+	// ... and enabled on 3,5,2 and 4 based on the lock toggles
+		// enable freq nudge and shift for "135 mode"
+		if (!lock[0]){
+			freq_nudge[0]=f_nudge_odds * coarse_adj[0];
 		}
-		freq_shift[4]=1.0;
-	}
+		freq_shift[0]=f_shift_odds;
+		if (mod_mode_135==135){
+			if (!lock[2]){
+				freq_nudge[2]=f_nudge_odds * coarse_adj[2];
+			}
+			freq_shift[2]=f_shift_odds;
 
-	if (!lock[5]){
-		freq_nudge[5]=f_nudge_evens;
-	}
-	freq_shift[5]=f_shift_evens;
+			if (!lock[4]){
+				freq_nudge[4]=f_nudge_odds * coarse_adj[4];
+			}
+			freq_shift[4]=f_shift_odds;
+		} 
+		// disable freq nudge and shift on channel 3 and 5 when in "1 mode"
+		else { 
+			if (!lock[2]){
+				freq_nudge[2]= coarse_adj[2];
+			}
+			freq_shift[2]=1.0;
 
-	if (mod_mode_246==246){
-		if (!lock[1]){
-			freq_nudge[1]=f_nudge_evens;
+			if (!lock[4]){
+				freq_nudge[4]= coarse_adj[4];
+			}
+			freq_shift[4]=1.0;
 		}
-		freq_shift[1]=f_shift_evens;
 
-		if (!lock[3]){
-			freq_nudge[3]=f_nudge_evens;
+		if (!lock[5]){
+			freq_nudge[5]=f_nudge_evens * coarse_adj[5];
 		}
-		freq_shift[3]=f_shift_evens;
-	} else {
-		if (!lock[1]){
-			freq_nudge[1]=0.0;
-		}
-		freq_shift[1]=1.0;
+		freq_shift[5]=f_shift_evens;
 
-		if (!lock[3]){
-			freq_nudge[3]=0.0;
+		// enable freq nudge and shift for "246 mode"
+		if (mod_mode_246==246){
+			if (!lock[1]){
+				freq_nudge[1]=f_nudge_evens * coarse_adj[1];
+			}
+			freq_shift[1]=f_shift_evens;
+
+			if (!lock[3]){
+				freq_nudge[3]=f_nudge_evens * coarse_adj[3];
+			}
+			freq_shift[3]=f_shift_evens;	
+		} 
+		// disable freq nudge and shift for "6 mode"
+		else {
+			if (!lock[1]){
+				freq_nudge[1]= coarse_adj[1];
+			}
+			freq_shift[1]=1.0;
+
+			if (!lock[3]){
+				freq_nudge[3]= coarse_adj[3];
+			}
+			freq_shift[3]=1.0;
 		}
-		freq_shift[3]=1.0;
-	}
 }
-
 
 void param_read_channel_level(void){
 	float level_lpf;
