@@ -152,6 +152,7 @@ void set_default_param_values(void){
 void param_read_freq_nudge(void){
 	uint8_t i,j;
 	float t_fo, t_fe;
+	static uint8_t disable_mute_buttons=1;
 	static float f_nudge_odds=1, f_nudge_evens=1;
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1;
 	static float f_shift_odds=1, f_shift_evens=1;
@@ -226,30 +227,31 @@ void param_read_freq_nudge(void){
 	
 	// 12-SEMITONE COARSE TUNE
 		// ODDS
-		//if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
-		//old_f_nudge_odds=f_nudge_odds;
+		if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
+		old_f_nudge_odds=f_nudge_odds;
 			for (i=0;i<3;i++){
 				j = odds[i];
 				if (LOCKBUTTON(j)){
+			 		//disable_mute_buttons = 0;
 					coarse_adj[j] = (int)((t_fo * 12.0 * 12.0)/12.0);
-		 		}
-		 		coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-		 		lock[j]=0; // keep channel unlocked
+			 		coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+		 		}  
 		 	}
-		//}
+		}
 		// EVENS
-		//if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
-		//old_f_nudge_evens=f_nudge_evens;
+		if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
+		old_f_nudge_evens=f_nudge_evens;
 			for (i=0;i<3;i++){
 				j = evens[i];
 				if (LOCKBUTTON(j)){
+			 		//disable_mute_buttons = 0;
 					coarse_adj[j] = (int)((t_fe * 12.0 * 12.0)/12.0);
-		 		}
-				coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-		 		lock[j]=0; // keep channel unlocked
+					coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+			 	} 
 		 	}	
-		//}
-
+		}
+		// re-enable mute buttons
+		//disable_mute_buttons = 1;
 		
 	// LOCK TOGGLES
 	// nudge and shift always enabled on 1 and 6
@@ -513,109 +515,112 @@ inline uint8_t num_locks_pressed(void){
 
 void process_lock_buttons(void){
 	uint8_t i;
+	// ENABLE lock button variable allows to disable lock button mamagement 
+	// ...when {[lock] + [freq nudge knob]} mode is used 
+	// ...to adjust pitch w/ quantozid 12 steps
+	if (ENABLE_M){
+		for (i=0;i<6;i++){
+			if (LOCKBUTTON(i)){
+				lock_up[i]=1;
+				if (lock_down[i]!=0
+					&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
+					lock_down[i]++;
 
-	for (i=0;i<6;i++){
-		if (LOCKBUTTON(i)){
-			lock_up[i]=1;
-			if (lock_down[i]!=0
-				&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
-				lock_down[i]++;
-
-			if (lock_down[i]==5){ //first time we notice lock button is solidly down...
-				lock_pressed[i]=1;
-				user_turned_Q_pot=0;
-				already_handled_lock_release[i]=0;
-			}
-
-			if (ui_mode==PLAY){
-				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
-				//if so, then we should unlock immediately, but not unlock the q_lock
-				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot) {
-					lock[i]=0;
-					LOCKLED_OFF(i);
-					already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
-					lock_down[i]=0; //stop checking this button until it's released
+				if (lock_down[i]==5){ //first time we notice lock button is solidly down...
+					lock_pressed[i]=1;
+					user_turned_Q_pot=0;
+					already_handled_lock_release[i]=0;
 				}
-			}
-			if (ui_mode==SELECT_PARAMS){
-				if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
-
-					if (num_locks_pressed() == 6 && ROTARY_SW){
-						factory_reset();
-						exit_system_mode(0); //do not restore lock[] because factory reset clears them
-						while (ROTARY_SW) {;}
-						already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
-						already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
-
-					} else {
-						exit_system_mode(1); //restore lock[] so that it gets saved
-						save_param_bank(i);
-						already_handled_lock_release[i]=1;
-						lock_down[i]=0; //stop checking this button until it's released
-
-					}
-				}
-			}
-
-		} else {
-			if (lock_up[i]!=0) lock_up[i]++;
-			if (lock_up[i]>5){ lock_up[i]=0;
-				//Handle button release
-
-				lock_pressed[i]=0;
 
 				if (ui_mode==PLAY){
-					if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
-
-						if (lock[i]==0){
-							lock[i]=1;
-							//note[i]=motion_fadeto_note[i];
-							//motion_spread_dest[i]=note[i];
-							motion_spread_dir[i]=0;
-							LOCKLED_ON(i);
-						}
-						else {
-							lock[i]=0;
-							q_locked[i]=0;
-							LOCKLED_OFF(i);
-						}
+					//check to see if it's been held down for a while, and the user hasn't turned the Q pot
+					//if so, then we should unlock immediately, but not unlock the q_lock
+					if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot) {
+						lock[i]=0;
+						LOCKLED_OFF(i);
+						already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
+						lock_down[i]=0; //stop checking this button until it's released
 					}
 				}
-
-				if (ui_mode==EDIT_COLORS){
-					if (!already_handled_lock_release[i]){
-						if (lock[i]==0){
-							lock[i]=1;
-							LOCKLED_ON(i);
-						}
-						else {
-							lock[i]=0;
-							LOCKLED_OFF(i);
-						}
-					}
-				}
-				if (ui_mode==EDIT_SCALES){
-					if (i<4)
-						editscale_notelocked=1-editscale_notelocked;
-					else
-						editscale_tracklocked=1-editscale_tracklocked;
-
-				}
-
 				if (ui_mode==SELECT_PARAMS){
-					if (!already_handled_lock_release[i]){
-						load_param_bank(i);
-						exit_system_mode(0); //do not restore lock[] because we are loading new lock settings
+					if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
 
+						if (num_locks_pressed() == 6 && ROTARY_SW){
+							factory_reset();
+							exit_system_mode(0); //do not restore lock[] because factory reset clears them
+							while (ROTARY_SW) {;}
+							already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
+							already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
+
+						} else {
+							exit_system_mode(1); //restore lock[] so that it gets saved
+							save_param_bank(i);
+							already_handled_lock_release[i]=1;
+							lock_down[i]=0; //stop checking this button until it's released
+
+						}
 					}
 				}
+
+			} else {
+				if (lock_up[i]!=0) lock_up[i]++;
+				if (lock_up[i]>5){ lock_up[i]=0;
+					//Handle button release
+
+					lock_pressed[i]=0;
+
+					if (ui_mode==PLAY){
+						if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
+
+							if (lock[i]==0){
+								lock[i]=1;
+								//note[i]=motion_fadeto_note[i];
+								//motion_spread_dest[i]=note[i];
+								motion_spread_dir[i]=0;
+								LOCKLED_ON(i);
+							}
+							else {
+								lock[i]=0;
+								q_locked[i]=0;
+								LOCKLED_OFF(i);
+							}
+						}
+					}
+
+					if (ui_mode==EDIT_COLORS){
+						if (!already_handled_lock_release[i]){
+							if (lock[i]==0){
+								lock[i]=1;
+								LOCKLED_ON(i);
+							}
+							else {
+								lock[i]=0;
+								LOCKLED_OFF(i);
+							}
+						}
+					}
+					if (ui_mode==EDIT_SCALES){
+						if (i<4)
+							editscale_notelocked=1-editscale_notelocked;
+						else
+							editscale_tracklocked=1-editscale_tracklocked;
+
+					}
+
+					if (ui_mode==SELECT_PARAMS){
+						if (!already_handled_lock_release[i]){
+							load_param_bank(i);
+							exit_system_mode(0); //do not restore lock[] because we are loading new lock settings
+
+						}
+					}
+				}
+
+				lock_down[i]=1;
+
 			}
-
-			lock_down[i]=1;
-
 		}
 	}
-
 }
 void process_lock_jacks(void){
 
