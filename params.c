@@ -62,7 +62,7 @@ uint16_t mod_mode_246;
 
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
-
+ 
 //LOCK BUTTONS
 uint8_t lock[NUM_CHANNELS];
 uint8_t lock_pressed[NUM_CHANNELS];
@@ -152,23 +152,23 @@ void set_default_param_values(void){
 void param_read_freq_nudge(void){
 	uint8_t i,j;
 	float t_fo, t_fe;
-	static uint8_t disable_mute_buttons=1;
+	static uint8_t bypass_semitone=0;
 	static float f_nudge_odds=1, f_nudge_evens=1;
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1;
+	static float f_nudge_odds_buf=1, f_nudge_evens_buf=1;
 	static float f_shift_odds=1, f_shift_evens=1;
 	static float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 	int odds[3]={0, 2, 4}; // 1, 3, 5
 	int evens[3]={1, 3, 5}; // 2, 4, 6
 	int32_t freq_jack_cv;
-
+	
 	// FREQ SHIFT
 		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
 		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
 		if (filter_type==MAXQ){
-		
 			// Read buffer knob and normalize input: 0-1
-				t_fo=(float)(adc_buffer[FREQNUDGE1_ADC])/4096.0;
-				t_fe=(float)(adc_buffer[FREQNUDGE6_ADC])/4096.0;
+				t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
+				t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
 
 			// Freq shift odds
 			// is odds cv input Low-passed and adjusted for 1V/Oct
@@ -206,52 +206,59 @@ void param_read_freq_nudge(void){
 	
 	// FREQ NUDGE	
 		// Freq nudge odds
-		// apply LPF
-//		f_nudge_odds *= FREQNUDGE_LPF;
-//		f_nudge_odds += (1.0f-FREQNUDGE_LPF)*t_fo;
-		
 		//switch to -/+ semitone factor
 		// 0.94 - 1 - 1.06
-		f_nudge_odds = 1.0 + ((t_fo - 0.5) * 0.12);
+		f_nudge_odds = 1.0 + ((t_fo/4096.0 - 0.5) * 0.12);
 			
-		// Freq nudge evens
-		// apply LPF
-//		f_nudge_evens *= FREQNUDGE_LPF;
-//		f_nudge_evens += (1.0f-FREQNUDGE_LPF)*t_fe;
-	
+		// Freq nudge evens	
 		//switch to -/+ semitone factor
 		// 0.94 - 1 - 1.06
-		f_nudge_evens = 1.0 + ((t_fe - 0.5) * 0.12);
+		f_nudge_evens = 1.0 + ((t_fe/4096.0 - 0.5) * 0.12);
 
-	
-	
 	// 12-SEMITONE COARSE TUNE
+		// [freq nudge knob] + [lock button]
+		// coarse tune corresponding odd/even channel
+			// if channel was unlocked, it stays unlocked 
+			// if channel was locked knob doesn't do anything for 5s <- FIXME
+			// if button's still pressed after that, channel unlocks
+			// and coarse tune can be applied*
+			// * q-lock behavior 
+		// works independently of q-lock
+		
 		// ODDS
 		if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
+		f_nudge_odds_buf = old_f_nudge_odds;
 		old_f_nudge_odds=f_nudge_odds;
 			for (i=0;i<3;i++){
-				j = odds[i];
+				j = odds[i];				
 				if (LOCKBUTTON(j)){
-			 		//disable_mute_buttons = 0;
-					coarse_adj[j] = (int)((t_fo * 12.0 * 12.0)/12.0);
+					coarse_adj[j] = (int)(t_fo/341.33);
 			 		coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-		 		}  
+			 		bypass_semitone = 1;
+			 		freq_nudge[j] = f_nudge_odds_buf * coarse_adj[j];
+					already_handled_lock_release[j]=1; //set this flag so that we don't do anything when the button is released
+		 		} else {
+			 		bypass_semitone = 0;	
+			 	}
 		 	}
 		}
 		// EVENS
 		if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
+		f_nudge_evens_buf = old_f_nudge_evens;
 		old_f_nudge_evens=f_nudge_evens;
 			for (i=0;i<3;i++){
-				j = evens[i];
+				j = evens[i];		
 				if (LOCKBUTTON(j)){
-			 		//disable_mute_buttons = 0;
-					coarse_adj[j] = (int)((t_fe * 12.0 * 12.0)/12.0);
+					coarse_adj[j] = (int)(t_fe/341.33);
 					coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-			 	} 
-		 	}	
-		}
-		// re-enable mute buttons
-		//disable_mute_buttons = 1;
+			 		bypass_semitone = 1;
+			 		freq_nudge[j] = f_nudge_evens_buf * coarse_adj[j];
+					already_handled_lock_release[j]=1; //set this flag so that we don't do anything when the button is released
+			 	} else {
+			 		bypass_semitone = 0;	
+			 	}
+		 	}		 	
+		}		
 		
 	// LOCK TOGGLES
 	// nudge and shift always enabled on 1 and 6
@@ -262,12 +269,12 @@ void param_read_freq_nudge(void){
 		}
 		freq_shift[0]=f_shift_odds;
 		if (mod_mode_135==135){
-			if (!lock[2]){
+			if (!lock[2] && !bypass_semitone ){
 				freq_nudge[2]=f_nudge_odds * coarse_adj[2];
 			}
 			freq_shift[2]=f_shift_odds;
 
-			if (!lock[4]){
+			if (!lock[4] && !bypass_semitone){
 				freq_nudge[4]=f_nudge_odds * coarse_adj[4];
 			}
 			freq_shift[4]=f_shift_odds;
@@ -285,19 +292,19 @@ void param_read_freq_nudge(void){
 			freq_shift[4]=1.0;
 		}
 
-		if (!lock[5]){
+		if (!lock[5] && !bypass_semitone){
 			freq_nudge[5]=f_nudge_evens * coarse_adj[5];
 		}
 		freq_shift[5]=f_shift_evens;
 
 		// enable freq nudge and shift for "246 mode"
 		if (mod_mode_246==246){
-			if (!lock[1]){
+			if (!lock[1] && !bypass_semitone){
 				freq_nudge[1]=f_nudge_evens * coarse_adj[1];
 			}
 			freq_shift[1]=f_shift_evens;
 
-			if (!lock[3]){
+			if (!lock[3] && !bypass_semitone){
 				freq_nudge[3]=f_nudge_evens * coarse_adj[3];
 			}
 			freq_shift[3]=f_shift_evens;	
@@ -513,112 +520,107 @@ inline uint8_t num_locks_pressed(void){
 
 
 
-void process_lock_buttons(void){
+void process_lock_buttons(){
 	uint8_t i;
-	// ENABLE lock button variable allows to disable lock button mamagement 
-	// ...when {[lock] + [freq nudge knob]} mode is used 
-	// ...to adjust pitch w/ quantozid 12 steps
-	if (ENABLE_M){
-		for (i=0;i<6;i++){
-			if (LOCKBUTTON(i)){
-				lock_up[i]=1;
-				if (lock_down[i]!=0
-					&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
-					lock_down[i]++;
+	for (i=0;i<6;i++){
+		if (LOCKBUTTON(i)){
+			lock_up[i]=1;
+			if (lock_down[i]!=0
+				&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
+				lock_down[i]++;
 
-				if (lock_down[i]==5){ //first time we notice lock button is solidly down...
-					lock_pressed[i]=1;
-					user_turned_Q_pot=0;
-					already_handled_lock_release[i]=0;
-				}
+			if (lock_down[i]==5){ //first time we notice lock button is solidly down...
+				lock_pressed[i]=1;
+				user_turned_Q_pot=0;
+				already_handled_lock_release[i]=0;
+			}
 
-				if (ui_mode==PLAY){
-					//check to see if it's been held down for a while, and the user hasn't turned the Q pot
-					//if so, then we should unlock immediately, but not unlock the q_lock
-					if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot) {
+			if (ui_mode==PLAY){
+				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
+				//if so, then we should unlock immediately, but not unlock the q_lock
+				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot && q_locked[i]) {
 						lock[i]=0;
 						LOCKLED_OFF(i);
 						already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
 						lock_down[i]=0; //stop checking this button until it's released
-					}
 				}
-				if (ui_mode==SELECT_PARAMS){
-					if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
-
-						if (num_locks_pressed() == 6 && ROTARY_SW){
-							factory_reset();
-							exit_system_mode(0); //do not restore lock[] because factory reset clears them
-							while (ROTARY_SW) {;}
-							already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
-							already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
-
-						} else {
-							exit_system_mode(1); //restore lock[] so that it gets saved
-							save_param_bank(i);
-							already_handled_lock_release[i]=1;
-							lock_down[i]=0; //stop checking this button until it's released
-
-						}
-					}
-				}
-
-			} else {
-				if (lock_up[i]!=0) lock_up[i]++;
-				if (lock_up[i]>5){ lock_up[i]=0;
-					//Handle button release
-
-					lock_pressed[i]=0;
-
-					if (ui_mode==PLAY){
-						if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
-
-							if (lock[i]==0){
-								lock[i]=1;
-								//note[i]=motion_fadeto_note[i];
-								//motion_spread_dest[i]=note[i];
-								motion_spread_dir[i]=0;
-								LOCKLED_ON(i);
-							}
-							else {
-								lock[i]=0;
-								q_locked[i]=0;
-								LOCKLED_OFF(i);
-							}
-						}
-					}
-
-					if (ui_mode==EDIT_COLORS){
-						if (!already_handled_lock_release[i]){
-							if (lock[i]==0){
-								lock[i]=1;
-								LOCKLED_ON(i);
-							}
-							else {
-								lock[i]=0;
-								LOCKLED_OFF(i);
-							}
-						}
-					}
-					if (ui_mode==EDIT_SCALES){
-						if (i<4)
-							editscale_notelocked=1-editscale_notelocked;
-						else
-							editscale_tracklocked=1-editscale_tracklocked;
-
-					}
-
-					if (ui_mode==SELECT_PARAMS){
-						if (!already_handled_lock_release[i]){
-							load_param_bank(i);
-							exit_system_mode(0); //do not restore lock[] because we are loading new lock settings
-
-						}
-					}
-				}
-
-				lock_down[i]=1;
-
 			}
+			if (ui_mode==SELECT_PARAMS){
+				if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
+
+					if (num_locks_pressed() == 6 && ROTARY_SW){
+						factory_reset();
+						exit_system_mode(0); //do not restore lock[] because factory reset clears them
+						while (ROTARY_SW) {;}
+						already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
+						already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
+
+					} else {
+						exit_system_mode(1); //restore lock[] so that it gets saved
+						save_param_bank(i);
+						already_handled_lock_release[i]=1;
+						lock_down[i]=0; //stop checking this button until it's released
+
+					}
+				}
+			}
+
+		} else {
+			if (lock_up[i]!=0) lock_up[i]++;
+			if (lock_up[i]>5){ lock_up[i]=0;
+				//Handle button release
+
+				lock_pressed[i]=0;
+
+				if (ui_mode==PLAY){
+					if (!user_turned_Q_pot && !already_handled_lock_release[i]){ //only change lock state if user did not do a q_lock
+
+						if (lock[i]==0){
+							lock[i]=1;
+							//note[i]=motion_fadeto_note[i];
+							//motion_spread_dest[i]=note[i];
+							motion_spread_dir[i]=0;
+							LOCKLED_ON(i);
+						}
+						else {
+							lock[i]=0;
+							q_locked[i]=0;
+							LOCKLED_OFF(i);
+						}
+					}
+				}
+
+				if (ui_mode==EDIT_COLORS){
+					if (!already_handled_lock_release[i]){
+						if (lock[i]==0){
+							lock[i]=1;
+							LOCKLED_ON(i);
+						}
+						else {
+							lock[i]=0;
+							LOCKLED_OFF(i);
+						}
+					}
+				}
+				if (ui_mode==EDIT_SCALES){
+					if (i<4)
+						editscale_notelocked=1-editscale_notelocked;
+					else
+						editscale_tracklocked=1-editscale_tracklocked;
+
+				}
+
+				if (ui_mode==SELECT_PARAMS){
+					if (!already_handled_lock_release[i]){
+						load_param_bank(i);
+						exit_system_mode(0); //do not restore lock[] because we are loading new lock settings
+
+					}
+				}
+			}
+
+			lock_down[i]=1;
+
 		}
 	}
 }
