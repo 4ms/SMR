@@ -156,8 +156,8 @@ void param_read_freq_nudge(void){
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1;
 	static float f_shift_odds=1, f_shift_evens=1;
 	static float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-	int odds[3]={1, 3, 5};
-	int evens[3]={2, 4, 6};
+	int odds[3]={0, 2, 4}; // 1, 3, 5
+	int evens[3]={1, 3, 5}; // 2, 4, 6
 	int32_t freq_jack_cv;
 
 	// FREQ SHIFT
@@ -226,26 +226,29 @@ void param_read_freq_nudge(void){
 	
 	// 12-SEMITONE COARSE TUNE
 		// ODDS
-		if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
-		old_f_nudge_odds=f_nudge_odds;
+		//if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
+		//old_f_nudge_odds=f_nudge_odds;
 			for (i=0;i<3;i++){
-				if (lock_pressed[i]){
-					j = odds[i];
-					//coarse_adj[j] = (int)((f_nudge_odds * 12.0 * 12.0)/12.0);
+				j = odds[i];
+				if (LOCKBUTTON(j)){
+					coarse_adj[j] = (int)((t_fo * 12.0 * 12.0)/12.0);
 		 		}
+		 		coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+		 		lock[j]=0; // keep channel unlocked
 		 	}
-		}
+		//}
 		// EVENS
-		if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
-		old_f_nudge_evens=f_nudge_evens;
+		//if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
+		//old_f_nudge_evens=f_nudge_evens;
 			for (i=0;i<3;i++){
-				if (lock_pressed[i]){
-					j = evens[i];
-					//coarse_adj[j] = (int)((f_nudge_evens * 12.0 * 12.0)/12.0);
+				j = evens[i];
+				if (LOCKBUTTON(j)){
+					coarse_adj[j] = (int)((t_fe * 12.0 * 12.0)/12.0);
 		 		}
+				coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+		 		lock[j]=0; // keep channel unlocked
 		 	}	
-		}
-		//coarse_adj[i] = (float)(coarse_adj[i]) * 1.05946309436 ; //... x 2^(1/12)
+		//}
 
 		
 	// LOCK TOGGLES
