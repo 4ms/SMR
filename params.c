@@ -223,18 +223,24 @@ void param_read_freq_nudge(void){
 				j = odds[i];				
 				if (LOCKBUTTON(j)){
 					if (fknob_lock[j]==0){
-						f_nudge_buf[j]  = f_nudge_odds_buf;
-						fknob_lock[j]	= 1;
-					}
-					
-					// Account for freq knob bottoming out:
-						//((MinMaxVal-A)/MinMaxVal)x + A) goes from MinVal + A to MaxVal +A. A = 5 here  
-					// Scale freq knob to 12 semitones (0->11.99) 
-					 	// value * 11 / (4095*12) <=> value * 0.0322344322344
-					// (int)(0->11.99) => 0->11
-					coarse_adj[j] 	= (int)((0.99877899*t_fo+5)/(170.625)); 
-			 		
-			 		coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+						f_nudge_buf[j] = f_nudge_odds_buf;
+						fknob_lock[j]  = 1;
+					}		 		
+			 		if (t_fo < 4095/13){coarse_adj[j]=1;}
+			 		else if ((t_fo <= 1*4095/13) && (t_fo < 2*4095/12)){coarse_adj[j]=1.05946309436;}
+			 		else if ((t_fo <= 2*4095/13) && (t_fo < 3*4095/13)){coarse_adj[j]=1.12246204831;}
+			 		else if ((t_fo <= 3*4095/13) && (t_fo < 4*4095/13)){coarse_adj[j]=1.189207115;}
+			 		else if ((t_fo <= 4*4095/13) && (t_fo < 5*4095/13)){coarse_adj[j]=1.25992104989;}
+			 		else if ((t_fo <= 5*4095/13) && (t_fo < 6*4095/13)){coarse_adj[j]=1.33483985417;}
+			 		else if ((t_fo <= 6*4095/13) && (t_fo < 7*4095/13)){coarse_adj[j]=1.41421356237;}
+			 		else if ((t_fo <= 7*4095/13) && (t_fo < 8*4095/13)){coarse_adj[j]=1.49830707688;}
+			 		else if ((t_fo <= 8*4095/13) && (t_fo < 9*4095/13)){coarse_adj[j]=1.58740105197;}
+			 		else if ((t_fo <= 9*4095/13) && (t_fo < 10*4095/13)){coarse_adj[j]=1.68179283051;}
+			 		else if ((t_fo <= 10*4095/13) && (t_fo < 11*4095/13)){coarse_adj[j]=1.78179743628;}
+			 		else if ((t_fo <= 11*4095/13) && (t_fo < 12*4095/13)){coarse_adj[j]=1.88774862536;}
+			 		else if ((t_fo <= 12*4095/13) && (t_fo < 13*4095/13)){coarse_adj[j]=2;}
+			 					 					 					 		
+			 		//coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
 			 		freq_nudge[j] = f_nudge_odds_buf * coarse_adj[j];
 					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
 		 		}
@@ -248,15 +254,22 @@ void param_read_freq_nudge(void){
 				j = evens[i];		
 				if (LOCKBUTTON(j)){
 					if (fknob_lock[j]==0){
-						f_nudge_buf[j]  = f_nudge_evens_buf;
-						fknob_lock[j] 	= 1;
+						f_nudge_buf[j] = f_nudge_evens_buf;
+						fknob_lock[j]  = 1;
 					}
-					coarse_adj[j] 	= (int)(t_fe/170.625); // 0 - 
-					if (coarse_adj[j]==0){
-						coarse_adj[j]=1;
-					}else{
-					coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ;
-					}
+			 		if (t_fo < 4095/13){coarse_adj[j]=1;}
+			 		else if ((t_fo <= 1*4095/13) && (t_fo < 2*4095/12)){coarse_adj[j]=1.05946309436;}
+			 		else if ((t_fo <= 2*4095/13) && (t_fo < 3*4095/13)){coarse_adj[j]=1.12246204831;}
+			 		else if ((t_fo <= 3*4095/13) && (t_fo < 4*4095/13)){coarse_adj[j]=1.189207115;}
+			 		else if ((t_fo <= 4*4095/13) && (t_fo < 5*4095/13)){coarse_adj[j]=1.25992104989;}
+			 		else if ((t_fo <= 5*4095/13) && (t_fo < 6*4095/13)){coarse_adj[j]=1.33483985417;}
+			 		else if ((t_fo <= 6*4095/13) && (t_fo < 7*4095/13)){coarse_adj[j]=1.41421356237;}
+			 		else if ((t_fo <= 7*4095/13) && (t_fo < 8*4095/13)){coarse_adj[j]=1.49830707688;}
+			 		else if ((t_fo <= 8*4095/13) && (t_fo < 9*4095/13)){coarse_adj[j]=1.58740105197;}
+			 		else if ((t_fo <= 9*4095/13) && (t_fo < 10*4095/13)){coarse_adj[j]=1.68179283051;}
+			 		else if ((t_fo <= 10*4095/13) && (t_fo < 11*4095/13)){coarse_adj[j]=1.78179743628;}
+			 		else if ((t_fo <= 11*4095/13) && (t_fo < 12*4095/13)){coarse_adj[j]=1.88774862536;}
+			 		else if ((t_fo <= 12*4095/13) && (t_fo < 13*4095/13)){coarse_adj[j]=2;}
 					freq_nudge[j] = f_nudge_evens_buf * coarse_adj[j];
 					already_handled_lock_release[j]=1; 
 				}

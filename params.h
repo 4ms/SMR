@@ -38,7 +38,7 @@
 
 #define FREQNUDGE_LPF	0.995
 #define FREQCV_LPF	0.980
-#define NUDGEPOT_MIN_CHANGE 0.024
+#define NUDGEPOT_MIN_CHANGE 0.0029304029304 // f_nudge_range / max pot val * num_pts_to_ignore <=> 1.2/4095*10 
 #define ENABLE_M 1
 #define LAG_ATTACK_MIN_LPF 0.90
 #define LAG_DECAY_MIN_LPF 0.95
