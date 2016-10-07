@@ -222,10 +222,20 @@ void param_read_freq_nudge(void){
 			for (i=0;i<3;i++){
 				j = odds[i];				
 				if (LOCKBUTTON(j)){
-					f_nudge_buf[j]  = f_nudge_odds_buf;
-					fknob_lock[j]	= 1;
-					coarse_adj[j] 	= (int)(t_fo/341.33);
+					if (fknob_lock[j]==0){
+						f_nudge_buf[j]  = f_nudge_odds_buf;
+						fknob_lock[j]	= 1;
+					}
+					
+					// Account for freq knob bottoming out:
+						//((MinMaxVal-A)/MinMaxVal)x + A) goes from MinVal + A to MaxVal +A. A = 5 here  
+					// Scale freq knob to 12 semitones (0->11.99) 
+					 	// value * 11 / (4095*12) <=> value * 0.0322344322344
+					// (int)(0->11.99) => 0->11
+					coarse_adj[j] 	= (int)((0.99877899*t_fo+5)/(170.625)); 
+			 		
 			 		coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+			 		freq_nudge[j] = f_nudge_odds_buf * coarse_adj[j];
 					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
 		 		}
 		 	}
@@ -237,10 +247,17 @@ void param_read_freq_nudge(void){
 			for (i=0;i<3;i++){
 				j = evens[i];		
 				if (LOCKBUTTON(j)){
-					f_nudge_buf[j]  = f_nudge_evens_buf;
-					fknob_lock[j] 	= 1;
-					coarse_adj[j] 	= (int)(t_fe/341.33);
+					if (fknob_lock[j]==0){
+						f_nudge_buf[j]  = f_nudge_evens_buf;
+						fknob_lock[j] 	= 1;
+					}
+					coarse_adj[j] 	= (int)(t_fe/170.625); // 0 - 
+					if (coarse_adj[j]==0){
+						coarse_adj[j]=1;
+					}else{
 					coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ;
+					}
+					freq_nudge[j] = f_nudge_evens_buf * coarse_adj[j];
 					already_handled_lock_release[j]=1; 
 				}
 		 	}		 	
@@ -552,7 +569,7 @@ void process_lock_buttons(){
 			if (ui_mode==PLAY){
 				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
 				//if so, then we should unlock immediately, but not unlock the q_lock
-				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot){// && q_locked[i]) {
+				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot && q_locked[i]) {
 						lock[i]=0;
 						LOCKLED_OFF(i);
 						already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
