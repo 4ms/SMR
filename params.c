@@ -152,10 +152,11 @@ void set_default_param_values(void){
 void param_read_freq_nudge(void){
 	uint8_t i,j;
 	float t_fo, t_fe;
-	static uint8_t bypass_semitone=0;
+	static uint8_t fknob_lock[NUM_CHANNELS]={0};			// true disables nudge knob
 	static float f_nudge_odds=1, f_nudge_evens=1;
-	static float old_f_nudge_odds=1, old_f_nudge_evens=1;
-	static float f_nudge_odds_buf=1, f_nudge_evens_buf=1;
+	static float old_f_nudge_odds=1, old_f_nudge_evens=1; 	// keeps track of freq knob rotation
+	static float f_nudge_odds_buf, f_nudge_evens_buf;
+	static float f_nudge_buf[NUM_CHANNELS];
 	static float f_shift_odds=1, f_shift_evens=1;
 	static float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 	int odds[3]={0, 2, 4}; // 1, 3, 5
@@ -191,7 +192,7 @@ void param_read_freq_nudge(void){
 
 				f_shift_evens *= FREQCV_LPF;
 				f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]);
-
+ 
 		}else{
 
 			t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FREQCV1_ADC])/4096.0;
@@ -204,78 +205,78 @@ void param_read_freq_nudge(void){
 			f_shift_evens=1.0;
 		}
 	
-	// FREQ NUDGE	
-		// Freq nudge odds
-		//switch to -/+ semitone factor
+	// FREQ NUDGE 
+	  // SEMITONE FINE TUNE	
+		// -/+ semitone factor
 		// 0.94 - 1 - 1.06
 		f_nudge_odds = 1.0 + ((t_fo/4096.0 - 0.5) * 0.12);
-			
-		// Freq nudge evens	
-		//switch to -/+ semitone factor
-		// 0.94 - 1 - 1.06
 		f_nudge_evens = 1.0 + ((t_fe/4096.0 - 0.5) * 0.12);
 
-	// 12-SEMITONE COARSE TUNE
-		// [freq nudge knob] + [lock button]
-		// coarse tune corresponding odd/even channel
-			// if channel was unlocked, it stays unlocked 
-			// if channel was locked knob doesn't do anything for 5s <- FIXME
-			// if button's still pressed after that, channel unlocks
-			// and coarse tune can be applied*
-			// * q-lock behavior 
-		// works independently of q-lock
+	  // 12-SEMITONE COARSE TUNE
+		// [freq nudge knob] + [lock button] -> coarse tune
 		
 		// ODDS
-		if (fabs(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
+		if (fabsf(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){
 		f_nudge_odds_buf = old_f_nudge_odds;
 		old_f_nudge_odds=f_nudge_odds;
 			for (i=0;i<3;i++){
 				j = odds[i];				
 				if (LOCKBUTTON(j)){
-					coarse_adj[j] = (int)(t_fo/341.33);
-			 		coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-			 		bypass_semitone = 1;
-			 		freq_nudge[j] = f_nudge_odds_buf * coarse_adj[j];
-					already_handled_lock_release[j]=1; //set this flag so that we don't do anything when the button is released
-		 		} else {
-			 		bypass_semitone = 0;	
-			 	}
+					f_nudge_buf[j]  = f_nudge_odds_buf;
+					fknob_lock[j]	= 1;
+					coarse_adj[j] 	= (int)(t_fo/341.33);
+			 		coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
+					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
+		 		}
 		 	}
 		}
 		// EVENS
-		if (fabs(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
+		if (fabsf(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){
 		f_nudge_evens_buf = old_f_nudge_evens;
 		old_f_nudge_evens=f_nudge_evens;
 			for (i=0;i<3;i++){
 				j = evens[i];		
 				if (LOCKBUTTON(j)){
-					coarse_adj[j] = (int)(t_fe/341.33);
-					coarse_adj[j] = (float)(coarse_adj[j]) * 1.05946309436 ; //... x 2^(1/12)
-			 		bypass_semitone = 1;
-			 		freq_nudge[j] = f_nudge_evens_buf * coarse_adj[j];
-					already_handled_lock_release[j]=1; //set this flag so that we don't do anything when the button is released
-			 	} else {
-			 		bypass_semitone = 0;	
-			 	}
+					f_nudge_buf[j]  = f_nudge_evens_buf;
+					fknob_lock[j] 	= 1;
+					coarse_adj[j] 	= (int)(t_fe/341.33);
+					coarse_adj[j] 	= (float)(coarse_adj[j]) * 1.05946309436 ;
+					already_handled_lock_release[j]=1; 
+				}
 		 	}		 	
 		}		
 		
 	// LOCK TOGGLES
 	// nudge and shift always enabled on 1 and 6
 	// ... and enabled on 3,5,2 and 4 based on the lock toggles
+	  // ODDS
 		// enable freq nudge and shift for "135 mode"
 		if (!lock[0]){
-			freq_nudge[0]=f_nudge_odds * coarse_adj[0];
+			// Prevent fknob from adjusting freq_nudge when it's locked
+			if (fknob_lock[0]==1){ 													// if freq knob is locked
+				if(fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001){fknob_lock[0]=0;} 	// unlock freq knob if it crosses the value it was locked on
+				else {freq_nudge[0]=f_nudge_buf[0] * coarse_adj[0];} 				// use buffered value otherwise
+			}
+			if (fknob_lock[0]==0){freq_nudge[0]=f_nudge_odds * coarse_adj[0];}; // if freq knob is unlocked, apply coarse adjustment to current f_knob fine tune
 		}
-		freq_shift[0]=f_shift_odds;
+		freq_shift[0]=f_shift_odds; // apply freq CV in
+		
 		if (mod_mode_135==135){
-			if (!lock[2] && !bypass_semitone ){
-				freq_nudge[2]=f_nudge_odds * coarse_adj[2];
+			if (!lock[2]){
+				if (fknob_lock[2]==1){ 								
+					if(fabsf(f_nudge_odds - f_nudge_buf[2]) < 0.001){fknob_lock[2]=0;}
+					else {freq_nudge[2]=f_nudge_buf[2] * coarse_adj[2];}
+				}
+				if (fknob_lock[2]==0){freq_nudge[2]=f_nudge_odds * coarse_adj[2];}; 
 			}
 			freq_shift[2]=f_shift_odds;
 
-			if (!lock[4] && !bypass_semitone){
-				freq_nudge[4]=f_nudge_odds * coarse_adj[4];
+			if (!lock[4]){
+				if (fknob_lock[4]==1){ 								
+					if(fabsf(f_nudge_odds - f_nudge_buf[4]) < 0.001){fknob_lock[4]=0;}
+					else {freq_nudge[4]=f_nudge_buf[4] * coarse_adj[4];}
+				}
+				if (fknob_lock[4]==0){freq_nudge[4]=f_nudge_odds * coarse_adj[4];}; 
 			}
 			freq_shift[4]=f_shift_odds;
 		} 
@@ -291,21 +292,34 @@ void param_read_freq_nudge(void){
 			}
 			freq_shift[4]=1.0;
 		}
-
-		if (!lock[5] && !bypass_semitone){
-			freq_nudge[5]=f_nudge_evens * coarse_adj[5];
+		
+	  //EVENS
+		if (!lock[5]){
+			if (fknob_lock[5]==1){ 									
+				if(fabsf(f_nudge_evens - f_nudge_buf[5]) < 0.001){fknob_lock[5]=0;}
+				else {freq_nudge[5]=f_nudge_buf[5] * coarse_adj[5];}
+			} 
+			if (fknob_lock[5]==0){freq_nudge[5]=f_nudge_evens * coarse_adj[5];}; 
 		}
 		freq_shift[5]=f_shift_evens;
 
 		// enable freq nudge and shift for "246 mode"
 		if (mod_mode_246==246){
-			if (!lock[1] && !bypass_semitone){
-				freq_nudge[1]=f_nudge_evens * coarse_adj[1];
+			if (!lock[1]){
+				if (fknob_lock[1]==1){ 									
+					if(fabsf(f_nudge_evens - f_nudge_buf[1]) < 0.001){fknob_lock[1]=0;}
+					else {freq_nudge[1]=f_nudge_buf[1] * coarse_adj[1];} 	
+				} 
+				if (fknob_lock[1]==0){freq_nudge[1]=f_nudge_evens * coarse_adj[1];}; 
 			}
 			freq_shift[1]=f_shift_evens;
 
-			if (!lock[3] && !bypass_semitone){
-				freq_nudge[3]=f_nudge_evens * coarse_adj[3];
+			if (!lock[3]){
+				if (fknob_lock[3]==1){ 									
+					if(fabsf(f_nudge_evens - f_nudge_buf[3]) < 0.001){fknob_lock[3]=0;}
+					else {freq_nudge[3]=f_nudge_buf[3] * coarse_adj[3];} 	
+				} 
+				if (fknob_lock[3]==0){freq_nudge[3]=f_nudge_evens * coarse_adj[3];}; 
 			}
 			freq_shift[3]=f_shift_evens;	
 		} 
@@ -538,7 +552,7 @@ void process_lock_buttons(){
 			if (ui_mode==PLAY){
 				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
 				//if so, then we should unlock immediately, but not unlock the q_lock
-				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot && q_locked[i]) {
+				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot){// && q_locked[i]) {
 						lock[i]=0;
 						LOCKLED_OFF(i);
 						already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
