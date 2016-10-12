@@ -50,6 +50,13 @@ extern uint8_t scale_bank[NUM_CHANNELS];
 extern uint8_t hover_scale_bank;
 extern int16_t change_scale_mode;
 
+
+// coarse tuning
+extern int cur_envled_state;
+extern uint8_t ongoing_coarse_tuning[2];
+//
+
+
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
@@ -121,7 +128,6 @@ void set_default_color_scheme(void){
 	uint32_t i=1152;
 	uint8_t *src;
 	uint8_t *dst;
-
 	src = (uint8_t *)DEFAULT_COLOR_CH;
 	dst = (uint8_t *)COLOR_CH;
 
@@ -133,37 +139,102 @@ void set_default_color_scheme(void){
 void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	uint8_t chan=0;
 	uint8_t fw_ctr;
+	uint8_t i,j;
+	uint8_t positive_coarse;
+	uint8_t led_off_when_no_coarse_adj[4]={0, 1, 4, 5};
 
-	if (ui_mode==SELECT_PARAMS || ui_mode==EDIT_COLORS || ui_mode==PRE_SELECT_PARAMS || ui_mode==PRE_EDIT_COLORS){
-		for (chan=0;chan<6;chan++){
-			env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])  );
-			env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])  );
-			env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])  );
+	// COARSE TUNING
+	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 
+	
+	if (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]){
+	 	// When no coarse adjustment is applied
+		if (cur_envled_state == 12){
+			// leds which are off
+// 			for (i=0;i<5;i++){
+// 				j=led_off_when_no_coarse_adj[i];
+// 				env_out_leds[j][0] = 0;
+// 				env_out_leds[j][1] = 0;
+// 				env_out_leds[j][2] = 0;
+// 			}
+		  // leds which are on
+			// left is red
+			env_out_leds[0][0] = 1023;
+			env_out_leds[0][1] = 0;
+			env_out_leds[0][2] = 0;
 
-			if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
-			if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
-			if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
+			env_out_leds[1][0] = 1023;
+			env_out_leds[1][1] = 0;
+			env_out_leds[1][2] = 0;
 
+			env_out_leds[2][0] = 1023;
+			env_out_leds[2][1] = 0;
+			env_out_leds[2][2] = 0;
+
+			// right is blue
+			env_out_leds[3][0] = 0;
+			env_out_leds[3][1] = 100;
+			env_out_leds[3][2] = 1023;			
+			
+			env_out_leds[4][0] = 0;
+			env_out_leds[4][1] = 100;
+			env_out_leds[4][2] = 1023;			
+			
+			env_out_leds[5][0] = 0;
+			env_out_leds[5][1] = 100;
+			env_out_leds[5][2] = 1023;			
+
+
+		}else{
+			// When coarse adjustment(s) applied	
+			if (cur_envled_state>64) {positive_coarse=0;} else {positive_coarse=1;}
+			for (i=0;i<6;i++){
+				if((cur_envled_state & ( 1 << (5-i) )) >> (5-i)){
+					env_out_leds[i][0] = 1023 * (1-positive_coarse);
+					env_out_leds[i][1] = 100  * positive_coarse;
+					env_out_leds[i][2] = 1023 * positive_coarse;;
+				}else{
+					env_out_leds[i][0] = 0;
+					env_out_leds[i][1] = 0;
+					env_out_leds[i][2] = 0;
+				}
+			}
 		}
+	}
+
+
+	// STANDARD BEHAVIOUR
+	else{
+		if (ui_mode==SELECT_PARAMS || ui_mode==EDIT_COLORS || ui_mode==PRE_SELECT_PARAMS || ui_mode==PRE_EDIT_COLORS){
+			for (chan=0;chan<6;chan++){
+				env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0])  );
+				env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1])  );
+				env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2])  );
+
+				if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
+				if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
+				if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
+
+			}
 
 
 
-	} else if (ui_mode==EDIT_SCALES) {
-		for (chan=0;chan<6;chan++){
-			env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 800 : 0;
-			env_out_leds[chan][1]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
-			env_out_leds[chan][2]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
-		}
-	} else {
-		for (chan=0;chan<6;chan++){
-			env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
-			env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
-			env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+		} else if (ui_mode==EDIT_SCALES) {
+			for (chan=0;chan<6;chan++){
+				env_out_leds[chan][0]=(FW_VERSION & (1<<fw_ctr++)) ? 800 : 0;
+				env_out_leds[chan][1]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
+				env_out_leds[chan][2]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
+			}
+		} else {
+			for (chan=0;chan<6;chan++){
+				env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+				env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
+				env_out_leds[chan][2]=(uint16_t)((COLOR_CH[cur_colsch][chan][2]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
 
-			if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
-			if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
-			if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
-		}
+				if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
+				if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
+				if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
+			}
+		}	
 	}
 
 }

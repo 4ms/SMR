@@ -33,6 +33,8 @@
 #include "system_mode.h"
 
 extern uint8_t q_locked[NUM_CHANNELS];
+extern float coarse_adj_led[NUM_CHANNELS];
+extern uint8_t num_clear_coarse_staged; 
 extern enum UI_Modes ui_mode;
 extern float channel_level[NUM_CHANNELS];
 extern uint8_t 	cur_param_bank;
@@ -177,7 +179,10 @@ inline void update_lock_leds(void){
 	} else {
 		if (lock_led_update_ctr++>QLOCK_FLASH_SPEED){
 			lock_led_update_ctr=0;
-
+			
+			
+		  // FLASHING
+		  	// qlock
 			if (++flash1>=16) flash1=0;
 
 			for (i=0;i<NUM_CHANNELS;i++){
@@ -188,6 +193,19 @@ inline void update_lock_leds(void){
 				} else {
 					if (lock[i]) LOCKLED_ON(i);
 					else LOCKLED_OFF(i);
+				}
+			}
+			// Clear coarse tuning
+			if (num_clear_coarse_staged!=0){ // if any coarse tuning is staged to be cleared
+				if (++flash2>=5) flash2=0;
+				for (i=0;i<NUM_CHANNELS;i++){
+					if ((coarse_adj_led[i]!=1.0) && !flash2){
+						if (lock[i]) LOCKLED_OFF(i);
+						else LOCKLED_ON(i);
+					}else{
+						if (lock[i]) LOCKLED_ON(i);
+						else LOCKLED_OFF(i);
+					}
 				}
 			}
 		}
