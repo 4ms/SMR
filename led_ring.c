@@ -53,10 +53,17 @@ extern int16_t change_scale_mode;
 
 // coarse tuning
 extern int cur_envled_state;
+extern int fine_envled;
 extern uint8_t ongoing_coarse_tuning[2];
+extern float coarse_adj_led[NUM_CHANNELS];	
+extern float coarse_adj[NUM_CHANNELS];
+
+// fine tuning
+extern float freq_nudge[NUM_CHANNELS];
+extern uint8_t ongoing_fine_tuning[2];
+extern uint32_t fine_tuning_timeout[2];
+
 //
-
-
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
@@ -94,13 +101,12 @@ const float DEFAULT_COLOR_CH[16][6][3]={
 
 
 const float SCALE_BANK_COLOR[20][3]={
-//const float SCALE_BANK_COLOR[NUMSCALEBANKS][3]={
 
 		{800,800,800}, 		//white: western 1 interval
 		{0,1000,0},			//green: indian pentatonic
-		{200,200,816},			//lavendar: alpha sp2
+		{200,200,816},		//lavender: alpha sp2
 		{0,800,800},		//cyan: alpha sp1
-		{766,50,0},		//burnt orange: gamma sp1
+		{766,50,0},			//burnt orange: gamma sp1
 		{800,800,0},		//yellow: 17ET
 		{800,0,800},		//pink: twelve tone
 		{600,0,200},		//orange: diatonic1
@@ -115,7 +121,6 @@ const float SCALE_BANK_COLOR[20][3]={
 		{600,1000,0},		//lime : bohlen-pierce
 
 		{100,100,100}, 		//pearl: user
-
 		{100,100,100}, 		//pearl: user
 		{100,100,100}, 		//pearl: user
 		{100,100,100} 		//pearl: user
@@ -142,20 +147,16 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	uint8_t i,j;
 	uint8_t positive_coarse;
 	uint8_t led_off_when_no_coarse_adj[4]={0, 1, 4, 5};
+	float finetune_bright[NUM_CHANNELS];
+	float avg_r, avg_g, avg_b;
 
 	// COARSE TUNING
-	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 
-	
+	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 	
 	if (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]){
+
 	 	// When no coarse adjustment is applied
 		if (cur_envled_state == 12){
-			// leds which are off
-// 			for (i=0;i<5;i++){
-// 				j=led_off_when_no_coarse_adj[i];
-// 				env_out_leds[j][0] = 0;
-// 				env_out_leds[j][1] = 0;
-// 				env_out_leds[j][2] = 0;
-// 			}
+
 		  // leds which are on
 			// left is red
 			env_out_leds[0][0] = 1023;
@@ -201,7 +202,41 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		}
 	}
 
+	
+	// FINE TUNING 
+	else if (ongoing_fine_tuning[0] || ongoing_fine_tuning[1] || fine_tuning_timeout[0] || fine_tuning_timeout[1]){ // not mandatory but prevents unnecessary for loop runs
+		
+		avg_r = (COLOR_CH[cur_colsch][0][0] + COLOR_CH[cur_colsch][1][0] + COLOR_CH[cur_colsch][2][0] + COLOR_CH[cur_colsch][3][0] + COLOR_CH[cur_colsch][4][0] + COLOR_CH[cur_colsch][5][0])/6;
+		avg_g = (COLOR_CH[cur_colsch][0][1] + COLOR_CH[cur_colsch][1][1] + COLOR_CH[cur_colsch][2][1] + COLOR_CH[cur_colsch][3][1] + COLOR_CH[cur_colsch][4][1] + COLOR_CH[cur_colsch][5][1])/6;
+		avg_b = (COLOR_CH[cur_colsch][0][2] + COLOR_CH[cur_colsch][1][2] + COLOR_CH[cur_colsch][2][2] + COLOR_CH[cur_colsch][3][2] + COLOR_CH[cur_colsch][4][2] + COLOR_CH[cur_colsch][5][0])/3;
+		
+		for (i=0;i<6;i++){
+		
+			// update led for channels that are being adjusted
+			if((fine_envled & ( 1 << (5-i) )) >> (5-i)){
+				
+				// led brightness 
+				finetune_bright[i] = (freq_nudge[i]/coarse_adj[i]  - 1.0 ) * 16.7; // 0-1
+				
+				// led color 
+				env_out_leds[i][0]= 750 * (1-finetune_bright[i]);
+				env_out_leds[i][1]= 0;
+				env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5);
 
+				if(env_out_leds[i][0]>1023) env_out_leds[i][0] = 1023;
+				if(env_out_leds[i][1]>1023) env_out_leds[i][1] = 1023;
+				if(env_out_leds[i][2]>1023) env_out_leds[i][2] = 1023;						 
+			} 
+			
+			// turn off channels that aren't being adjusted
+			else{
+				env_out_leds[i][0]=0;
+				env_out_leds[i][1]=0;
+				env_out_leds[i][2]=0;	
+			}		
+		}		
+	}
+	
 	// STANDARD BEHAVIOUR
 	else{
 		if (ui_mode==SELECT_PARAMS || ui_mode==EDIT_COLORS || ui_mode==PRE_SELECT_PARAMS || ui_mode==PRE_EDIT_COLORS){

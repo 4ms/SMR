@@ -56,10 +56,19 @@ int16_t trackoffset[NUM_CHANNELS]={0,0};
 
 
 //FREQ NUDGE/LOCK JACKS
-float freq_nudge[NUM_CHANNELS];
+float freq_nudge[NUM_CHANNELS]={1.0,1.0};
+uint8_t ongoing_coarse_tuning[2]; 		// keeps track of ongoing coarse tunings 
+uint8_t ongoing_fine_tuning[2]; 		// keeps track of ongoing fine tunings 
+uint32_t fine_tuning_timeout[2]={0,0};	// timer to clear fine tuning when freq knob isn't being adjusted
+
+float coarse_adj_led[NUM_CHANNELS];
+float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 float freq_shift[NUM_CHANNELS];
 uint16_t mod_mode_135;
 uint16_t mod_mode_246;
+
+uint8_t fine_timer[2]; 													// flag for fine tune display soft release
+
 
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
@@ -69,18 +78,16 @@ uint8_t lock[NUM_CHANNELS];  			// LATCH 0: channel unlocked, 1: channel locked
 uint8_t lock_pressed[NUM_CHANNELS]; 	// MOMENTARY 1 while button pressed. 0 otherwise
 uint8_t lock_up[NUM_CHANNELS];  		// MOMENTARY 1 while button pressed. 0 otherwise
 uint32_t lock_down[NUM_CHANNELS];		// COUNTER starts at 1 and goes up while button's pressed
-uint8_t ongoing_coarse_tuning[2]; 		// keeps track of ongoing coarse tunings 
 uint8_t num_clear_coarse_staged = 0; 	// number of coarse tunings staged to be cleared
 uint8_t already_handled_lock_release[NUM_CHANNELS];
-float coarse_adj_led[NUM_CHANNELS];
 
 //ENV OUTS
 uint32_t env_prepost_mode;
 // BINARY CONVENTION USED
 // left-most bit is the sign of the coarse adjustment (+/-  X semitone, 1 is going down semitones) rest is LED ON=1 OFF=0 is display order
 int saved_envled_state[NUM_CHANNELS]={0b0001100,0b0001100,0b0001100,0b0001100,0b0001100,0b0001100};
-int cur_envled_state=0b0000000;
-
+int cur_envled_state=0b0000000;		// envled state for coarse tuning
+int fine_envled=0b000000;			// envled state for fine tuning
 enum Env_Out_Modes env_track_mode;
 float envspeed_attack, envspeed_decay;
 
@@ -91,7 +98,6 @@ uint16_t rotate_to_next_scale;
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
 float LEVEL_LPF_ATTACK=0;
 float LEVEL_LPF_DECAY=0;
-
 
 //Q POT AND CV
 uint32_t qval[NUM_CHANNELS];
@@ -166,12 +172,11 @@ void param_read_freq_nudge(void){
 	static uint8_t coarse_lock[NUM_CHANNELS]={1,1,1,1,1,1}; 				// same as fknoblock, for the coarse tuning
 	static float sleep_range=800; 											// number of counts that won't wake up nudge knob after module is turned on
 	static float wakeup_evens[2], wakeup_odds[2]; 							// value at which f_nudge knob wakes up after module turns on
-	static float f_nudge_odds=1, f_nudge_evens=1;
+	float f_nudge_odds=1, f_nudge_evens=1;
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1; 					// keeps track of freq knob rotation
 	static float f_nudge_odds_buf, f_nudge_evens_buf;
 	static float f_nudge_buf[2];
 	static float f_shift_odds=1, f_shift_evens=1;
-	static float coarse_adj[NUM_CHANNELS]={1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 	static float saved_coarse_adj[NUM_CHANNELS]={1.0,1.0,1.0,1.0,1.0,1.0};	// value to cross in order to unlock coarse tuning
 	static uint8_t clear_coarse_staged[NUM_CHANNELS]={0,0,0,0,0,0};
 	int odds[3] ={0, 2, 4}; // ch 1, 3, 5
@@ -247,12 +252,38 @@ void param_read_freq_nudge(void){
 		
 		// ODDS
 		if (fabsf(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){ 
-			ongoing_coarse_tuning[0]=1;
+						
+			// inform led_ring_c that fine tuning is ongoing
+			ongoing_fine_tuning[0]=1;
+			
+			// update buffers
 			f_nudge_odds_buf = old_f_nudge_odds;
 			old_f_nudge_odds=f_nudge_odds;
+			
+			// for each odd channel			
 			for (i=0;i<3;i++){
-				j = odds[i];				
+				j = odds[i];
+				
+				//update fine tuning env led
+				fine_envled = fine_envled | (1<<(5-j));
+
+				// inform led_ring_c that fine tuning is ongoing on odd chan(s)
+				ongoing_fine_tuning[0]	= 1;
+				fine_timer[0] 		  	= 1;	// enable fine tuning timer for slow release
+				fine_tuning_timeout[0] 	= 1; 	// stage timeout counter
+					 
+				// If lock button pressed, disable fine tuning and process coarse tuning				
 				if (lock_pressed[j]){ 
+					
+					// inform led_ring_c that coarse tuning is ongoing
+					ongoing_coarse_tuning[0]=1;
+					
+					// disable fine tuning timer for instantaneous release
+					fine_timer[0] = 0;
+
+					// coarse tuning superseds fine tuning
+					ongoing_fine_tuning[0] = 0;
+										
 					// disable fine adjustments when setting coarse tuning
 					if (fknob_lock[0]==0){ 
 						f_nudge_buf[0] = f_nudge_odds_buf;
@@ -288,16 +319,42 @@ void param_read_freq_nudge(void){
 					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
 		 		}else{coarse_lock[j]=1;}
 		 	}
-		} 
+		}
+		
 		// EVENS
 		if (fabsf(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){ 
-			ongoing_coarse_tuning[1]=1;
+			
+			// inform led_ring_c that fine tuning is ongoing
+			ongoing_fine_tuning[1]=1;
+			
+			// update buffers
 			f_nudge_evens_buf = old_f_nudge_evens;
 			old_f_nudge_evens=f_nudge_evens;
+			
+			// for each even channel
 			for (i=0;i<3;i++){
-				j = evens[i];				
+				j = evens[i];	
+		
+				//update fine tuning env led
+				fine_envled = fine_envled | (1<<(5-j));
+
+				// inform led_ring_c that fine tuning is ongoing on even chan(s)
+				ongoing_fine_tuning[1] 	= 1;
+				fine_timer[1]			= 1;	// enable fine tuning timer for slow release
+				fine_tuning_timeout[1] 	= 1; 	// stage timeout counter
+				
+				// If lock button pressed, disable fine tuning and process coarse tuning							
 				if (lock_pressed[j]){
-					ongoing_coarse_tuning[j]=1;
+			
+					// inform led_ring_c that coarse tuning is ongoing
+					ongoing_coarse_tuning[1]=1;
+				
+					// coarse tuning superseds fine tuning
+					ongoing_fine_tuning[1] = 0;
+					
+					// disable fine tuning timer for instantaneous release
+					fine_timer[1] = 0;
+					
 					// disable fine adjustments when setting coarse tuning
 					if (fknob_lock[1]==0){ 
 						f_nudge_buf[1] = f_nudge_evens_buf;
@@ -333,9 +390,42 @@ void param_read_freq_nudge(void){
 					already_handled_lock_release[j] = 1; 
 		 		}else{coarse_lock[j]=1;}
 		 	}
-		} 
-		
-		// BOTH: exit coarse tuning display as needed
+	   
+		}
+	 	
+	 	
+	 	// stop displaying fine tune if fine tune knob is not being adjusted but leave display on for timed duration 	
+	  	// special case: both fine tunes are ajusted at once. Leave more time to facilitate tuning odds/even together	
+	 	else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
+			fine_tuning_timeout[0]+=1;
+			fine_tuning_timeout[1]+=1;
+			if((fine_tuning_timeout[0]> (50000 * fine_timer[0])) && (fine_tuning_timeout[1]> (50000 * fine_timer[1]))  ){
+				ongoing_fine_tuning[0]=0;
+				ongoing_fine_tuning[1]=0;
+				fine_envled = fine_envled & 0b000000; // turn off odds env led
+				fine_tuning_timeout[0]=0;
+				fine_tuning_timeout[1]=0;
+			}
+		// turn off odds fine tune display after short time
+		} else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==0)){ 
+			fine_tuning_timeout[0]+=1;
+			if(fine_tuning_timeout[0]> (18000 * fine_timer[0])){
+				ongoing_fine_tuning[0]=0;
+				fine_envled = fine_envled & 0b010101; // turn off odds env led
+				fine_tuning_timeout[0]=0;
+			}
+		// turn off evens fine tune display after short time 	
+		} else if ((ongoing_fine_tuning[1]==1) && (ongoing_fine_tuning[0]==0)){ 
+			fine_tuning_timeout[1]+=1;
+			if(fine_tuning_timeout[1]> (18000 * fine_timer[1])){
+				ongoing_fine_tuning[1]=0;
+				fine_envled = fine_envled & 0b101010; // turn off even env led
+				fine_tuning_timeout[1]=0;
+			}
+		}
+
+	  
+	  	// exit coarse tuning display as needed
 		if(ongoing_coarse_tuning[0]){
 			if (!lock_pressed[0] && !lock_pressed[2] && !lock_pressed[4]){
 				ongoing_coarse_tuning[0]=0;
@@ -346,8 +436,13 @@ void param_read_freq_nudge(void){
 				ongoing_coarse_tuning[1]=0;
 			}
 		}
-
 		
+		// display fine tune when locked button is held down so user can see what's going to happen at button release (unlock)
+		if ( 	(lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) && (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) ){fine_envled=0b111111; ongoing_fine_tuning[0]=1; ongoing_fine_tuning[1]=1;}
+		else if (lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) {fine_envled=fine_envled | 0b101010; ongoing_fine_tuning[0]=1;fine_timer[0]=0;}
+		else if (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) {fine_envled=fine_envled | 0b010101; ongoing_fine_tuning[1]=1;fine_timer[1]=0;}
+		
+	
 	// LOCK TOGGLES
 	// nudge and shift always enabled on 1 and 6
 	// ... and enabled on 3,5,2 and 4 based on the lock toggles
@@ -357,7 +452,7 @@ void param_read_freq_nudge(void){
 		  	// Prevent fknob from adjusting freq_nudge when it's fknob_lock(ed)
 			if (fknob_lock[0]==1){ 																			// if freq knob is locked
 				// during coarse adj
-				if((fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001) && !lock_pressed[0]){fknob_lock[0]=0;} 	// unlock odds/evens freq knob if it crosses the value it was locked on and lock button isn't pressed 	
+				if((fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001)  && !lock_pressed[0]){fknob_lock[0]=0;} 	// unlock odds/evens freq knob if it crosses the value it was locked on and lock button isn't pressed 	
 				else {freq_nudge[0]=f_nudge_buf[0] * coarse_adj[0];} 										// use buffered value otherwise
 			}
 			if (fknob_lock[0]==0){freq_nudge[0]=f_nudge_odds * coarse_adj[0];};		 						// if freq knob is unlocked, apply coarse adjustment to current f_knob fine tune
