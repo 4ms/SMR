@@ -147,6 +147,9 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	uint8_t i,j;
 	uint8_t positive_coarse;
 	uint8_t led_off_when_no_coarse_adj[4]={0, 1, 4, 5};
+
+	static uint8_t flash=0;
+
 	float finetune_bright[NUM_CHANNELS];
 	float avg_r, avg_g, avg_b;
 
@@ -205,11 +208,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	
 	// FINE TUNING 
 	else if (ongoing_fine_tuning[0] || ongoing_fine_tuning[1] || fine_tuning_timeout[0] || fine_tuning_timeout[1]){ // not mandatory but prevents unnecessary for loop runs
-		
-		avg_r = (COLOR_CH[cur_colsch][0][0] + COLOR_CH[cur_colsch][1][0] + COLOR_CH[cur_colsch][2][0] + COLOR_CH[cur_colsch][3][0] + COLOR_CH[cur_colsch][4][0] + COLOR_CH[cur_colsch][5][0])/6;
-		avg_g = (COLOR_CH[cur_colsch][0][1] + COLOR_CH[cur_colsch][1][1] + COLOR_CH[cur_colsch][2][1] + COLOR_CH[cur_colsch][3][1] + COLOR_CH[cur_colsch][4][1] + COLOR_CH[cur_colsch][5][1])/6;
-		avg_b = (COLOR_CH[cur_colsch][0][2] + COLOR_CH[cur_colsch][1][2] + COLOR_CH[cur_colsch][2][2] + COLOR_CH[cur_colsch][3][2] + COLOR_CH[cur_colsch][4][2] + COLOR_CH[cur_colsch][5][0])/3;
-		
+		flash = 1-flash;
 		for (i=0;i<6;i++){
 		
 			// update led for channels that are being adjusted
@@ -219,13 +218,24 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 				finetune_bright[i] = (freq_nudge[i]/coarse_adj[i]  - 1.0 ) * 16.7; // 0-1
 				
 				// led color 
-				env_out_leds[i][0]= 750 * (1-finetune_bright[i]);
-				env_out_leds[i][1]= 0;
-				env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5);
+				
+				// flash channels locked by 135 and 426 switches
+				if ( (MOD135 && ((i==2) || (i==4))) || (MOD246 && ((i==1) || (i==3))) ){
+					env_out_leds[i][0]= 750 * (1-finetune_bright[i]) * flash;
+					env_out_leds[i][1]= 0;
+					env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5) * flash;
+				
+				
+				// channels not locked by 135 or 246 switches
+				}else{
+					env_out_leds[i][0]= 750 * (1-finetune_bright[i]);
+					env_out_leds[i][1]= 0;
+					env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5);
 
-				if(env_out_leds[i][0]>1023) env_out_leds[i][0] = 1023;
-				if(env_out_leds[i][1]>1023) env_out_leds[i][1] = 1023;
-				if(env_out_leds[i][2]>1023) env_out_leds[i][2] = 1023;						 
+					if(env_out_leds[i][0]>1023) env_out_leds[i][0] = 1023;
+					if(env_out_leds[i][1]>1023) env_out_leds[i][1] = 1023;
+					if(env_out_leds[i][2]>1023) env_out_leds[i][2] = 1023;						 
+				}
 			} 
 			
 			// turn off channels that aren't being adjusted

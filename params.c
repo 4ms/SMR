@@ -409,7 +409,7 @@ void param_read_freq_nudge(void){
 		// turn off odds fine tune display after short time
 		} else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==0)){ 
 			fine_tuning_timeout[0]+=1;
-			if(fine_tuning_timeout[0]> (18000 * fine_timer[0])){
+			if(fine_tuning_timeout[0]> (20000 * fine_timer[0])){
 				ongoing_fine_tuning[0]=0;
 				fine_envled = fine_envled & 0b010101; // turn off odds env led
 				fine_tuning_timeout[0]=0;
@@ -417,7 +417,7 @@ void param_read_freq_nudge(void){
 		// turn off evens fine tune display after short time 	
 		} else if ((ongoing_fine_tuning[1]==1) && (ongoing_fine_tuning[0]==0)){ 
 			fine_tuning_timeout[1]+=1;
-			if(fine_tuning_timeout[1]> (18000 * fine_timer[1])){
+			if(fine_tuning_timeout[1]> (20000 * fine_timer[1])){
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b101010; // turn off even env led
 				fine_tuning_timeout[1]=0;
@@ -501,7 +501,7 @@ void param_read_freq_nudge(void){
 		}
 		freq_shift[5]=f_shift_evens; 
 		
-		if (mod_mode_135==135){
+		if (mod_mode_246==246){
 			if (!lock[1]){
 				if (fknob_lock[1]==1){ 								
 					if((fabsf(f_nudge_evens - f_nudge_buf[1]) < 0.001) && !lock_pressed[1]){fknob_lock[1]=0;}
