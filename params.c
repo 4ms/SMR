@@ -67,7 +67,7 @@ float freq_shift[NUM_CHANNELS];
 uint16_t mod_mode_135;
 uint16_t mod_mode_246;
 
-uint8_t fine_timer[2]; 													// flag for fine tune display soft release
+uint8_t fine_timer[2]={1,1}; 			// flag for fine tune display soft release 1: soft release. 0: immediate release
 
 
 extern uint8_t do_LOCK135;
@@ -168,6 +168,7 @@ void param_read_freq_nudge(void){
 	uint8_t i,j,k;
 	float t_fo, t_fe;														// freq nudge knob readouts 
 	static uint8_t sleep_range_saved =0, first_run[2]={1,1};
+	static uint8_t old_switch_state[2];										// previous 135/246 switch state
 	static uint8_t fknob_lock[2]={0,0};										// true disables nudge knob for odds/evens
 	static uint8_t coarse_lock[NUM_CHANNELS]={1,1,1,1,1,1}; 				// same as fknoblock, for the coarse tuning
 	static float sleep_range=800; 											// number of counts that won't wake up nudge knob after module is turned on
@@ -259,6 +260,9 @@ void param_read_freq_nudge(void){
 			// update buffers
 			f_nudge_odds_buf = old_f_nudge_odds;
 			old_f_nudge_odds=f_nudge_odds;
+
+			// enable fine tuning timer for slow display release
+			fine_timer[0] = 1;	
 			
 			// for each odd channel			
 			for (i=0;i<3;i++){
@@ -269,7 +273,6 @@ void param_read_freq_nudge(void){
 
 				// inform led_ring_c that fine tuning is ongoing on odd chan(s)
 				ongoing_fine_tuning[0]	= 1;
-				fine_timer[0] 		  	= 1;	// enable fine tuning timer for slow release
 				fine_tuning_timeout[0] 	= 1; 	// stage timeout counter
 					 
 				// If lock button pressed, disable fine tuning and process coarse tuning				
@@ -278,7 +281,7 @@ void param_read_freq_nudge(void){
 					// inform led_ring_c that coarse tuning is ongoing
 					ongoing_coarse_tuning[0]=1;
 					
-					// disable fine tuning timer for instantaneous release
+					// disable fine tuning timer for instantaneous display release
 					fine_timer[0] = 0;
 
 					// coarse tuning superseds fine tuning
@@ -331,6 +334,9 @@ void param_read_freq_nudge(void){
 			f_nudge_evens_buf = old_f_nudge_evens;
 			old_f_nudge_evens=f_nudge_evens;
 			
+			// enable fine tuning timer for slow display release
+			fine_timer[1]	= 1;	
+			
 			// for each even channel
 			for (i=0;i<3;i++){
 				j = evens[i];	
@@ -340,7 +346,6 @@ void param_read_freq_nudge(void){
 
 				// inform led_ring_c that fine tuning is ongoing on even chan(s)
 				ongoing_fine_tuning[1] 	= 1;
-				fine_timer[1]			= 1;	// enable fine tuning timer for slow release
 				fine_tuning_timeout[1] 	= 1; 	// stage timeout counter
 				
 				// If lock button pressed, disable fine tuning and process coarse tuning							
@@ -352,7 +357,7 @@ void param_read_freq_nudge(void){
 					// coarse tuning superseds fine tuning
 					ongoing_fine_tuning[1] = 0;
 					
-					// disable fine tuning timer for instantaneous release
+					// disable fine tuning timer for instantaneous display release
 					fine_timer[1] = 0;
 					
 					// disable fine adjustments when setting coarse tuning
@@ -390,10 +395,9 @@ void param_read_freq_nudge(void){
 					already_handled_lock_release[j] = 1; 
 		 		}else{coarse_lock[j]=1;}
 		 	}
-	   
 		}
 	 	
-	 	
+	 // MORE FINE/COARSE TUNE DISPLAY CASES
 	 	// stop displaying fine tune if fine tune knob is not being adjusted but leave display on for timed duration 	
 	  	// special case: both fine tunes are ajusted at once. Leave more time to facilitate tuning odds/even together	
 	 	else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
@@ -425,6 +429,54 @@ void param_read_freq_nudge(void){
 		}
 
 	  
+		// display fine tune when locked button is held down
+		if (lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) {
+			fine_envled=fine_envled | 0b101010; 
+			ongoing_fine_tuning[0]=1;
+			fine_tuning_timeout[0]+=1;
+			if((fine_tuning_timeout[0]> (15000 * fine_timer[0])) && (fine_tuning_timeout[1]> (100000 * fine_timer[1]))){
+				ongoing_fine_tuning[0]=0;
+				fine_envled = fine_envled & 0b010101; // turn off odds env led
+				fine_tuning_timeout[0]=0;
+			}
+		} 
+		if (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) {
+			fine_envled=fine_envled | 0b010101; 
+			ongoing_fine_tuning[1]=1;
+			fine_tuning_timeout[1]+=1;
+			if((fine_tuning_timeout[0]> (100000 * fine_timer[0])) && (fine_tuning_timeout[1]> (100000 * fine_timer[1]))){
+				ongoing_fine_tuning[1]=0;
+				fine_envled = fine_envled & 0b101010; // turn off even env led
+				fine_tuning_timeout[1]=0;
+			}
+		}
+		
+		// display fine tune when lock switch state is changed
+		// switch 135
+		if (mod_mode_135!=old_switch_state[0]){
+			old_switch_state[0] = mod_mode_135;
+			fine_envled=fine_envled | 0b101010; 
+			ongoing_fine_tuning[0]=1;
+			fine_tuning_timeout[0]+=1;
+			if((fine_tuning_timeout[0]> (60000 * fine_timer[0])) && (fine_tuning_timeout[1]> (60000 * fine_timer[1]))){
+				ongoing_fine_tuning[0]=0;
+				fine_envled = fine_envled & 0b010101; // turn off odds env led
+				fine_tuning_timeout[0]=0;
+			}			 
+		}
+		// switch 246
+		if (mod_mode_246!=old_switch_state[1]){
+			old_switch_state[1] = mod_mode_246;
+			fine_envled=fine_envled | 0b010101; 
+			ongoing_fine_tuning[1]=1;
+			fine_tuning_timeout[1]+=1;
+			if((fine_tuning_timeout[0]> (60000 * fine_timer[0])) && (fine_tuning_timeout[1]> (60000 * fine_timer[1]))){
+				ongoing_fine_tuning[1]=0;
+				fine_envled = fine_envled & 0b101010; // turn off odds env led
+				fine_tuning_timeout[0]=0;
+			}			 
+		}
+
 	  	// exit coarse tuning display as needed
 		if(ongoing_coarse_tuning[0]){
 			if (!lock_pressed[0] && !lock_pressed[2] && !lock_pressed[4]){
@@ -435,15 +487,9 @@ void param_read_freq_nudge(void){
 			if (!lock_pressed[1] && !lock_pressed[3] && !lock_pressed[5]){
 				ongoing_coarse_tuning[1]=0;
 			}
-		}
+		}		
 		
-		// display fine tune when locked button is held down so user can see what's going to happen at button release (unlock)
-		if ( 	(lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) && (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) ){fine_envled=0b111111; ongoing_fine_tuning[0]=1; ongoing_fine_tuning[1]=1;}
-		else if (lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) {fine_envled=fine_envled | 0b101010; ongoing_fine_tuning[0]=1;fine_timer[0]=0;}
-		else if (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) {fine_envled=fine_envled | 0b010101; ongoing_fine_tuning[1]=1;fine_timer[1]=0;}
-		
-	
-	// LOCK TOGGLES
+	// LOCK SWITCHES
 	// nudge and shift always enabled on 1 and 6
 	// ... and enabled on 3,5,2 and 4 based on the lock toggles
 	  // ODDS

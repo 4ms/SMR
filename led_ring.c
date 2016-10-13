@@ -62,8 +62,10 @@ extern float coarse_adj[NUM_CHANNELS];
 extern float freq_nudge[NUM_CHANNELS];
 extern uint8_t ongoing_fine_tuning[2];
 extern uint32_t fine_tuning_timeout[2];
-
+extern uint8_t lock[NUM_CHANNELS]; 
 //
+
+
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
@@ -207,7 +209,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 
 	
 	// FINE TUNING 
-	else if (ongoing_fine_tuning[0] || ongoing_fine_tuning[1] || fine_tuning_timeout[0] || fine_tuning_timeout[1]){ // not mandatory but prevents unnecessary for loop runs
+	else if (ongoing_fine_tuning[0] || ongoing_fine_tuning[1] || fine_tuning_timeout[0] || fine_tuning_timeout[1]){ // not mandatory but prevents unnecessary for-loop runs
 		flash = 1-flash;
 		for (i=0;i<6;i++){
 		
@@ -216,18 +218,21 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 				
 				// led brightness 
 				finetune_bright[i] = (freq_nudge[i]/coarse_adj[i]  - 1.0 ) * 16.7; // 0-1
-				
-				// led color 
-				
+								
 				// flash channels locked by 135 and 426 switches
 				if ( (MOD135 && ((i==2) || (i==4))) || (MOD246 && ((i==1) || (i==3))) ){
 					env_out_leds[i][0]= 750 * (1-finetune_bright[i]) * flash;
 					env_out_leds[i][1]= 0;
 					env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5) * flash;
-				
-				
+
+				// flash channels locked by buttons
+				} else if (lock[i]){
+					env_out_leds[i][0]= 750 * (1-finetune_bright[i]) * flash;
+					env_out_leds[i][1]= 0;
+					env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5) * flash;				
+		
 				// channels not locked by 135 or 246 switches
-				}else{
+				} else {
 					env_out_leds[i][0]= 750 * (1-finetune_bright[i]);
 					env_out_leds[i][1]= 0;
 					env_out_leds[i][2]= 1023 * (finetune_bright[i]/2 + 0.5);
