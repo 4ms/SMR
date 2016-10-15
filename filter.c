@@ -53,17 +53,13 @@ extern float user_scalebank[231];
 int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_BUFSZ], filtered_bufferR[MONO_BUFSZ];
 
 extern float log_4096[4096];
-extern float loga_4096[4096];
 extern float exp_4096[4096];
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
 extern uint8_t scale_bank[NUM_CHANNELS];
-extern uint16_t rotate_to_next_scale;
 
-extern uint8_t g_error;
 
-extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern float ENVOUT_preload[NUM_CHANNELS];
 
 extern const uint32_t slider_led[6];
@@ -79,8 +75,6 @@ extern int8_t motion_fadeto_note[NUM_CHANNELS];
 extern int8_t motion_fadeto_scale[NUM_CHANNELS];
 
 extern float motion_morphpos[NUM_CHANNELS];;
-
-extern float envspeed_attack, envspeed_decay;
 
 extern uint8_t slider_led_mode;
 

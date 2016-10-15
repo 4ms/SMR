@@ -31,6 +31,7 @@
 #include "globals.h"
 #include "dig_inouts.h"
 #include "envout_pwm.h"
+//#include "PWM_Voct_UNQ.h"
 
 uint32_t ENVOUT_PWM[NUM_CHANNELS];
 float ENVOUT_preload[NUM_CHANNELS];
@@ -43,6 +44,8 @@ extern uint32_t env_prepost_mode;
 extern float envspeed_attack, envspeed_decay;
 
 extern float channel_level[NUM_CHANNELS];
+
+//extern uint32_t PWM_Voct_UNQ[21353];
 
 void init_envout_pwm(void){
 	TIM_TimeBaseInitTypeDef tim;
@@ -134,29 +137,40 @@ void update_ENVOUT_PWM(void){
 	static uint32_t env_trigout[NUM_CHANNELS];
 	static uint32_t env_low_ctr[NUM_CHANNELS];
 	static float envelope[NUM_CHANNELS];
+	uint8_t quantize_voct=0;
 
 	if (env_track_mode==ENV_VOLTOCT)
 	{
-		for (j=0;j<NUM_CHANNELS;j++){
-			//8192 sharp
-			//8292 220Hz->444Hz
-			//8320 444,447
-			//8370 460Hz
-			k=(uint32_t)(ENVOUT_preload[j] * 8192.0);
 
-			if (k>22) k-=22;
-			else k=0;
-			if (k>=VOLTOCT_LUT_MAX) k= VOLTOCT_LUT_MAX-1;
+		if (quantize_voct)	//Quantized
+		{
 
-			ENVOUT_PWM[j] = voltoct_lut[k];
+			for (j=0;j<NUM_CHANNELS;j++){
 
+				k=(uint32_t)(ENVOUT_preload[j] * 8192.0f);
 
-		//	if (j==0) ENVOUT_PWM[0] = 2559;
-		//	if (j==1) ENVOUT_PWM[1] = 2559;
-		//	if (j==2) ENVOUT_PWM[2] = 2559;
-		//	if (j==3) ENVOUT_PWM[3] = 2559;
-		//	if (j==4) ENVOUT_PWM[4] = 2559;
-		//	if (j==5) ENVOUT_PWM[5] = 2559;
+				if (k>22) k-=22;
+				else k=0;
+				if (k>=VOLTOCT_LUT_MAX)
+					k= VOLTOCT_LUT_MAX-1;
+
+				ENVOUT_PWM[j] = voltoct_lut[k];
+
+			}
+
+		} else 	//Unquantized
+		{
+			for (j=0;j<NUM_CHANNELS;j++){
+
+					k=(uint32_t)(ENVOUT_preload[j] * 8192.0);
+
+					if (k>22) k-=22;
+					else k=0;
+					if (k>=VOLTOCT_LUT_MAX)
+						k= VOLTOCT_LUT_MAX-1;
+
+					ENVOUT_PWM[j] = PWM_UNQ(k);
+			}
 
 		}
 
@@ -168,10 +182,10 @@ void update_ENVOUT_PWM(void){
 			//Apply LPF
 			if(envelope[j] < ENVOUT_preload[j]) {
 				envelope[j] *= envspeed_attack;
-				envelope[j] += (1.0-envspeed_attack)*ENVOUT_preload[j];
+				envelope[j] += (1.0f-envspeed_attack)*ENVOUT_preload[j];
 			} else {
 				envelope[j] *= envspeed_decay;
-				envelope[j] += (1.0-envspeed_decay)*ENVOUT_preload[j];
+				envelope[j] += (1.0f-envspeed_decay)*ENVOUT_preload[j];
 			}
 
 			//Pre-CV (input) or Post faders (quieter)
@@ -226,6 +240,7 @@ void init_PWM_voltperoctave_lut(void)
 {
 	uint32_t k,v;
 
+	//Qunatized table
 	for (k=0;k<VOLTOCT_LUT_MAX;k++){
 
 		if(k<=0) v=41;
@@ -328,5 +343,111 @@ void init_PWM_voltperoctave_lut(void)
 
 		voltoct_lut[k]=v;
 	}
+}
+
+uint32_t PWM_UNQ(uint32_t k)
+{
+	float t,b,tval,bval;
+//Todo: try using uint32_t math instead of floats, and compare efficiency
+
+	//:,$s/\(\d*\),\(\d*\),\(\d*\),\(\d*\)/else if (k<=\1) {t=\1;b=\2;tval=\3;bval=\4;}/
+	if (k==0) return(41);
+	else if (k<=1) {t=1;b=0;tval=83;bval=41;}
+	else if (k<=2) {t=2;b=1;tval=125;bval=83;}
+	else if (k<=3) {t=3;b=2;tval=167;bval=125;}
+	else if (k<=5) {t=5;b=3;tval=209;bval=167;}
+	else if (k<=6) {t=6;b=5;tval=251;bval=209;}
+	else if (k<=8) {t=8;b=6;tval=293;bval=251;}
+	else if (k<=10) {t=10;b=8;tval=335;bval=293;}
+	else if (k<=12) {t=12;b=10;tval=377;bval=335;}
+	else if (k<=14) {t=14;b=12;tval=419;bval=377;}
+	else if (k<=16) {t=16;b=14;tval=461;bval=419;}
+	else if (k<=18) {t=18;b=16;tval=503;bval=461;}
+	else if (k<=21) {t=21;b=18;tval=545;bval=503;}
+	else if (k<=23) {t=23;b=21;tval=587;bval=545;}
+	else if (k<=26) {t=26;b=23;tval=629;bval=587;}
+	else if (k<=29) {t=29;b=26;tval=671;bval=629;}
+	else if (k<=32) {t=32;b=29;tval=713;bval=671;}
+	else if (k<=35) {t=35;b=32;tval=755;bval=713;}
+	else if (k<=38) {t=38;b=35;tval=797;bval=755;}
+	else if (k<=42) {t=42;b=38;tval=839;bval=797;}
+	else if (k<=46) {t=46;b=42;tval=881;bval=839;}
+	else if (k<=50) {t=50;b=46;tval=923;bval=881;}
+	else if (k<=54) {t=54;b=50;tval=965;bval=923;}
+	else if (k<=59) {t=59;b=54;tval=1007;bval=965;}
+	else if (k<=64) {t=64;b=59;tval=1049;bval=1007;}
+	else if (k<=69) {t=69;b=64;tval=1091;bval=1049;}
+	else if (k<=74) {t=74;b=69;tval=1133;bval=1091;}
+	else if (k<=80) {t=80;b=74;tval=1175;bval=1133;}
+	else if (k<=86) {t=86;b=80;tval=1217;bval=1175;}
+	else if (k<=92) {t=92;b=86;tval=1259;bval=1217;}
+	else if (k<=99) {t=99;b=92;tval=1301;bval=1259;}
+	else if (k<=106) {t=106;b=99;tval=1343;bval=1301;}
+	else if (k<=114) {t=114;b=106;tval=1385;bval=1343;}
+	else if (k<=122) {t=122;b=114;tval=1427;bval=1385;}
+	else if (k<=131) {t=131;b=122;tval=1469;bval=1427;}
+	else if (k<=140) {t=140;b=131;tval=1511;bval=1469;}
+	else if (k<=149) {t=149;b=140;tval=1553;bval=1511;}
+	else if (k<=160) {t=160;b=149;tval=1595;bval=1553;}
+	else if (k<=171) {t=171;b=160;tval=1637;bval=1595;}
+	else if (k<=182) {t=182;b=171;tval=1679;bval=1637;}
+	else if (k<=194) {t=194;b=182;tval=1721;bval=1679;}
+	else if (k<=207) {t=207;b=194;tval=1763;bval=1721;}
+	else if (k<=220) {t=220;b=207;tval=1805;bval=1763;}
+	else if (k<=235) {t=235;b=220;tval=1847;bval=1805;}
+	else if (k<=250) {t=250;b=235;tval=1889;bval=1847;}
+	else if (k<=267) {t=267;b=250;tval=1931;bval=1889;}
+	else if (k<=284) {t=284;b=267;tval=1973;bval=1931;}
+	else if (k<=302) {t=302;b=284;tval=2015;bval=1973;}
+	else if (k<=321) {t=321;b=302;tval=2057;bval=2015;}
+	else if (k<=342) {t=342;b=321;tval=2099;bval=2057;}
+	else if (k<=363) {t=363;b=342;tval=2141;bval=2099;}
+	else if (k<=386) {t=386;b=363;tval=2183;bval=2141;}
+	else if (k<=411) {t=411;b=386;tval=2225;bval=2183;}
+	else if (k<=436) {t=436;b=411;tval=2267;bval=2225;}
+	else if (k<=463) {t=463;b=436;tval=2309;bval=2267;}
+	else if (k<=492) {t=492;b=463;tval=2351;bval=2309;}
+	else if (k<=523) {t=523;b=492;tval=2393;bval=2351;}
+	else if (k<=556) {t=556;b=523;tval=2435;bval=2393;}
+	else if (k<=590) {t=590;b=556;tval=2477;bval=2435;}
+	else if (k<=626) {t=626;b=590;tval=2519;bval=2477;}
+	else if (k<=665) {t=665;b=626;tval=2561;bval=2519;}
+	else if (k<=705) {t=705;b=665;tval=2603;bval=2561;}
+	else if (k<=749) {t=749;b=705;tval=2645;bval=2603;}
+	else if (k<=795) {t=795;b=749;tval=2687;bval=2645;}
+	else if (k<=843) {t=843;b=795;tval=2729;bval=2687;}
+	else if (k<=895) {t=895;b=843;tval=2771;bval=2729;}
+	else if (k<=949) {t=949;b=895;tval=2813;bval=2771;}
+	else if (k<=1007) {t=1007;b=949;tval=2855;bval=2813;}
+	else if (k<=1069) {t=1069;b=1007;tval=2897;bval=2855;}
+	else if (k<=1133) {t=1133;b=1069;tval=2939;bval=2897;}
+	else if (k<=1202) {t=1202;b=1133;tval=2981;bval=2939;}
+	else if (k<=1275) {t=1275;b=1202;tval=3023;bval=2981;}
+	else if (k<=1352) {t=1352;b=1275;tval=3065;bval=3023;}
+	else if (k<=1433) {t=1433;b=1352;tval=3107;bval=3065;}
+	else if (k<=1520) {t=1520;b=1433;tval=3149;bval=3107;}
+	else if (k<=1612) {t=1612;b=1520;tval=3191;bval=3149;}
+	else if (k<=1709) {t=1709;b=1612;tval=3233;bval=3191;}
+	else if (k<=1812) {t=1812;b=1709;tval=3275;bval=3233;}
+	else if (k<=1921) {t=1921;b=1812;tval=3317;bval=3275;}
+	else if (k<=2037) {t=2037;b=1921;tval=3359;bval=3317;}
+	else if (k<=2159) {t=2159;b=2037;tval=3401;bval=3359;}
+	else if (k<=2289) {t=2289;b=2159;tval=3443;bval=3401;}
+	else if (k<=2426) {t=2426;b=2289;tval=3485;bval=3443;}
+	else if (k<=2572) {t=2572;b=2426;tval=3527;bval=3485;}
+	else if (k<=2726) {t=2726;b=2572;tval=3569;bval=3527;}
+	else if (k<=2889) {t=2889;b=2726;tval=3611;bval=3569;}
+	else if (k<=3063) {t=3063;b=2889;tval=3653;bval=3611;}
+	else if (k<=3246) {t=3246;b=3063;tval=3695;bval=3653;}
+	else if (k<=3440) {t=3440;b=3246;tval=3737;bval=3695;}
+	else if (k<=3646) {t=3646;b=3440;tval=3779;bval=3737;}
+	else if (k<=3865) {t=3865;b=3646;tval=3821;bval=3779;}
+	else if (k<=4096) {t=4096;b=3865;tval=3863;bval=3821;}
+	else if (k<=4340) {t=4340;b=4096;tval=3905;bval=3863;}
+	else if (k<=4600) {t=4600;b=4340;tval=3947;bval=3905;}
+	else if (k<=4875) {t=4875;b=4600;tval=3989;bval=3947;}
+	else if (k<=5166) {t=5166;b=4875;tval=4031;bval=3989;}
+
+	return( ((t-k)/(t-b))*bval + ((k-b)/(t-b))*tval );
 
 }

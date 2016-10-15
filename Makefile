@@ -35,16 +35,17 @@ OBJCPY = $(ARCH)-objcopy
 OBJDMP = $(ARCH)-objdump
 GDB = $(ARCH)-gdb
 
-CFLAGS = -g2 -Ofast -fno-tree-loop-distribute-patterns
+CFLAGS = -g2 -Ofast -fno-tree-loop-distribute-patterns 
 CFLAGS += -mlittle-endian -mthumb
 CFLAGS +=  -I. -DARM_MATH_CM4 -D'__FPU_PRESENT=1'  $(INCLUDES)  -DUSE_STDPERIPH_DRIVER
 CFLAGS += -mcpu=cortex-m4 -mfloat-abi=hard
-CFLAGS +=  -mfpu=fpv4-sp-d16 -fsingle-precision-constant -Wdouble-promotion 
+CFLAGS +=  -mfpu=fpv4-sp-d16 -fsingle-precision-constant -Wdouble-promotion
 
 AFLAGS  = -mlittle-endian -mthumb -mcpu=cortex-m4 
 
 LDSCRIPT = $(DEVICE)/$(LOADFILE).ld
-LFLAGS  = -Map $(BUILDDIR)/$(BINARYNAME).map -nostartfiles -T $(LDSCRIPT)
+LFLAGS  = -Map $(BUILDDIR)/$(BINARYNAME).map -nostartfiles  -T $(LDSCRIPT)
+#LFLAGS  = -nostartfiles  -T $(LDSCRIPT)  -lc -lm -lgcc
 
 
 all: Makefile $(BIN) $(HEX)
