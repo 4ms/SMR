@@ -122,6 +122,8 @@ const float SCALE_BANK_COLOR[20][3]={
 		{0,200,500},		//skyblue : gamelan
 		{600,1000,0},		//lime : bohlen-pierce
 
+		{0,0,100},			// blue: Major scale
+
 		{100,100,100}, 		//pearl: user
 		{100,100,100}, 		//pearl: user
 		{100,100,100}, 		//pearl: user
