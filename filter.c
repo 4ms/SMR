@@ -53,17 +53,13 @@ extern float user_scalebank[231];
 int32_t	left_buffer[MONO_BUFSZ], right_buffer[MONO_BUFSZ], filtered_buffer[MONO_BUFSZ], filtered_bufferR[MONO_BUFSZ];
 
 extern float log_4096[4096];
-extern float loga_4096[4096];
 extern float exp_4096[4096];
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
 extern uint8_t scale_bank[NUM_CHANNELS];
-extern uint16_t rotate_to_next_scale;
 
-extern uint8_t g_error;
 
-extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern float ENVOUT_preload[NUM_CHANNELS];
 
 extern const uint32_t slider_led[6];
@@ -80,13 +76,13 @@ extern int8_t motion_fadeto_scale[NUM_CHANNELS];
 
 extern float motion_morphpos[NUM_CHANNELS];;
 
-extern float envspeed_attack, envspeed_decay;
-
 extern uint8_t slider_led_mode;
 
 extern float channel_level[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
+
+extern enum Env_Out_Modes env_track_mode;
 
 float *c_hiq[6];
 float *c_loq[6];
@@ -136,7 +132,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	register float tmp, fir, iir;
 	float c0,c1,c2;
 	float a0,a1,a2;
-	float freq_comp[NUM_CHANNELS];
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
@@ -343,7 +338,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  				c1 *= freq_nudge[channel_num];
 				c1 *= freq_shift[channel_num];
 				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-				freq_comp[channel_num] = 1.0;
+
+				if (env_track_mode==ENV_VOLTOCT){
+					if (j<6)
+						ENVOUT_preload[j]=c1;
+					else if (j>=6 && CVLAG)
+						ENVOUT_preload[j-6] = (ENVOUT_preload[j-6] * (1.0f-motion_morphpos[j-6])) + (c1 * motion_morphpos[j-6]);
+				}
 
 			//AMPLITUDE: Boost high freqs and boost low resonance
 				c2= (0.003 * c1) - (0.1*c0) + 0.102;
@@ -486,12 +487,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					}
 				}
 
-
-			if (f_blended>0)
-				ENVOUT_preload[j]=f_blended*(freq_comp[j]);
-			else
-				ENVOUT_preload[j]=-1.0*f_blended*(freq_comp[j]);
-
+			if (env_track_mode != ENV_VOLTOCT){
+				if (f_blended>0)
+					ENVOUT_preload[j]=f_blended;
+				else
+					ENVOUT_preload[j]=-1.0*f_blended;
+			}
 
 		}
 

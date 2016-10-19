@@ -630,10 +630,10 @@ void param_read_channel_level(void){
 	uint16_t t;
 
 	if (ui_mode==EDIT_SCALES){
-		if (env_track_mode!=ENV_SLOW) channel_level[0]=1.0;
+		if (env_track_mode!=ENV_SLOW ) channel_level[0]=1.0;
 		else channel_level[0]=0.0;
 
-		if (env_track_mode!=ENV_FAST) channel_level[5]=1.0;
+		if (env_track_mode!=ENV_FAST && env_track_mode!=ENV_VOLTOCT) channel_level[5]=1.0;
 		else channel_level[5]=0.0;
 
 		channel_level[1]=0.0;
@@ -770,7 +770,8 @@ void param_read_switches(void){
 
 	//float ga = exp(-1.0f/(SampleRate*AttackTimeInSecond));
 	if (ENVSPEEDFAST) {
-		env_track_mode=ENV_FAST;
+		env_track_mode=ENV_VOLTOCT;
+		//env_track_mode=ENV_FAST;
 		//envspeed_attack=0.0;
 		//envspeed_decay=0.0;
 		envspeed_attack=0.9990;

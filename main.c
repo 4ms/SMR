@@ -45,42 +45,20 @@
 #include "system_mode.h"
 #include "user_scales.h"
 
-extern uint8_t scale_bank_defaultscale[NUMSCALEBANKS];
 
 __IO uint16_t adc_buffer[NUM_ADCS];
 __IO uint16_t potadc_buffer[NUM_ADC3S];
 
-extern uint8_t note[NUM_CHANNELS];
-extern uint8_t scale[NUM_CHANNELS];
-extern uint8_t scale_cv[NUM_CHANNELS];
-extern uint8_t scale_bank[NUM_CHANNELS];
-
-extern int8_t motion_spread_dest[NUM_CHANNELS];
-extern int8_t motion_spread_dir[NUM_CHANNELS];
-extern int8_t motion_scale_dest[NUM_CHANNELS];
-
-extern int8_t motion_fadeto_note[NUM_CHANNELS];
-extern int8_t motion_fadeto_scale[NUM_CHANNELS];
-
 extern enum UI_Modes ui_mode;
-extern uint32_t u_NUM_COLORSCHEMES;
-
-extern uint8_t lock[NUM_CHANNELS];
 
 extern uint8_t flag_update_LED_ring;
 
 
 extern uint8_t do_ROTUP;
 extern uint8_t do_ROTDOWN;
-extern uint8_t do_LOCK135;
-extern uint8_t do_LOCK246;
-
-extern uint16_t rotate_to_next_scale;
 
 extern int8_t spread;
 
-extern uint8_t cur_colsch;
-extern enum Filter_Types filter_type;
 
 extern uint8_t cur_param_bank;
 

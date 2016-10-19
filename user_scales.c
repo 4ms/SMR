@@ -174,7 +174,7 @@ void handle_edit_scale(void){
 		if (env_track_mode!=ENV_SLOW) 
 			user_scalebank[scale[0]*21 +  note[0]] = COEF_COEF * freq;
 
-		if (env_track_mode!=ENV_FAST) 
+		if (env_track_mode!=ENV_FAST && env_track_mode!=ENV_VOLTOCT)
 			user_scalebank[scale[5]*21 +  note[5]] = COEF_COEF * freq;
 		
 
@@ -192,10 +192,10 @@ void handle_edit_tracking(void){
 
 		if (track_adc>2047){
 			if (env_track_mode!=ENV_SLOW) trackcomp[0] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
-			if (env_track_mode!=ENV_FAST) trackcomp[1] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
 		}else{
 			if (env_track_mode!=ENV_SLOW) trackcomp[0] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
-			if (env_track_mode!=ENV_FAST) trackcomp[1] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
 		}
 
 		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check!
@@ -205,10 +205,10 @@ void handle_edit_tracking(void){
 
 		if (track_adc>2047){
 			if (env_track_mode!=ENV_SLOW) trackoffset[0] = (track_adc-2048) >> 7; //0..31
-			if (env_track_mode!=ENV_FAST) trackoffset[1] = (track_adc-2048) >> 7; //0..31
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackoffset[1] = (track_adc-2048) >> 7; //0..31
 		}else{
 			if (env_track_mode!=ENV_SLOW) trackoffset[0] = 0-((2047-track_adc) >> 7); //-31..0
-			if (env_track_mode!=ENV_FAST) trackoffset[1] = 0-((2047-track_adc) >> 7); //-31..0
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackoffset[1] = 0-((2047-track_adc) >> 7); //-31..0
 		}
 	}
 }

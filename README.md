@@ -21,7 +21,7 @@ The SMR would make a nice platform for other audio projects, the hardware contai
 *	Six gate/digital inputs (can be used as unscaled CV inputs)
 *	Six CV outputs (0V-8V), driven by PWM  
   
-As of writing this (March 2016), there are three PCB versions: 1.0, and 1.0.1, and 1.0.2. These are functionally identical and this firmware will run exactly the same on all versions. The later versions reflect improvements in manufacturability, not in circuit performance.
+As of writing this (March 2016), there are three PCB versions: 1.0, 1.0.1, and 1.0.2. These are functionally identical and this firmware will run exactly the same on all versions.
 
 ## Setting up your environment
 You need to install the GCC ARM toolchain.
