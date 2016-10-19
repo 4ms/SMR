@@ -34,7 +34,7 @@
 #include "globals.h"
 #include "dig_inouts.h"
 #include "system_mode.h"
-
+#include "rotary.h"
 
 //#define TEST_LED_RING
 
@@ -63,10 +63,6 @@ extern float freq_nudge[NUM_CHANNELS];
 extern uint8_t ongoing_fine_tuning[2];
 extern uint32_t fine_tuning_timeout[2];
 extern uint8_t lock[NUM_CHANNELS]; 
-
-// Scale binary display
-int hover_scale_bank_bin; // binary version of hover scale bank for env outs display
-
 
 
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
@@ -105,33 +101,79 @@ const float DEFAULT_COLOR_CH[16][6][3]={
 };
 
 
-const float SCALE_BANK_COLOR[20][3]={
+const float SCALE_BANK_COLOR[24][3]={
 
-		{800,800,800}, 		//white: western 1 interval
-		{0,1000,0},			//green: indian pentatonic
-		{200,200,816},		//lavender: alpha sp2
-		{0,800,800},		//cyan: alpha sp1
-		{766,50,0},			//burnt orange: gamma sp1
-		{800,800,0},		//yellow: 17ET
-		{800,0,800},		//pink: twelve tone
-		{600,0,200},		//orange: diatonic1
-		{600,0,60},			//rose: diatonic2
+  // New colors (ordered)
 
-		{300,1000,300},		//light green: western two interval
-		{1000,0,0},			//red: mesopotamian
-		{766,500,30},		//yellow-green: shrutis
+	// Shades of Blue
+	{ 1		, 928	, 954	},
+	{ 1		, 318	, 947	},
+	{ 1		, 94 	, 950	},
+	{ 1		, 12	, 954	},
+	{ 1		, 1		, 379	},
+	{ 1		, 1		, 186	},
+					
+	// Shades of Pink
+	//{ 954  	, 928 	, 954 	},
+	{ 941  	, 366	, 954	},
+	{ 935 	, 116	, 928	},
+	{ 941 	, 35 	, 947	},
+	{ 954 	, 1		, 282 	},
+	{ 904 	, 1	 	, 126	},
+	{ 800 	, 1	 	, 50	},
+	
+	// Shades of Yellow/Orange
+	{ 502	, 309 	, 43 	},
+	{ 947 	, 388	, 21	},
+	{ 949 	, 256	, 21 	},
+	{ 954 	, 176	, 21 	},
+	{ 954 	, 130	, 22	},
+	{ 954 	, 55	, 21	},
 
-		{0,0,816},			//blue: B296
-		{0,200,500},		//skyblue : gamelan
-		{600,1000,0},		//lime : bohlen-pierce
+	// Shades of Green	
+	{  588	, 928	, 199	},
+	{  274	, 954	, 67	},
+	{  83	, 949	, 1	},
+	{  1	, 600	, 6	},
+	{  1	, 239	, 1	},
+	{  1	, 101	, 9	}
 
-		{0,0,500},			// blue: Major scale
-		{0,300,500},		// light blue: Major scale
+						
+	// Shades of Purple
+// 	{  	, 	, 	},
+// 	{  	, 	, 	},
+// 	{  	, 	, 	},
+// 	{  	, 	, 	},
+// 	{  	, 	, 	},
+// 	{  	, 	, 	},	
+	
 
-		{100,100,100}, 		//pearl: user
-		{100,100,100}, 		//pearl: user
-//		{100,100,100}, 		//pearl: user
-		{100,100,100} 		//pearl: user
+//	// Existing colors
+// 		{800,800,800}, 		//white: western 1 interval
+// 		{0,1000,0},			//green: indian pentatonic
+// 		{200,200,816},		//lavender: alpha sp2
+// 		{0,800,800},		//cyan: alpha sp1
+// 		{766,50,0},			//burnt orange: gamma sp1
+// 		{800,800,0},		//yellow: 17ET
+// 		{800,0,800},		//pink: twelve tone
+// 		{600,0,200},		//orange: diatonic1
+// 		{600,0,60},			//rose: diatonic2
+// 
+// 		{300,1000,300},		//light green: western two interval
+// 		{1000,0,0},			//red: mesopotamian
+// 		{766,500,30},		//yellow-green: shrutis
+// 
+// 		{0,0,816},			//blue: B296
+// 		{0,200,500},		//skyblue : gamelan
+// 		{600,1000,0},		//lime : bohlen-pierce
+// 
+// 		{0,0,500},			// blue: Major scale
+// 		{0,300,500},		// light blue: Major scale
+// 
+// 		{100,100,100}, 		//pearl: user
+// 		{100,100,100}, 		//pearl: user
+// //		{100,100,100}, 		//pearl: user
+// 		{100,100,100} 		//pearl: user
 
 };
 
@@ -161,35 +203,41 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	float finetune_bright[NUM_CHANNELS];
 	float avg_r, avg_g, avg_b;
 
-	if (hover_scale_bank) {
+ 	int bank_group_num;
+  	int scale_num_in_group;
 
-		// for each bit corresponding to the scale number		
+	// SCALE BANK SELECTION
+	// display group color on env led(s)
+	// display bank position within group by flashing corresponding LED
+	// 	each group contains 6x banks (one for each env led)
+  	// 	each bank contains 11x scales
+	if ((ui_mode==PLAY) && (ROTARY_SW)) {
+		
+		// Change flashing state
+		flash = 1-flash;
+		
+  	  	// calculate group number for hover bank
+		bank_group_num     = (int)(hover_scale_bank/6);
+
+  	  	// and calculate bank position in group (0-5) 		
+		scale_num_in_group = hover_scale_bank - (bank_group_num *6) ;
+  
+  		// apply hover-bank's group color to env LEDs
 		for (i=0;i<6;i++){
-			
-			// FIXME invert display so lowest bit is on the left 
-			// so channel numbers match powers of 2
-			if (!hover_scale_bank) {hover_scale_bank_bin=1;}
-			else {hover_scale_bank_bin = hover_scale_bank +1;}
-			
-			// turn on env LED @ hover scale bank color for 1s on binary scale #
-			if(( (hover_scale_bank_bin) & ( 1 << (5-i) )) >> (5-i) ){
-				env_out_leds[i][0] = SCALE_BANK_COLOR[hover_scale_bank][1];
-				env_out_leds[i][1] = SCALE_BANK_COLOR[hover_scale_bank][2];
-				env_out_leds[i][2] = SCALE_BANK_COLOR[hover_scale_bank][3];
-
-			// turn off env LED for 0s on binary scale #
-			}else{
-				env_out_leds[i][0] = 0;
-				env_out_leds[i][1] = 0;
-				env_out_leds[i][2] = 0;
-			}
-
+			env_out_leds[i][0] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][0];
+			env_out_leds[i][1] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][1];
+			env_out_leds[i][2] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][2];
 		}
+		
+		// flash env led corresponding to current scale
+			env_out_leds[scale_num_in_group][0] *= flash;
+			env_out_leds[scale_num_in_group][1] *= flash;
+			env_out_leds[scale_num_in_group][2] *= flash;
 	}
 	
 	// COARSE TUNING
 	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 	
-	else if (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]){
+	else if ((ui_mode==PLAY) && (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1])){
 
 	 	// When no coarse adjustment is applied
 		if (cur_envled_state == 12){
@@ -241,7 +289,9 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 
 	
 	// FINE TUNING 
-	else if (ongoing_fine_tuning[0] || ongoing_fine_tuning[1] || fine_tuning_timeout[0] || fine_tuning_timeout[1]){ // not mandatory but prevents unnecessary for-loop runs
+	else if ((ui_mode==PLAY) && 
+			(ongoing_fine_tuning[0] || ongoing_fine_tuning[1] 
+			|| fine_tuning_timeout[0] || fine_tuning_timeout[1])){ // not mandatory but prevents unnecessary for-loop runs
 		flash = 1-flash;
 		for (i=0;i<6;i++){
 		

@@ -69,9 +69,13 @@ uint16_t mod_mode_246;
 
 uint8_t fine_timer[2]={1,1}; 			// flag for fine tune display soft release 1: soft release. 0: immediate release
 
-
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
+ 
+// ROTARY BUTTON
+uint16_t rotsw_up, rotsw_down;
+uint32_t rotary_button_hold_ctr;
+uint8_t user_turned_rotary=0;
  
 //LOCK BUTTONS
 uint8_t lock[NUM_CHANNELS];  			// LATCH 0: channel unlocked, 1: channel locked
@@ -963,9 +967,6 @@ void process_lock_jacks(void){
 }
 
 
-uint16_t rotsw_up, rotsw_down;
-uint32_t rotary_button_hold_ctr;
-uint8_t user_turned_rotary=0;
 
 void process_rotary_button(void){
 	static uint8_t just_switched_to_change_scale_mode=0;
