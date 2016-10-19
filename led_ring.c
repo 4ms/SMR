@@ -63,7 +63,10 @@ extern float freq_nudge[NUM_CHANNELS];
 extern uint8_t ongoing_fine_tuning[2];
 extern uint32_t fine_tuning_timeout[2];
 extern uint8_t lock[NUM_CHANNELS]; 
-//
+
+// Scale binary display
+int hover_scale_bank_bin; // binary version of hover scale bank for env outs display
+
 
 
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
@@ -122,11 +125,12 @@ const float SCALE_BANK_COLOR[20][3]={
 		{0,200,500},		//skyblue : gamelan
 		{600,1000,0},		//lime : bohlen-pierce
 
-		{0,0,100},			// blue: Major scale
+		{0,0,500},			// blue: Major scale
+		{0,300,500},		// light blue: Major scale
 
 		{100,100,100}, 		//pearl: user
 		{100,100,100}, 		//pearl: user
-		{100,100,100}, 		//pearl: user
+//		{100,100,100}, 		//pearl: user
 		{100,100,100} 		//pearl: user
 
 };
@@ -151,15 +155,41 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	uint8_t i,j;
 	uint8_t positive_coarse;
 	uint8_t led_off_when_no_coarse_adj[4]={0, 1, 4, 5};
-
+	
 	static uint8_t flash=0;
 
 	float finetune_bright[NUM_CHANNELS];
 	float avg_r, avg_g, avg_b;
 
+	if (hover_scale_bank) {
+
+		// for each bit corresponding to the scale number		
+		for (i=0;i<6;i++){
+			
+			// FIXME invert display so lowest bit is on the left 
+			// so channel numbers match powers of 2
+			if (!hover_scale_bank) {hover_scale_bank_bin=1;}
+			else {hover_scale_bank_bin = hover_scale_bank +1;}
+			
+			// turn on env LED @ hover scale bank color for 1s on binary scale #
+			if(( (hover_scale_bank_bin) & ( 1 << (5-i) )) >> (5-i) ){
+				env_out_leds[i][0] = SCALE_BANK_COLOR[hover_scale_bank][1];
+				env_out_leds[i][1] = SCALE_BANK_COLOR[hover_scale_bank][2];
+				env_out_leds[i][2] = SCALE_BANK_COLOR[hover_scale_bank][3];
+
+			// turn off env LED for 0s on binary scale #
+			}else{
+				env_out_leds[i][0] = 0;
+				env_out_leds[i][1] = 0;
+				env_out_leds[i][2] = 0;
+			}
+
+		}
+	}
+	
 	// COARSE TUNING
 	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 	
-	if (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]){
+	else if (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]){
 
 	 	// When no coarse adjustment is applied
 		if (cur_envled_state == 12){

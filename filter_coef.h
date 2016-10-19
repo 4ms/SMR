@@ -42,6 +42,7 @@
 #include "filter_coefs/filter_coef_diatonic1.h"
 #include "filter_coefs/filter_coef_diatonic2.h"
 #include "filter_coefs/filter_coef_major.h"
+#include "filter_coefs/filter_coef_minor.h"
 #include "filter_coefs/filter_coef_western_twointerval.h"
 #include "filter_coefs/filter_coef_mesopotamian.h"
 #include "filter_coefs/filter_coef_shrutis.h"

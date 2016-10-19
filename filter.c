@@ -211,13 +211,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
 				} else if (scale_bank[i]==14){
 					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
+// 				} else if (scale_bank[i]==15){
+// 					c_hiq[i]=(float *)(filter_maxq_coefs_Major);
 				} else if (scale_bank[i]==15){
-					c_hiq[i]=(float *)(filter_maxq_coefs_Major);
-
+					c_hiq[i]=(float *)(filter_maxq_coefs_Minor);
 				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
 					c_hiq[i]=(float *)(user_scalebank);
 				}
-
+				
 
 			} else if (filter_type==BPRE){
 
@@ -281,10 +282,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);
 					c_loq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);
 
+// 				} else if (scale_bank[i]==15){
+// 					c_hiq[i]=(float *)(filter_bpre_coefs_Major_800Q);
+// 					c_loq[i]=(float *)(filter_bpre_coefs_Major_2Q);
+// 				
 				} else if (scale_bank[i]==15){
-					c_hiq[i]=(float *)(filter_bpre_coefs_Major_800Q);
-					c_loq[i]=(float *)(filter_bpre_coefs_Major_2Q);
-
+					c_hiq[i]=(float *)(filter_bpre_coefs_Minor_800Q);
+					c_loq[i]=(float *)(filter_bpre_coefs_Minor_2Q);
+					
 				} else {
 					scale_bank[i]=0;
 					c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
@@ -295,7 +300,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 		}
 	}
-
 
 
 	//Calculate filter_out[]
