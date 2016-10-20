@@ -303,15 +303,15 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 								
 				// flash channels locked by 135 and 426 switches
 				if ( (MOD135 && ((i==2) || (i==4))) || (MOD246 && ((i==1) || (i==3))) ){
-					env_out_leds[i][0]= 1023 * (1-finetune_bright[i]) * flash;
-					env_out_leds[i][1]= 1023 * (1-finetune_bright[i]) * flash;
-					env_out_leds[i][2]= 1023 * flash;
+					env_out_leds[i][0]= 75 * (1-finetune_bright[i]);
+					env_out_leds[i][1]= 75 * (1-finetune_bright[i]);
+					env_out_leds[i][2]= 75;
 
 				// flash channels locked by buttons
 				} else if (lock[i]){
-					env_out_leds[i][0]= 1023 * (1-finetune_bright[i]) * flash;
-					env_out_leds[i][1]= 1023 * (1-finetune_bright[i]) * flash;
-					env_out_leds[i][2]= 1023 * flash;
+					env_out_leds[i][0]= 75 * (1-finetune_bright[i]);
+					env_out_leds[i][1]= 75 * (1-finetune_bright[i]);
+					env_out_leds[i][2]= 75;
 		
 				// channels not locked by 135 or 246 switches
 				} else {
