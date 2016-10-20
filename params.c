@@ -415,7 +415,7 @@ void param_read_freq_nudge(void){
 		// turn off odds fine tune display after short time
 		} else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==0)){ 
 			fine_tuning_timeout[0]+=1;
-			if(fine_tuning_timeout[0]> (20000 * fine_timer[0])){
+			if(fine_tuning_timeout[0]> (30000 * fine_timer[0])){
 				ongoing_fine_tuning[0]=0;
 				fine_envled = fine_envled & 0b010101; // turn off odds env led
 				fine_tuning_timeout[0]=0;
@@ -423,7 +423,7 @@ void param_read_freq_nudge(void){
 		// turn off evens fine tune display after short time 	
 		} else if ((ongoing_fine_tuning[1]==1) && (ongoing_fine_tuning[0]==0)){ 
 			fine_tuning_timeout[1]+=1;
-			if(fine_tuning_timeout[1]> (20000 * fine_timer[1])){
+			if(fine_tuning_timeout[1]> (30000 * fine_timer[1])){
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b101010; // turn off even env led
 				fine_tuning_timeout[1]=0;
@@ -435,22 +435,14 @@ void param_read_freq_nudge(void){
 		if (lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) {
 			fine_envled=fine_envled | 0b101010; 
 			ongoing_fine_tuning[0]=1;
-			fine_tuning_timeout[0]+=1;
-			if((fine_tuning_timeout[0]> (15000 * fine_timer[0])) && (fine_tuning_timeout[1]> (100000 * fine_timer[1]))){
-				ongoing_fine_tuning[0]=0;
-				fine_envled = fine_envled & 0b010101; // turn off odds env led
-				fine_tuning_timeout[0]=0;
-			}
+			fine_tuning_timeout[0]=1;
+			if (!ongoing_coarse_tuning[0]) fine_timer[0] = 1; //enable soft release
 		} 
 		if (lock_pressed[1] || lock_pressed[3] || lock_pressed[5]) {
 			fine_envled=fine_envled | 0b010101; 
 			ongoing_fine_tuning[1]=1;
-			fine_tuning_timeout[1]+=1;
-			if((fine_tuning_timeout[0]> (100000 * fine_timer[0])) && (fine_tuning_timeout[1]> (100000 * fine_timer[1]))){
-				ongoing_fine_tuning[1]=0;
-				fine_envled = fine_envled & 0b101010; // turn off even env led
-				fine_tuning_timeout[1]=0;
-			}
+			fine_tuning_timeout[1]=1;
+			if (!ongoing_coarse_tuning[1]) fine_timer[1] = 1; //enable soft release
 		}
 		
 		// display fine tune when lock switch state is changed
@@ -461,11 +453,6 @@ void param_read_freq_nudge(void){
 			ongoing_fine_tuning[0]=1;
 			fine_tuning_timeout[0]=1; //reset the timer so that we get the full soft-release period
 			fine_timer[0] = 1; //enable soft release
-			//if((fine_tuning_timeout[0]> (80000 * fine_timer[0])) && (fine_tuning_timeout[1]> (80000 * fine_timer[1]))){
-			//	ongoing_fine_tuning[0]=0;
-			//	fine_envled = fine_envled & 0b010101; // turn off odds env led
-			//	fine_tuning_timeout[0]=0;
-			//}
 		}
 		// switch 246
 		if (mod_mode_246!=old_switch_state[1]){
@@ -474,11 +461,6 @@ void param_read_freq_nudge(void){
 			ongoing_fine_tuning[1]=1;
 			fine_tuning_timeout[1]=1; //reset the timer so that we get the full soft-release period
 			fine_timer[1] = 1; //enable soft release
-			//if((fine_tuning_timeout[0]> (80000 * fine_timer[0])) && (fine_tuning_timeout[1]> (80000 * fine_timer[1]))){
-			//	ongoing_fine_tuning[1]=0;
-			//	fine_envled = fine_envled & 0b101010; // turn off odds env led
-			//	fine_tuning_timeout[0]=0;
-			//}
 		}
 
 	  	// exit coarse tuning display as needed
