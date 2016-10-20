@@ -37,8 +37,6 @@
 extern __IO uint16_t adc_buffer[NUM_ADCS];
 extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 
-extern uint8_t select_colors_mode;
-
 enum Filter_Types filter_type=MAXQ;
 
 extern enum UI_Modes ui_mode;
@@ -410,7 +408,7 @@ void param_read_freq_nudge(void){
 			if((fine_tuning_timeout[0]> (50000 * fine_timer[0])) && (fine_tuning_timeout[1]> (50000 * fine_timer[1]))  ){
 				ongoing_fine_tuning[0]=0;
 				ongoing_fine_tuning[1]=0;
-				fine_envled = fine_envled & 0b000000; // turn off odds env led
+				fine_envled = fine_envled & 0b000000; // turn off all env led
 				fine_tuning_timeout[0]=0;
 				fine_tuning_timeout[1]=0;
 			}
@@ -461,24 +459,26 @@ void param_read_freq_nudge(void){
 			old_switch_state[0] = mod_mode_135;
 			fine_envled=fine_envled | 0b101010; 
 			ongoing_fine_tuning[0]=1;
-			fine_tuning_timeout[0]+=1;
-			if((fine_tuning_timeout[0]> (60000 * fine_timer[0])) && (fine_tuning_timeout[1]> (60000 * fine_timer[1]))){
-				ongoing_fine_tuning[0]=0;
-				fine_envled = fine_envled & 0b010101; // turn off odds env led
-				fine_tuning_timeout[0]=0;
-			}			 
+			fine_tuning_timeout[0]=1; //reset the timer so that we get the full soft-release period
+			fine_timer[0] = 1; //enable soft release
+			//if((fine_tuning_timeout[0]> (80000 * fine_timer[0])) && (fine_tuning_timeout[1]> (80000 * fine_timer[1]))){
+			//	ongoing_fine_tuning[0]=0;
+			//	fine_envled = fine_envled & 0b010101; // turn off odds env led
+			//	fine_tuning_timeout[0]=0;
+			//}
 		}
 		// switch 246
 		if (mod_mode_246!=old_switch_state[1]){
 			old_switch_state[1] = mod_mode_246;
 			fine_envled=fine_envled | 0b010101; 
 			ongoing_fine_tuning[1]=1;
-			fine_tuning_timeout[1]+=1;
-			if((fine_tuning_timeout[0]> (60000 * fine_timer[0])) && (fine_tuning_timeout[1]> (60000 * fine_timer[1]))){
-				ongoing_fine_tuning[1]=0;
-				fine_envled = fine_envled & 0b101010; // turn off odds env led
-				fine_tuning_timeout[0]=0;
-			}			 
+			fine_tuning_timeout[1]=1; //reset the timer so that we get the full soft-release period
+			fine_timer[1] = 1; //enable soft release
+			//if((fine_tuning_timeout[0]> (80000 * fine_timer[0])) && (fine_tuning_timeout[1]> (80000 * fine_timer[1]))){
+			//	ongoing_fine_tuning[1]=0;
+			//	fine_envled = fine_envled & 0b101010; // turn off odds env led
+			//	fine_tuning_timeout[0]=0;
+			//}
 		}
 
 	  	// exit coarse tuning display as needed
