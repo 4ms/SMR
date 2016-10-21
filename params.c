@@ -85,7 +85,7 @@ float LEVEL_LPF_DECAY=0;
 
 
 //Q POT AND CV
-uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];
+uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS]; qval_lin[NUM_CHANNELS];
 uint32_t qvalcv, qvalpot;
 uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
 uint8_t user_turned_Q_pot=0;
@@ -330,8 +330,8 @@ void param_read_q(void){
 		//Check pot
 		t = potadc_buffer[QPOT_ADC];
 
-	//	qpot_lpf *= QPOT_LPF;
-	//	qpot_lpf += (1.0f-QPOT_LPF)*t;
+// 	 	qpot_lpf *= QPOT_LPF;
+// 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
 
 		qpot_lpf=t;
 
