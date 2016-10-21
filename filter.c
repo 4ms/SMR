@@ -157,6 +157,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float filter_out_b[NUM_FILTS][MONO_BUFSZ]; 			// second filter out for two-pass
 	float cross_point; 									// crossfade point between one and two pass filter
 	float crossfade_a, crossfade_b;
+	int qnum =1000;
+	static int firstrunq =1;
 		
 	float max_val, threshold, thresh_compiled, thresh_val;
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
@@ -374,7 +376,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					// QVAL ADJUSTMENTS
 						// first filter max Q at noon on Q knob 
-						qval_a[channel_num]	= qval[channel_num] *1;
+						qval_a[channel_num]	= qval[channel_num] *2;
 						if (qval_a[channel_num] > 4095){qval_a[channel_num]=4095;}
 
 						// limit q knob range on second filter
@@ -404,15 +406,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							if (channel_num & 1) tmp=right_buffer[i];
 							else tmp=left_buffer[i];
 
-						// ADVANCED CROSSFADE PT.1 
-							
-							
-						
+						// ADVANCED CROSSFADE PT.1 				
 							// extra LPF on q
-							// FIXME push qnum out of loop
-							static int firstrunq =1;
-							int qnum =10000;
-
 							if (firstrunq){
 								qsum[channel_num] = qval[channel_num] * qnum;
 								firstrunq=0;
@@ -421,24 +416,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							qsum[channel_num] += qval[channel_num];
 							qc[channel_num]   = qsum[channel_num] / qnum; 
 
-// 							ratio_b = (float)(qval[channel_num])/4095.0;	
-// 							ratio_a = 1.0 - ratio_b;							
-
 							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
 							ratio_a = 1.0 - ratio_b;
-//							if (ratio_a < (1.0 - loga_4096[100])){ratio_a = (1.0 - loga_4096[100]);}
-							
-// 							ratio_a = epp_lut[(uint32_t)(qval[channel_num])];	
-// 							ratio_b = 1.0f - ratio_a;							
 
-//    							if (ratio_b < loga_4096[40]){ratio_b=0;}
-//    							if (ratio_a < loga_4096[40]){ratio_a=0;}
-							
-// 							if (qval[channel_num]<20){ ratio_b = loga_4096[20];}
-// 							else ratio_b = loga_4096[(uint32_t)(qval[channel_num])];	
-// 							if (qval[channel_num]<20){ ratio_a = 1-loga_4096[20];}
-// 							else{ratio_a = 1.0 - ratio_a;}
+							if (qc[channel_num] <120){ ratio_a *= (qc[channel_num]/120/2) + 0.5 ;}
 
+							//
+							
 						// FIRST PASS
 							buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
 							iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
@@ -456,8 +440,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 						
 						// ADVANCED CROSSFADE PT.2 
-							filter_out[j][i] = 1.5 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
-								
+							filter_out[j][i] = 2.7 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
+				
 						}
 					}					
 				}
