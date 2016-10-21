@@ -37,8 +37,8 @@ void update_spread(uint8_t force_update);
 inline void rotate_down(void);
 inline void rotate_up(void);
 
-uint32_t change_scale_up(void);
-uint32_t change_scale_down(void);
+void change_scale_up(void);
+void change_scale_down(void);
 void jump_scale_with_cv(int8_t shift_amt);
 
 inline uint8_t is_morphing(void);

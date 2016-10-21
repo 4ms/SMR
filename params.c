@@ -137,6 +137,7 @@ int16_t change_scale_mode=0;
 extern uint8_t cur_param_bank;
 extern uint8_t cur_colsch;
 
+
 void set_default_param_values(void){
 	uint8_t i;
 
@@ -726,9 +727,9 @@ void param_read_switches(void){
 
 	//PRE|POST switch
 	if (ENV_MODE){
-		env_prepost_mode=0;
+		env_prepost_mode=POST;
 	} else {
-		env_prepost_mode=1;
+		env_prepost_mode=PRE;
 	}
 
 
@@ -774,19 +775,22 @@ void param_read_switches(void){
 	if (old_cvlag!=lag_val){
 		old_cvlag=lag_val;
 
-		if (lag_val){
+		if (lag_val){ //CVLAG switch is flipped on, latch the current Morph adc value and use that to calculate LPF coefficients
 			lag_val=adc_buffer[MORPH_ADC];
-			if (lag_val<200) lag_val=200;
+			if (lag_val<200) lag_val=200; //force some amount of CV Slew even if Morph knob is all the way down
 
-			t_LEVEL_LPF_ATTACK=	1.0 - (1.0/((lag_val)*0.1));
-			t_LEVEL_LPF_DECAY=	1.0 - (1.0/((lag_val)*0.25));
+			t_LEVEL_LPF_ATTACK=	1.0 - (1.0/((lag_val)*0.10)); //0.95 to 0.997558
+			t_LEVEL_LPF_DECAY=	1.0 - (1.0/((lag_val)*0.25)); //0.98 to 0.999023
 
-			if (t_LEVEL_LPF_ATTACK<0)	LEVEL_LPF_ATTACK=0;
+			if (t_LEVEL_LPF_ATTACK<0 || t_LEVEL_LPF_ATTACK>=1)	LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
 			else LEVEL_LPF_ATTACK = t_LEVEL_LPF_ATTACK;
-			if (t_LEVEL_LPF_DECAY<0)	LEVEL_LPF_DECAY=0;
+
+			if (t_LEVEL_LPF_DECAY<0 || t_LEVEL_LPF_DECAY>=1)	LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
 			else LEVEL_LPF_DECAY = t_LEVEL_LPF_DECAY;
 
-		}else{
+
+
+		}else{ //CVLAG switch is flipped off
 			LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
 			LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
 		}

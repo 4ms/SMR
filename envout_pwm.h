@@ -33,6 +33,7 @@
 void update_ENVOUT_PWM(void);
 void init_envout_pwm(void);
 void init_PWM_voltperoctave_lut(void);
-uint32_t PWM_UNQ(uint32_t k);
+uint32_t FreqCoef_to_PWMval(float k);
+uint32_t Coef_to_PWM(float k);
 
 #endif /* ENVOUT_PWM_H_ */
