@@ -133,47 +133,10 @@ const float SCALE_BANK_COLOR[24][3]={
 	// Shades of Green	
 	{  588	, 928	, 199	},
 	{  274	, 954	, 67	},
-	{  83	, 949	, 1	},
-	{  1	, 600	, 6	},
-	{  1	, 239	, 1	},
-	{  1	, 101	, 9	}
-
-						
-	// Shades of Purple
-// 	{  	, 	, 	},
-// 	{  	, 	, 	},
-// 	{  	, 	, 	},
-// 	{  	, 	, 	},
-// 	{  	, 	, 	},
-// 	{  	, 	, 	},	
-	
-
-//	// Existing colors
-// 		{800,800,800}, 		//white: western 1 interval
-// 		{0,1000,0},			//green: indian pentatonic
-// 		{200,200,816},		//lavender: alpha sp2
-// 		{0,800,800},		//cyan: alpha sp1
-// 		{766,50,0},			//burnt orange: gamma sp1
-// 		{800,800,0},		//yellow: 17ET
-// 		{800,0,800},		//pink: twelve tone
-// 		{600,0,200},		//orange: diatonic1
-// 		{600,0,60},			//rose: diatonic2
-// 
-// 		{300,1000,300},		//light green: western two interval
-// 		{1000,0,0},			//red: mesopotamian
-// 		{766,500,30},		//yellow-green: shrutis
-// 
-// 		{0,0,816},			//blue: B296
-// 		{0,200,500},		//skyblue : gamelan
-// 		{600,1000,0},		//lime : bohlen-pierce
-// 
-// 		{0,0,500},			// blue: Major scale
-// 		{0,300,500},		// light blue: Major scale
-// 
-// 		{100,100,100}, 		//pearl: user
-// 		{100,100,100}, 		//pearl: user
-// //		{100,100,100}, 		//pearl: user
-// 		{100,100,100} 		//pearl: user
+	{  83	, 949	, 1		},
+	{  1	, 239	, 1		},
+	{  1	, 101	, 9		},
+	{  1	, 25	, 4		}
 
 };
 
