@@ -91,6 +91,8 @@ float buf[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3];
 enum Filter_Types new_filter_type;
 uint8_t filter_type_changed=0;
 
+extern uint32_t env_prepost_mode;
+
 
 void change_filter_type(enum Filter_Types newtype){
 
@@ -342,7 +344,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if (env_track_mode==ENV_VOLTOCT){
 					if (j<6)
 						ENVOUT_preload[j]=c1;
-					else if (j>=6 && CVLAG)
+					else if (j>=6 && env_prepost_mode==PRE)
 						ENVOUT_preload[j-6] = (ENVOUT_preload[j-6] * (1.0f-motion_morphpos[j-6])) + (c1 * motion_morphpos[j-6]);
 				}
 

@@ -68,7 +68,7 @@ float rot_dir[6];
 uint8_t scale_bank_defaultscale[NUMSCALEBANKS]={4,4,6,5,9,5,5};
 
 
-uint32_t change_scale_up(void){
+void change_scale_up(void){
 	uint8_t i;
 
 	for (i=0;i<NUM_CHANNELS;i++) {
@@ -81,7 +81,7 @@ uint32_t change_scale_up(void){
 
 }
 
-uint32_t change_scale_down(void){
+void change_scale_down(void){
 	uint8_t i;
 
 	for (i=0;i<NUM_CHANNELS;i++) {
