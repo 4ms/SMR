@@ -132,6 +132,32 @@ void main(void)
 
 	while(1){
 
+	/*
+	Main loop period (averaged over 2000 periods):
+		34us with no motion and envelope or trigger outputs
+		87us with 70Hz square wave into Rotate trigger jack
+		146us at 90Hz square wave into Rotate trigger jack
+		...approaches infinity as Rotate approaches 100Hz, since a rotate event forces the LEDs to update
+
+		42us with no motion and VOCT output at low frequencies
+		100us with no motion and VOCT output at high frequencies
+		200us with fast triggers causing rotation, and VOCT output
+
+		So, with no motion in pre-VOCT firmwares, the LED ring updates every 68ms
+		unless requested to update immediately (which happens when morphpos reaches 1.0, that is, when something completes a morph)
+		Thus this 14.7Hz refresh rate is what we see with the envelope LEDs
+
+
+	 */
+		/*
+		i++;
+		if (i==1000) DEBUGA_OFF(DEBUG2);
+		if (i==2000)
+		{
+			i=0;
+			DEBUGA_ON(DEBUG2);
+		}
+		*/
 		check_errors();
 
 		param_read_switches();
