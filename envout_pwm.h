@@ -32,8 +32,12 @@
 
 void update_ENVOUT_PWM(void);
 void init_envout_pwm(void);
-void init_PWM_voltperoctave_lut(void);
+//void init_PWM_voltperoctave_lut(void);
 uint32_t FreqCoef_to_PWMval(uint32_t k, float v);
-uint32_t Coef_to_PWM(float k);
+//uint32_t Coef_to_PWM(float k);
+
+void init_ENV_update_timer(void);
+
+#define ENV_update_IRQHandler TIM1_BRK_TIM9_IRQHandler
 
 #endif /* ENVOUT_PWM_H_ */

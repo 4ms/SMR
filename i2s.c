@@ -33,15 +33,14 @@
 DMA_InitTypeDef dma_tx, dma_rx;
 uint32_t txbuf, rxbuf;
 
-extern uint32_t g_error;
-
 volatile int16_t tx_buffer[codec_BUFF_LEN];
 volatile int16_t rx_buffer[codec_BUFF_LEN];
 
 DMA_InitTypeDef DMA_InitStructure, DMA_InitStructure2;
 void I2S_Block_Init(void)
 {
-	NVIC_InitTypeDef NVIC_InitStructure;
+	NVIC_InitTypeDef nvic;
+
 
 	/* Enable the DMA clock */
 	RCC_AHB1PeriphClockCmd(AUDIO_I2S_DMA_CLOCK, ENABLE);
@@ -93,6 +92,18 @@ void I2S_Block_Init(void)
 
 	/* Enable the Half & Complete DMA interrupts  */
 	DMA_ITConfig(AUDIO_I2S_EXT_DMA_STREAM, DMA_IT_TC | DMA_IT_HT | DMA_IT_FE | DMA_IT_TE | DMA_IT_DME, ENABLE);
+
+
+	/* I2S RX DMA IRQ Channel configuration */
+
+	nvic.NVIC_IRQChannel = AUDIO_I2S_EXT_DMA_IRQ;
+	nvic.NVIC_IRQChannelPreemptionPriority = 0;
+	nvic.NVIC_IRQChannelSubPriority = 0;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+
+	NVIC_Init(&nvic);
+
+//	NVIC_DisableIRQ(AUDIO_I2S_EXT_DMA_IRQ);
 
 	/* I2S DMA IRQ Channel configuration */
 	NVIC_EnableIRQ(AUDIO_I2S_EXT_DMA_IRQ);

@@ -85,6 +85,11 @@ void main(void)
 	uint32_t i;
 
     NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x8000);
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);	//Set Priority Grouping mode to 2-bits for priority and 2-bits for sub-priority
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE); //Enable NVIC??
+
+
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SYSCFG, ENABLE);
 
 	LED_ON(LED_RING_OE); //actually turns the LED ring off
 	LEDDriver_Init(5);
@@ -130,13 +135,14 @@ void main(void)
 
 	//update_spread(1);
 
+	//init_LED_ring_update_timer();
+	init_ENV_update_timer();
+
 	while(1){
 
 		check_errors();
 
 		param_read_switches();
-
-		update_ENVOUT_PWM();
 
 		update_LED_ring();
 
@@ -152,7 +158,9 @@ void main(void)
 
 		param_read_q();
 
+		DEBUGA_ON(DEBUG3);
 		param_read_freq_nudge();
+		DEBUGA_OFF(DEBUG3);
 
 		param_read_channel_level();
 

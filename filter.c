@@ -342,6 +342,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 
 				if (env_track_mode==ENV_VOLTOCT){
+					if (j==0) DEBUGA_ON(DEBUG2);
 					if (j<6)
 						ENVOUT_preload[j]=c1;
 					else if (j>=6 && env_prepost_mode==PRE)
@@ -452,6 +453,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	}
 
+
 	for (i=0;i<MONO_BUFSZ;i++){
 
 		filtered_buffer[i]=0;
@@ -499,6 +501,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 
 	}
+	DEBUGA_OFF(DEBUG2);
 
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
 

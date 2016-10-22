@@ -210,12 +210,14 @@ inline void LEDDriver_endxfer(void){
 
 }
 
-
+//at 400kHz, takes about 10ms
+//317 senddata commands, each 20us - 100us (average ~30us)
 void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]){
 	uint8_t i,driverAddr;
 
 	for (driverAddr=0;driverAddr<4;driverAddr++){
 		LEDDriver_startxfer(driverAddr);
+
 		LEDDriver_senddata(PCA9685_LED0);
 
 		for (i=driverAddr*5;i<(5+(driverAddr*5));i++){
