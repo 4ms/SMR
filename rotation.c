@@ -37,7 +37,6 @@
 
 extern __IO uint16_t adc_buffer[NUM_ADCS+1];
 extern uint8_t lock[NUM_CHANNELS];
-extern enum UI_Modes ui_mode;
 
 int8_t motion_fadeto_note[NUM_CHANNELS];
 int8_t motion_fadeto_scale[NUM_CHANNELS];
@@ -56,7 +55,6 @@ float motion_morphpos[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
-extern uint8_t scale_bank[NUM_CHANNELS];
 
 extern uint16_t rotate_to_next_scale;
 extern uint8_t flag_update_LED_ring;

@@ -187,8 +187,6 @@ void param_read_freq(void){
 	int evens[3]={1, 3, 5}; // ch 2, 4, 6
 	int32_t freq_jack_cv;
 	
-	DEBUGA_ON(DEBUG0);
-
 	// FREQ SHIFT
 		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
 		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
@@ -555,6 +553,18 @@ void param_read_freq(void){
 			}
 			freq_shift[3]=f_shift_evens;
 		} 
+		// disable freq nudge and shift on channel 2 and 4 when in "6 mode"
+		else {
+			if (!lock[3]){
+				freq_nudge[3]= coarse_adj[3];
+			}
+			freq_shift[3]=1.0;
+
+			if (!lock[1]){
+				freq_nudge[1]= coarse_adj[1];
+			}
+			freq_shift[1]=1.0;
+		}
 		
 	// CLEAR COARSE TUNING AT BUTTON RELEASE AFTER 6 BUTTON PRESS (~3s)
 		// if locked buttons have all been pressed for +3s
@@ -607,8 +617,6 @@ void param_read_freq(void){
 				} 
 			}	
 		}
-
-		DEBUGA_OFF(DEBUG0);
 
 }
 
