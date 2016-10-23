@@ -210,8 +210,10 @@ inline void LEDDriver_endxfer(void){
 
 }
 
-//at 400kHz, takes about 10ms
-//317 senddata commands, each 20us - 100us (average ~30us)
+//at 400kHz I2C speed, this takes about 10ms
+//This calculates to 4000 bits = 500 bytes
+//There are 317 senddata commands (78 elements * 4 bytes each + 5 chip address commands = 317 bytes, plus 5 start and 5 stop xfers...
+
 void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]){
 	uint8_t i,driverAddr;
 
@@ -286,7 +288,6 @@ void LEDDriver_set_LED_ring(uint16_t ring[20][3], uint16_t env_out[6][3]){
 	LEDDriver_senddata((env_out[5][0] >> 8) & 0xFF);
 
 	LEDDriver_endxfer();
-
 }
 
 void LEDDriver_set_one_LED(uint8_t element_number, uint16_t brightness){	//sets one LED element

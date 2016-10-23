@@ -167,7 +167,7 @@ void set_default_param_values(void){
 	trackoffset[1]=0;
 }
 
-void param_read_freq_nudge(void){
+void param_read_freq(void){
 	uint8_t i,j,k;
 	float t_fo, t_fe;														// freq nudge knob readouts 
 	static uint8_t sleep_range_saved =0, first_run[2]={1,1};
@@ -187,6 +187,8 @@ void param_read_freq_nudge(void){
 	int evens[3]={1, 3, 5}; // ch 2, 4, 6
 	int32_t freq_jack_cv;
 	
+	DEBUGA_ON(DEBUG0);
+
 	// FREQ SHIFT
 		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
 		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
@@ -406,7 +408,7 @@ void param_read_freq_nudge(void){
 	 	else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
 			fine_tuning_timeout[0]+=1;
 			fine_tuning_timeout[1]+=1;
-			if((fine_tuning_timeout[0]> (50000 * fine_timer[0])) && (fine_tuning_timeout[1]> (50000 * fine_timer[1]))  ){
+			if((fine_tuning_timeout[0]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[0])) && (fine_tuning_timeout[1]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[1]))  ){
 				ongoing_fine_tuning[0]=0;
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b000000; // turn off all env led
@@ -416,7 +418,7 @@ void param_read_freq_nudge(void){
 		// turn off odds fine tune display after short time
 		} else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==0)){ 
 			fine_tuning_timeout[0]+=1;
-			if(fine_tuning_timeout[0]> (30000 * fine_timer[0])){
+			if(fine_tuning_timeout[0]> (DISPLAYTIME_NUDGEONESIDE * fine_timer[0])){
 				ongoing_fine_tuning[0]=0;
 				fine_envled = fine_envled & 0b010101; // turn off odds env led
 				fine_tuning_timeout[0]=0;
@@ -424,7 +426,7 @@ void param_read_freq_nudge(void){
 		// turn off evens fine tune display after short time 	
 		} else if ((ongoing_fine_tuning[1]==1) && (ongoing_fine_tuning[0]==0)){ 
 			fine_tuning_timeout[1]+=1;
-			if(fine_tuning_timeout[1]> (30000 * fine_timer[1])){
+			if(fine_tuning_timeout[1]> (DISPLAYTIME_NUDGEONESIDE * fine_timer[1])){
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b101010; // turn off even env led
 				fine_tuning_timeout[1]=0;
@@ -605,6 +607,9 @@ void param_read_freq_nudge(void){
 				} 
 			}	
 		}
+
+		DEBUGA_OFF(DEBUG0);
+
 }
 
 void param_read_channel_level(void){
@@ -1196,3 +1201,47 @@ void process_scaleCV(void){
 		t_old_scalecv = t_scalecv;
 	}
 }
+
+void init_freq_update_timer(void)
+{
+	TIM_TimeBaseInitTypeDef  tim;
+
+	NVIC_InitTypeDef nvic;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
+
+	nvic.NVIC_IRQChannel = TIM1_UP_TIM10_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 3;
+	nvic.NVIC_IRQChannelSubPriority = 3;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
+
+	//Triangle wave into the Freq jack. Measure the amplitude of the triangle wave coming out of the VOCT jack, expressed in % of the input amplitude.
+
+	//TIM_Period of 32767 = ~5kHz =====> 19Hz outputs ~50% amplitude
+	//TIM_Period of 16383 = ~10kHz =====> 37Hz outputs ~50% amplitude
+	//TIM_Period of 8195 = ~20kHz =====> 55Hz outputs ~50% amplitude (less than expected, perhaps due to the hardware LPF on the Freq jack input? or the software LPF?)
+
+	TIM_TimeBaseStructInit(&tim);
+	tim.TIM_Period = 8195;
+	tim.TIM_Prescaler = 0;
+	tim.TIM_ClockDivision = 0;
+	tim.TIM_CounterMode = TIM_CounterMode_Up;
+
+	TIM_TimeBaseInit(TIM10, &tim);
+
+	TIM_ITConfig(TIM10, TIM_IT_Update, ENABLE);
+
+	TIM_Cmd(TIM10, ENABLE);
+}
+
+void TIM1_UP_TIM10_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM10, TIM_IT_Update) != RESET) {
+
+		param_read_freq();
+
+		TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
+
+	}
+}
+

@@ -157,7 +157,6 @@ void ENV_update_IRQHandler(void)
 
 		update_ENVOUT_PWM();
 
-
 		TIM_ClearITPendingBit(TIM9, TIM_IT_Update);
 
 	}
@@ -180,35 +179,13 @@ void update_ENVOUT_PWM(void){
 	static float envelope[NUM_CHANNELS];
 	uint8_t quantize_voct=0;
 
+
 	if (env_track_mode==ENV_VOLTOCT) //takes 5us, every 20us
 	{
-
-		DEBUGA_ON(DEBUG1);
 		for (j=0;j<NUM_CHANNELS;j++){
-
-			//ENVOUT_PWM[j] = Coef_to_PWM(ENVOUT_preload[j]);
-
-/*
-				k=(ENVOUT_preload[j] * 8192.0);
-
-				if (k>22.0f) k-=22.0f;
-				else k=0.0f;
-
-				if (k>=VOLTOCT_LUT_MAX)
-					k= VOLTOCT_LUT_MAX-1;
-
-				ENVOUT_PWM[j] = FreqCoef_to_PWMval(k);
-				*/
-
 			k=ENVOUT_preload[j] * 8192;
 			ENVOUT_PWM[j] = FreqCoef_to_PWMval(k,ENVOUT_preload[j]);
-
-
-
 		}
-		DEBUGA_OFF(DEBUG1);
-
-
 	}
 	else if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST)
 	{
@@ -267,7 +244,6 @@ void update_ENVOUT_PWM(void){
 
 	TIM3->ENVOUT_PWM_CC_5=ENVOUT_PWM[4];
 	TIM3->ENVOUT_PWM_CC_6=ENVOUT_PWM[5];
-
 }
 
 /*

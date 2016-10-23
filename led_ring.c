@@ -610,7 +610,6 @@ inline void update_LED_ring(void){
 	static uint32_t led_ring_update_ctr=0;
 
 	if (led_ring_update_ctr++>2000 || flag_update_LED_ring){
-		DEBUGA_ON(DEBUG0);
 
 		led_ring_update_ctr=0;
 		flag_update_LED_ring=0;
@@ -625,48 +624,8 @@ inline void update_LED_ring(void){
 
 	}
 
-	DEBUGA_OFF(DEBUG0);
-
 }
 
-void init_LED_ring_update_timer(void)
-{
-	TIM_TimeBaseInitTypeDef  tim;
-
-	NVIC_InitTypeDef nvic;
-	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
-
-	nvic.NVIC_IRQChannel = TIM1_UP_TIM10_IRQn;
-	nvic.NVIC_IRQChannelPreemptionPriority = 3;
-	nvic.NVIC_IRQChannelSubPriority = 3;
-	nvic.NVIC_IRQChannelCmd = ENABLE;
-	NVIC_Init(&nvic);
-
-	//333Hz
-
-	TIM_TimeBaseStructInit(&tim);
-	tim.TIM_Period = 31531;
-	tim.TIM_Prescaler = 31;
-	tim.TIM_ClockDivision = 0;
-	tim.TIM_CounterMode = TIM_CounterMode_Up;
-
-	TIM_TimeBaseInit(TIM10, &tim);
-
-	TIM_ITConfig(TIM10, TIM_IT_Update, ENABLE);
-
-	TIM_Cmd(TIM10, ENABLE);
-}
-
-void TIM1_UP_TIM10_IRQHandler(void)
-{
-	if (TIM_GetITStatus(TIM10, TIM_IT_Update) != RESET) {
-
-		//update_LED_ring();
-
-		TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
-
-	}
-}
 
 
 
