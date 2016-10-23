@@ -136,7 +136,7 @@ void main(void)
 
 	while(1){
 
-		/*
+		/* Old notes (from dev_master b63bab9): Check current timing against this!!
 		Main loop period (averaged over 2000 periods):
 			   34us with no motion and envelope or trigger outputs
 			   87us with 70Hz square wave into Rotate trigger jack
