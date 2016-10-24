@@ -1229,6 +1229,7 @@ void init_freq_update_timer(void)
 	//TIM_Period of 16383 = ~10kHz =====> 37Hz outputs ~50% amplitude
 	//TIM_Period of 8195 = ~20kHz =====> 55Hz outputs ~50% amplitude (less than expected, perhaps due to the hardware LPF on the Freq jack input? or the software LPF?)
 
+	//168MHz / (Period+1)
 	TIM_TimeBaseStructInit(&tim);
 	tim.TIM_Period = 8195;
 	tim.TIM_Prescaler = 0;
