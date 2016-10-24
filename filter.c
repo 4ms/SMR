@@ -74,22 +74,7 @@ extern float ENVOUT_preload[NUM_CHANNELS];
 extern const uint32_t slider_led[6];
 
 // Filter parameters
-	extern uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];
-	float qval_adj[NUM_CHANNELS] = {0,0,0,0,0,0};	
-	float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-	
-// Advanced Crossfade
-	float cf_region = 400.0;	// crossfade region over Qknob's 4095 values
-	float cfr_min;			// crossfade region min Qknob value
-	float cfr_max;			// crossfade region max Qknob value
-	float pos_in_cfr;		// % of Qknob position within CFR
-	int logindex_a;			// position of filter A's crossfade within log_4096 lookup table
-	int logindex_b;			// position of filter B's crossfade within log_4096 lookup table
-	float ratio_a, ratio_b; // two-filter crossfade ratios
-	float qsum[NUM_CHANNELS]={0,0,0,0,0,0};
-	float qc[NUM_CHANNELS]  ={0,0,0,0,0,0};
-//
-					
+extern uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];					
 
 extern enum Filter_Types filter_type;
 
@@ -157,8 +142,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float filter_out_b[NUM_FILTS][MONO_BUFSZ]; 			// second filter out for two-pass
 	float cross_point; 									// crossfade point between one and two pass filter
 	float crossfade_a, crossfade_b;
-	int qnum =1000;
-	static int firstrunq =1;
 		
 	float max_val, threshold, thresh_compiled, thresh_val;
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
@@ -174,6 +157,21 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
 
+	// Q adjustments 
+	static float qval_adj[NUM_CHANNELS] = {0,0,0,0,0,0};	
+	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+	static float qsum[NUM_CHANNELS] 	= {0,0,0,0,0,0};
+	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
+	static int firstrunq 		 		= 1;
+ 	static int q_update_count 			= 0;
+ 	
+	// Crossfade
+	float cfr_min;			 // crossfade region min Qknob value
+	float cfr_max;			 // crossfade region max Qknob value
+	static float pos_in_cfr; // % of Qknob position within CFR
+	int logindex_a;			 // position of filter A's crossfade within log_4096 lookup table
+	int logindex_b;			 // position of filter B's crossfade within log_4096 lookup table
+	float ratio_a, ratio_b;  // two-filter crossfade ratios
 
 	if (filter_type==BPRE && (
 			scale_bank[0]>=NUMSCALEBANKS || scale_bank[1]>=NUMSCALEBANKS
@@ -193,7 +191,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		filter_type=new_filter_type;
 
 
-
 	//###################### 2-PASS ONLY (UPDATED) ###################################
 	
 	if (ENVSPEEDFAST){
@@ -202,7 +199,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		// use CVLAG to switch compressor/limiter on/off
 		// left: on
 		// right: off
-
 		
 			//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
 			//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
@@ -374,13 +370,29 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						nudge_filter_num = filter_num + 1;
 						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
+					// EXTRA LP ON QVAL
+ 						q_update_count+= 1;
+ 						if (q_update_count == QLPF_UPDATEPERIOD){
+							q_update_count=0;
+							if (firstrunq){
+								qsum[channel_num] = qval[channel_num] * QNUM;
+								firstrunq=0;
+							}
+							qsum[channel_num] 	-= qsum[channel_num] / QNUM;
+							qsum[channel_num] 	+= qval[channel_num];
+							qc[channel_num]   	=  qsum[channel_num] / QNUM; 
+ 						}
+ 					
 					// QVAL ADJUSTMENTS
 						// first filter max Q at noon on Q knob 
-						qval_a[channel_num]	= qval[channel_num] *2;
-						if (qval_a[channel_num] > 4095){qval_a[channel_num]=4095;}
+						qval_a[channel_num]	= qc[channel_num] *2;
+						if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
+						else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
 
 						// limit q knob range on second filter
- 						qval_adj[channel_num] = qval[channel_num]/26;
+ 						qval_adj[channel_num] = qc[channel_num]/26;
+						if 		(qval_adj[channel_num] > 4095	){qval_adj[channel_num]=4095;}
+						else if (qval_adj[channel_num] < 0		){qval_adj[channel_num]=0;	 }
  						
  																		
 					//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
@@ -399,30 +411,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						c2    = (0.003 * c1) - (0.1*c0) + 0.102;
   						c2   *= ((4096.0-qval_adj[channel_num])/1024.0) + 1.04;
 
-
 						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 							check_input_clipping(left_buffer[i], right_buffer[i]);
 
 							if (channel_num & 1) tmp=right_buffer[i];
 							else tmp=left_buffer[i];
 
-						// ADVANCED CROSSFADE PT.1 				
-							// extra LPF on q
-							if (firstrunq){
-								qsum[channel_num] = qval[channel_num] * qnum;
-								firstrunq=0;
-							}
-							qsum[channel_num] -= qsum[channel_num] / qnum;
-							qsum[channel_num] += qval[channel_num];
-							qc[channel_num]   = qsum[channel_num] / qnum; 
-
-							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
-							ratio_a = 1.0 - ratio_b;
-
-							if (qc[channel_num] <120){ ratio_a *= (qc[channel_num]/120/2) + 0.5 ;}
-
-							//
-							
 						// FIRST PASS
 							buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
 							iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
@@ -439,9 +433,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 						
-						// ADVANCED CROSSFADE PT.2 
+						// CROSSFADE PT. 2
+							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
+							ratio_a = 1.0 - ratio_b;
+							if (qc[channel_num] <150){ ratio_a *= (qc[channel_num]/150/1.5) + 0.344 ;}
 							filter_out[j][i] = 2.7 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
-				
+									
 						}
 					}					
 				}
