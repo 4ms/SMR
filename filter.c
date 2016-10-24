@@ -202,7 +202,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	
 	if (ENVSPEEDFAST){
 
-		if (!CVLAG){
+		//if (!CVLAG){
 		// use CVLAG to switch compressor/limiter on/off
 		// left: on
 		// right: off
@@ -392,15 +392,17 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  					
 					// QVAL ADJUSTMENTS
 						// first filter max Q at noon on Q knob 
-						qval_a[channel_num]	= qc[channel_num] * 2 / 3;
+						qval_a[channel_num]	= qc[channel_num] * 2;
 						if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
 						else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
 
 						// limit q knob range on second filter
- 						qval_adj[channel_num] = qc[channel_num]/26;
+
+//  					qval_adj[channel_num] = qc[channel_num]/2 - 2050;
+						if 		(qc[channel_num] < 3900	){qval_adj[channel_num]=1000;}
+						else if (qc[channel_num] >= 3900){qval_adj[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
 						if 		(qval_adj[channel_num] > 4095	){qval_adj[channel_num]=4095;}
-						else if (qval_adj[channel_num] < 0		){qval_adj[channel_num]=0;	 }
- 						
+						else if (qval_adj[channel_num] < 0		){qval_adj[channel_num]=0;	 } 						
  																		
 					//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 						c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
@@ -440,34 +442,19 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 						
-//						// CROSSFADE
-// 							
-// 							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
-// 							ratio_a = 1.0 - ratio_b;
-// 							if (qc[channel_num] <150){ ratio_a *= (qc[channel_num]/150/1.5) + 0.344 ;}
-// 							filter_out[j][i] = 2.7 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
-
-						
-						// ADVANCED CROSSFADE
+						// CROSSFADE
   							if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0;}
   							else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1;}							
-							else {// if((qc[channel_num] >= CF_MIN) && (qc[channel_num] <= CF_MAX)) {
+							else {
 								pos_in_cf = (qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH;
-								//if 		(pos_in_cf > 1.0) {pos_in_cf=1.0;}
-								//else if (pos_in_cf < 0.0) {pos_in_cf=0.0;}
   	 							logindex_b = pos_in_cf * 4095.0f;
   	 							ratio_b  	= 1-epp_lut[(uint32_t)logindex_b];
 							}
- 							ratio_a = 1 - ratio_b ;
-//  							ratio_a *= 1.5;
-//  	 						if (ratio_a >1) {ratio_a = 1;}
-									 							
-							filter_out[j][i] = (ratio_a * filter_out_a[j][i] - 2*  ratio_b * filter_out_b[j][i]/2); // output of filter two needs to be inverted to avoid phase cancellation
-
+ 							ratio_a = 1 - ratio_b ;									 							
+							filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  ratio_b * filter_out_b[j][i]/(2.1*qval_adj[channel_num]/1000.0)); // output of filter two needs to be inverted to avoid phase cancellation
 						}
 					}					
-				}
-						
+				}		
 				
 			} else {	
 				for (j=0;j<NUM_CHANNELS*2;j++){
@@ -549,7 +536,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					}
 				} 	// each channel #
 			} 		// MAXQ / BPRE filter				
-		} 			// cvlag
+//		} 			// cvlag
 	} 				// env-mode
 	
 	// ##########################################################
@@ -560,7 +547,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	
 	if (ENVSPEEDSLOW){
 
-		if (CVLAG){
+//		if (CVLAG){
 		// use CVLAG to switch compressor/limiter on/off
 		// left: on
 		// right: off
@@ -792,7 +779,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			
 													 
 							//Dan's DLD soft limiter
-							filter_out[j][i] = limiter(filter_out[j][i])  ;
+//							filter_out[j][i] = limiter(filter_out[j][i])  ;
 						}									
 					}
 				}
@@ -876,7 +863,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					}
 				} 	// each channel #
 			} 		// MAXQ / BPRE filter				
-		} 			// cvlag
+		//} 			// cvlag
 	} 				// env-mode
 	
 	// ##########################################################
