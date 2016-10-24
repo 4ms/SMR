@@ -76,6 +76,9 @@ extern const uint32_t slider_led[6];
 // Filter parameters
 extern uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];					
 
+// Crossfade
+float pos_in_cf; 		 // % of Qknob position within CFR
+
 extern enum Filter_Types filter_type;
 
 extern float freq_nudge[NUM_CHANNELS];
@@ -93,6 +96,14 @@ extern uint8_t slider_led_mode;
 extern float channel_level[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
+
+	// Crossfade
+// 	float CF_MIN;			 // crossfade region min Qknob value
+// 	float CF_MAX;			 // crossfade region max Qknob value
+	int logindex_a;			 // position of filter A's crossfade within log_4096 lookup table
+	int logindex_b;			 // position of filter B's crossfade within log_4096 lookup table
+	float ratio_a, ratio_b;  // two-filter crossfade ratios
+//
 
 float *c_hiq[6];
 float *c_loq[6];
@@ -165,13 +176,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	static int firstrunq 		 		= 1;
  	static int q_update_count 			= 0;
  	
-	// Crossfade
-	float cfr_min;			 // crossfade region min Qknob value
-	float cfr_max;			 // crossfade region max Qknob value
-	static float pos_in_cfr; // % of Qknob position within CFR
-	int logindex_a;			 // position of filter A's crossfade within log_4096 lookup table
-	int logindex_b;			 // position of filter B's crossfade within log_4096 lookup table
-	float ratio_a, ratio_b;  // two-filter crossfade ratios
 
 	if (filter_type==BPRE && (
 			scale_bank[0]>=NUMSCALEBANKS || scale_bank[1]>=NUMSCALEBANKS
@@ -187,6 +191,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	//Handle motion
 	update_motion(); //To-Do: move this somewhere else, so it runs on a timer
 
+
+
+	
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
@@ -385,7 +392,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  					
 					// QVAL ADJUSTMENTS
 						// first filter max Q at noon on Q knob 
-						qval_a[channel_num]	= qc[channel_num] *2;
+						qval_a[channel_num]	= qc[channel_num] * 2 / 3;
 						if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
 						else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
 
@@ -433,17 +440,34 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 						
-						// CROSSFADE PT. 2
-							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
-							ratio_a = 1.0 - ratio_b;
-							if (qc[channel_num] <150){ ratio_a *= (qc[channel_num]/150/1.5) + 0.344 ;}
-							filter_out[j][i] = 2.7 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
-									
+//						// CROSSFADE
+// 							
+// 							ratio_b = loga_4096[(uint32_t)(qc[channel_num])];	
+// 							ratio_a = 1.0 - ratio_b;
+// 							if (qc[channel_num] <150){ ratio_a *= (qc[channel_num]/150/1.5) + 0.344 ;}
+// 							filter_out[j][i] = 2.7 * (ratio_a * filter_out_a[j][i] + ratio_b * filter_out_b[j][i]/2);
+
+						
+						// ADVANCED CROSSFADE
+  							if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0;}
+  							else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1;}							
+							else {// if((qc[channel_num] >= CF_MIN) && (qc[channel_num] <= CF_MAX)) {
+								pos_in_cf = (qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH;
+								//if 		(pos_in_cf > 1.0) {pos_in_cf=1.0;}
+								//else if (pos_in_cf < 0.0) {pos_in_cf=0.0;}
+  	 							logindex_b = pos_in_cf * 4095.0f;
+  	 							ratio_b  	= 1-epp_lut[(uint32_t)logindex_b];
+							}
+ 							ratio_a = 1 - ratio_b ;
+//  							ratio_a *= 1.5;
+//  	 						if (ratio_a >1) {ratio_a = 1;}
+									 							
+							filter_out[j][i] = (ratio_a * filter_out_a[j][i] - 2*  ratio_b * filter_out_b[j][i]/2); // output of filter two needs to be inverted to avoid phase cancellation
+
 						}
 					}					
 				}
-				
-				
+						
 				
 			} else {	
 				for (j=0;j<NUM_CHANNELS*2;j++){
