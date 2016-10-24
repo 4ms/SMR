@@ -37,9 +37,13 @@
 //10ms is 0.99895838758489  or 1-0.0010416124151  @512
 
 #define FREQNUDGE_LPF	0.995
-#define FREQCV_LPF	0.980
+#define FREQCV_LPF	0.9 /*was 0.980*/
 #define NUDGEPOT_MIN_CHANGE 0.0029304029304 // f_nudge_range / max pot val * num_pts_to_ignore <=> 1.2/4095*10 
 #define ENABLE_M 1
+
+#define DISPLAYTIME_NUDGEBOTHSIDES 25000
+#define DISPLAYTIME_NUDGEONESIDE 12000
+
 #define LAG_ATTACK_MIN_LPF 0.90
 #define LAG_DECAY_MIN_LPF 0.95
 
@@ -58,13 +62,14 @@
 #define SPREAD_ADC_HYSTERESIS 75
 
 
-void param_read_freq_nudge(void);
+void param_read_freq(void);
 void param_read_channel_level(void);
 void param_poll_switches(void);
 void param_read_q(void);
 inline void update_lock_leds(void);
 inline uint8_t num_locks_pressed(void);
 void param_read_lock_buttons(void);
+void init_freq_update_timer(void);
 
 enum Env_Out_Modes{
 ENV_SLOW,

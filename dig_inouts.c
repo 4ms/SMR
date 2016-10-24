@@ -162,8 +162,8 @@ void init_inputread_timer(void){
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM4, ENABLE);
 
 	nvic.NVIC_IRQChannel = TIM4_IRQn;
-	nvic.NVIC_IRQChannelPreemptionPriority = 4;
-	nvic.NVIC_IRQChannelSubPriority = 4;
+	nvic.NVIC_IRQChannelPreemptionPriority = 3;
+	nvic.NVIC_IRQChannelSubPriority = 2;
 	nvic.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&nvic);
 

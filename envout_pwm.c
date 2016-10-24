@@ -31,7 +31,6 @@
 #include "globals.h"
 #include "dig_inouts.h"
 #include "envout_pwm.h"
-//#include "PWM_Voct_UNQ.h"
 
 uint32_t ENVOUT_PWM[NUM_CHANNELS];
 float ENVOUT_preload[NUM_CHANNELS];
@@ -45,18 +44,17 @@ extern float envspeed_attack, envspeed_decay;
 
 extern float channel_level[NUM_CHANNELS];
 
-//extern uint32_t PWM_Voct_UNQ[21353];
-
 void init_envout_pwm(void){
 	TIM_TimeBaseInitTypeDef tim;
 	TIM_OCInitTypeDef  tim_oc;
 	GPIO_InitTypeDef gpio;
 	uint8_t i;
 
-	init_PWM_voltperoctave_lut();
+//	init_PWM_voltperoctave_lut();
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM3, ENABLE);
+
 
 	gpio.GPIO_Mode = GPIO_Mode_AF;
 	gpio.GPIO_Speed = GPIO_Speed_2MHz;
@@ -85,7 +83,6 @@ void init_envout_pwm(void){
 
 	for (i=0;i<NUM_CHANNELS;i++)
 		ENVOUT_PWM[i]=0;
-
 
 	TIM_TimeBaseStructInit(&tim);
 	tim.TIM_Period = 4096; //168M / 2 / 4096 = 20.5kHz
@@ -126,6 +123,48 @@ void init_envout_pwm(void){
 }
 
 
+void init_ENV_update_timer(void)
+{
+	TIM_TimeBaseInitTypeDef  tim;
+
+	NVIC_InitTypeDef nvic;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM9, ENABLE);
+
+	nvic.NVIC_IRQChannel = TIM1_BRK_TIM9_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 1;
+	nvic.NVIC_IRQChannelSubPriority = 0;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
+
+	//168MHz / 30000 ---> 5.6kHz
+
+	TIM_TimeBaseStructInit(&tim);
+	tim.TIM_Period = 30000;
+	tim.TIM_Prescaler = 0x0;
+	tim.TIM_ClockDivision = 0;
+	tim.TIM_CounterMode = TIM_CounterMode_Up;
+
+	TIM_TimeBaseInit(TIM9, &tim);
+
+	TIM_ITConfig(TIM9, TIM_IT_Update, ENABLE);
+
+	TIM_Cmd(TIM9, ENABLE);
+}
+
+void ENV_update_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM9, TIM_IT_Update) != RESET) {
+
+		update_ENVOUT_PWM();
+
+		TIM_ClearITPendingBit(TIM9, TIM_IT_Update);
+
+	}
+}
+
+
+
+
 //The filter routine sets ENVOUT_preload representing each channel's absolute value output (full-wave rectified)
 //update_ENVOUT_PWM() smooths this out with a LPF for attack and decay times
 //and converts it to a 12-bit value for feeding into the PWM outputs
@@ -140,35 +179,13 @@ void update_ENVOUT_PWM(void){
 	static float envelope[NUM_CHANNELS];
 	uint8_t quantize_voct=0;
 
+
 	if (env_track_mode==ENV_VOLTOCT) //takes 5us, every 20us
 	{
-
-		DEBUGA_ON(DEBUG0);
 		for (j=0;j<NUM_CHANNELS;j++){
-
-			//ENVOUT_PWM[j] = Coef_to_PWM(ENVOUT_preload[j]);
-
-/*
-				k=(ENVOUT_preload[j] * 8192.0);
-
-				if (k>22.0f) k-=22.0f;
-				else k=0.0f;
-
-				if (k>=VOLTOCT_LUT_MAX)
-					k= VOLTOCT_LUT_MAX-1;
-
-				ENVOUT_PWM[j] = FreqCoef_to_PWMval(k);
-				*/
-
 			k=ENVOUT_preload[j] * 8192;
 			ENVOUT_PWM[j] = FreqCoef_to_PWMval(k,ENVOUT_preload[j]);
-
-
-
 		}
-		DEBUGA_OFF(DEBUG0);
-
-
 	}
 	else if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST)
 	{
@@ -227,10 +244,9 @@ void update_ENVOUT_PWM(void){
 
 	TIM3->ENVOUT_PWM_CC_5=ENVOUT_PWM[4];
 	TIM3->ENVOUT_PWM_CC_6=ENVOUT_PWM[5];
-
 }
 
-
+/*
 void init_PWM_voltperoctave_lut(void)
 {
 	uint32_t k,v;
@@ -339,6 +355,7 @@ void init_PWM_voltperoctave_lut(void)
 		voltoct_lut[k]=v;
 	}
 }
+*/
 
 uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 {
@@ -349,106 +366,6 @@ uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 	//:,$s/\(\d*\),\(\d*\),\(\d*\),\(\d*\)/else if (k<=\1) {t=\1;b=\2;tval=\3;bval=\4;}/
 	//:1,$s/\(\d*\.\d*\),\(\d*\.\d*\),\(\d*\),\(\d*\)/else if (k<=\1) {t=\1;b=\2;tval=\3;bval=\4;}/
 
-
-/*
-	if (k==0.0) return(42);
-	else if (k<=1.0f) {t=1;b=0;tval=84;bval=42;}
-	else if (k<=2.0f) {t=2;b=1;tval=127;bval=84;}
-	else if (k<=3.0f) {t=3;b=2;tval=169;bval=127;}
-	else if (k<=5.0f) {t=5;b=3;tval=212;bval=169;}
-	else if (k<=6.0f) {t=6;b=5;tval=255;bval=212;}
-	else if (k<=8.0f) {t=8;b=6;tval=297;bval=255;}
-	else if (k<=10.0f) {t=10;b=8;tval=340;bval=297;}
-	else if (k<=12.0f) {t=12;b=10;tval=382;bval=340;}
-	else if (k<=14.0f) {t=14;b=12;tval=425;bval=382;}
-	else if (k<=16.0f) {t=16;b=14;tval=467;bval=425;}
-	else if (k<=18.0f) {t=18;b=16;tval=510;bval=467;}
-	else if (k<=21.0f) {t=21;b=18;tval=553;bval=510;}
-	else if (k<=23.0f) {t=23;b=21;tval=595;bval=553;}
-	else if (k<=26.0f) {t=26;b=23;tval=638;bval=595;}
-	else if (k<=29.0f) {t=29;b=26;tval=680;bval=638;}
-	else if (k<=32.0f) {t=32;b=29;tval=723;bval=680;}
-	else if (k<=35.0f) {t=35;b=32;tval=766;bval=723;}
-	else if (k<=38.0f) {t=38;b=35;tval=808;bval=766;}
-	else if (k<=42.0f) {t=42;b=38;tval=851;bval=808;}
-	else if (k<=46.0f) {t=46;b=42;tval=893;bval=851;}
-	else if (k<=50.0f) {t=50;b=46;tval=936;bval=893;}
-	else if (k<=54.0f) {t=54;b=50;tval=978;bval=936;}
-	else if (k<=59.0f) {t=59;b=54;tval=1021;bval=978;}
-	else if (k<=64.0f) {t=64;b=59;tval=1064;bval=1021;}
-	else if (k<=69.0f) {t=69;b=64;tval=1106;bval=1064;}
-	else if (k<=74.0f) {t=74;b=69;tval=1149;bval=1106;}
-	else if (k<=80.0f) {t=80;b=74;tval=1191;bval=1149;}
-	else if (k<=86.0f) {t=86;b=80;tval=1234;bval=1191;}
-	else if (k<=92.0f) {t=92;b=86;tval=1277;bval=1234;}
-	else if (k<=99.0f) {t=99;b=92;tval=1319;bval=1277;}
-	else if (k<=106.0f) {t=106;b=99;tval=1362;bval=1319;}
-	else if (k<=114.0f) {t=114;b=106;tval=1404;bval=1362;}
-	else if (k<=122.0f) {t=122;b=114;tval=1447;bval=1404;}
-	else if (k<=131.0f) {t=131;b=122;tval=1489;bval=1447;}
-	else if (k<=140.0f) {t=140;b=131;tval=1532;bval=1489;}
-	else if (k<=149.0f) {t=149;b=140;tval=1575;bval=1532;}
-	else if (k<=160.0f) {t=160;b=149;tval=1617;bval=1575;}
-	else if (k<=171.0f) {t=171;b=160;tval=1660;bval=1617;}
-	else if (k<=182.0f) {t=182;b=171;tval=1702;bval=1660;}
-	else if (k<=194.0f) {t=194;b=182;tval=1745;bval=1702;}
-	else if (k<=207.0f) {t=207;b=194;tval=1788;bval=1745;}
-	else if (k<=220.0f) {t=220;b=207;tval=1830;bval=1788;}
-	else if (k<=235.0f) {t=235;b=220;tval=1873;bval=1830;}
-	else if (k<=250.0f) {t=250;b=235;tval=1915;bval=1873;}
-	else if (k<=267.0f) {t=267;b=250;tval=1958;bval=1915;}
-	else if (k<=284.0f) {t=284;b=267;tval=2000;bval=1958;}
-	else if (k<=302.0f) {t=302;b=284;tval=2043;bval=2000;}
-	else if (k<=321.0f) {t=321;b=302;tval=2086;bval=2043;}
-	else if (k<=342.0f) {t=342;b=321;tval=2128;bval=2086;}
-	else if (k<=363.0f) {t=363;b=342;tval=2171;bval=2128;}
-	else if (k<=386.0f) {t=386;b=363;tval=2213;bval=2171;}
-	else if (k<=411.0f) {t=411;b=386;tval=2256;bval=2213;}
-	else if (k<=436.0f) {t=436;b=411;tval=2299;bval=2256;}
-	else if (k<=463.0f) {t=463;b=436;tval=2341;bval=2299;}
-	else if (k<=492.0f) {t=492;b=463;tval=2384;bval=2341;}
-	else if (k<=523.0f) {t=523;b=492;tval=2426;bval=2384;}
-	else if (k<=556.0f) {t=556;b=523;tval=2469;bval=2426;}
-	else if (k<=590.0f) {t=590;b=556;tval=2511;bval=2469;}
-	else if (k<=626.0f) {t=626;b=590;tval=2554;bval=2511;}
-	else if (k<=665.0f) {t=665;b=626;tval=2597;bval=2554;}
-	else if (k<=705.0f) {t=705;b=665;tval=2639;bval=2597;}
-	else if (k<=749.0f) {t=749;b=705;tval=2682;bval=2639;}
-	else if (k<=795.0f) {t=795;b=749;tval=2724;bval=2682;}
-	else if (k<=843.0f) {t=843;b=795;tval=2767;bval=2724;}
-	else if (k<=895.0f) {t=895;b=843;tval=2810;bval=2767;}
-	else if (k<=949.0f) {t=949;b=895;tval=2852;bval=2810;}
-	else if (k<=1007.0f) {t=1007;b=949;tval=2895;bval=2852;}
-	else if (k<=1069.0f) {t=1069;b=1007;tval=2937;bval=2895;}
-	else if (k<=1133.0f) {t=1133;b=1069;tval=2980;bval=2937;}
-	else if (k<=1202.0f) {t=1202;b=1133;tval=3022;bval=2980;}
-	else if (k<=1275.0f) {t=1275;b=1202;tval=3065;bval=3022;}
-	else if (k<=1352.0f) {t=1352;b=1275;tval=3108;bval=3065;}
-	else if (k<=1433.0f) {t=1433;b=1352;tval=3150;bval=3108;}
-	else if (k<=1520.0f) {t=1520;b=1433;tval=3193;bval=3150;}
-	else if (k<=1612.0f) {t=1612;b=1520;tval=3235;bval=3193;}
-	else if (k<=1709.0f) {t=1709;b=1612;tval=3278;bval=3235;}
-	else if (k<=1812.0f) {t=1812;b=1709;tval=3321;bval=3278;}
-	else if (k<=1921.0f) {t=1921;b=1812;tval=3363;bval=3321;}
-	else if (k<=2037.0f) {t=2037;b=1921;tval=3406;bval=3363;}
-	else if (k<=2159.0f) {t=2159;b=2037;tval=3448;bval=3406;}
-	else if (k<=2289.0f) {t=2289;b=2159;tval=3491;bval=3448;}
-	else if (k<=2426.0f) {t=2426;b=2289;tval=3533;bval=3491;}
-	else if (k<=2572.0f) {t=2572;b=2426;tval=3576;bval=3533;}
-	else if (k<=2726.0f) {t=2726;b=2572;tval=3619;bval=3576;}
-	else if (k<=2889.0f) {t=2889;b=2726;tval=3661;bval=3619;}
-	else if (k<=3063.0f) {t=3063;b=2889;tval=3704;bval=3661;}
-	else if (k<=3246.0f) {t=3246;b=3063;tval=3746;bval=3704;}
-	else if (k<=3440.0f) {t=3440;b=3246;tval=3789;bval=3746;}
-	else if (k<=3646.0f) {t=3646;b=3440;tval=3832;bval=3789;}
-	else if (k<=3865.0f) {t=3865;b=3646;tval=3874;bval=3832;}
-	else if (k<=4096.0f) {t=4096;b=3865;tval=3917;bval=3874;}
-	else if (k<=4340.0f) {t=4340;b=4096;tval=3959;bval=3917;}
-	else if (k<=4600.0f) {t=4600;b=4340;tval=4002;bval=3959;}
-	else if (k<=4875.0f) {t=4875;b=4600;tval=4044;bval=4002;}
-	else if (k<=5166.0f) {t=5166;b=4875;tval=4087;bval=4044;}
-	else if (k<=5475.0f) {t=5475;b=5166;tval=4130;bval=4087;}
-*/
 /*
 	if (k<=0.001799870791119) return(0);
 	else if (k<=0.001906896677806) {t=0.001906896677806;b=0.001799870791119;tval=43;bval=0;}
@@ -656,7 +573,7 @@ uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 	return(result);
 
 }
-
+/*
 const float semitones[12]={
 		0.001799870791119f,
 		0.001906896677806f,
@@ -685,6 +602,7 @@ uint32_t Coef_to_PWM(float k)
 		if (++i==12) {i=0;octave+=1.0;}
 	}
 
-	return v;//*(512.0/12.0);
+	return v*(512.0/12.0);
 
 }
+*/

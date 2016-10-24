@@ -167,7 +167,7 @@ void set_default_param_values(void){
 	trackoffset[1]=0;
 }
 
-void param_read_freq_nudge(void){
+void param_read_freq(void){
 	uint8_t i,j,k;
 	float t_fo, t_fe;														// freq nudge knob readouts 
 	static uint8_t sleep_range_saved =0, first_run[2]={1,1};
@@ -406,7 +406,7 @@ void param_read_freq_nudge(void){
 	 	else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
 			fine_tuning_timeout[0]+=1;
 			fine_tuning_timeout[1]+=1;
-			if((fine_tuning_timeout[0]> (50000 * fine_timer[0])) && (fine_tuning_timeout[1]> (50000 * fine_timer[1]))  ){
+			if((fine_tuning_timeout[0]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[0])) && (fine_tuning_timeout[1]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[1]))  ){
 				ongoing_fine_tuning[0]=0;
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b000000; // turn off all env led
@@ -416,7 +416,7 @@ void param_read_freq_nudge(void){
 		// turn off odds fine tune display after short time
 		} else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==0)){ 
 			fine_tuning_timeout[0]+=1;
-			if(fine_tuning_timeout[0]> (30000 * fine_timer[0])){
+			if(fine_tuning_timeout[0]> (DISPLAYTIME_NUDGEONESIDE * fine_timer[0])){
 				ongoing_fine_tuning[0]=0;
 				fine_envled = fine_envled & 0b010101; // turn off odds env led
 				fine_tuning_timeout[0]=0;
@@ -424,7 +424,7 @@ void param_read_freq_nudge(void){
 		// turn off evens fine tune display after short time 	
 		} else if ((ongoing_fine_tuning[1]==1) && (ongoing_fine_tuning[0]==0)){ 
 			fine_tuning_timeout[1]+=1;
-			if(fine_tuning_timeout[1]> (30000 * fine_timer[1])){
+			if(fine_tuning_timeout[1]> (DISPLAYTIME_NUDGEONESIDE * fine_timer[1])){
 				ongoing_fine_tuning[1]=0;
 				fine_envled = fine_envled & 0b101010; // turn off even env led
 				fine_tuning_timeout[1]=0;
@@ -553,6 +553,18 @@ void param_read_freq_nudge(void){
 			}
 			freq_shift[3]=f_shift_evens;
 		} 
+		// disable freq nudge and shift on channel 2 and 4 when in "6 mode"
+		else {
+			if (!lock[3]){
+				freq_nudge[3]= coarse_adj[3];
+			}
+			freq_shift[3]=1.0;
+
+			if (!lock[1]){
+				freq_nudge[1]= coarse_adj[1];
+			}
+			freq_shift[1]=1.0;
+		}
 		
 	// CLEAR COARSE TUNING AT BUTTON RELEASE AFTER 6 BUTTON PRESS (~3s)
 		// if locked buttons have all been pressed for +3s
@@ -605,6 +617,7 @@ void param_read_freq_nudge(void){
 				} 
 			}	
 		}
+
 }
 
 void param_read_channel_level(void){
@@ -1196,3 +1209,48 @@ void process_scaleCV(void){
 		t_old_scalecv = t_scalecv;
 	}
 }
+
+void init_freq_update_timer(void)
+{
+	TIM_TimeBaseInitTypeDef  tim;
+
+	NVIC_InitTypeDef nvic;
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
+
+	nvic.NVIC_IRQChannel = TIM1_UP_TIM10_IRQn;
+	nvic.NVIC_IRQChannelPreemptionPriority = 3;
+	nvic.NVIC_IRQChannelSubPriority = 3;
+	nvic.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&nvic);
+
+	//Triangle wave into the Freq jack. Measure the amplitude of the triangle wave coming out of the VOCT jack, expressed in % of the input amplitude.
+
+	//TIM_Period of 32767 = ~5kHz =====> 19Hz outputs ~50% amplitude
+	//TIM_Period of 16383 = ~10kHz =====> 37Hz outputs ~50% amplitude
+	//TIM_Period of 8195 = ~20kHz =====> 55Hz outputs ~50% amplitude (less than expected, perhaps due to the hardware LPF on the Freq jack input? or the software LPF?)
+
+	//168MHz / (Period+1)
+	TIM_TimeBaseStructInit(&tim);
+	tim.TIM_Period = 8195;
+	tim.TIM_Prescaler = 0;
+	tim.TIM_ClockDivision = 0;
+	tim.TIM_CounterMode = TIM_CounterMode_Up;
+
+	TIM_TimeBaseInit(TIM10, &tim);
+
+	TIM_ITConfig(TIM10, TIM_IT_Update, ENABLE);
+
+	TIM_Cmd(TIM10, ENABLE);
+}
+
+void TIM1_UP_TIM10_IRQHandler(void)
+{
+	if (TIM_GetITStatus(TIM10, TIM_IT_Update) != RESET) {
+
+		param_read_freq();
+
+		TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
+
+	}
+}
+

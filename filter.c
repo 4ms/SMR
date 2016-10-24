@@ -322,20 +322,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					scale_num=motion_fadeto_scale[channel_num];
 				}
 
-// 				Freq nudge vector
-// 				var_f=freq_nudge[channel_num];
-// 				if (var_f<0.002) var_f=0.0;
-// 				if (var_f>0.998) var_f=1.0;
-// 				inv_var_f=1.0-var_f;
-
-				nudge_filter_num = filter_num + 1;
-				if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
 			//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 				c0 = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; //exp[200...3125]
 
 			//FREQ: c1 = 2 * pi * freq / samplerate
-// 				c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
 				c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
  				c1 *= freq_nudge[channel_num];
 				c1 *= freq_shift[channel_num];
@@ -368,7 +359,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				}
 			}
 		}
-	} else {
+
+	} else { //BpRe
 
 		for (j=0;j<NUM_CHANNELS*2;j++){
 
@@ -451,6 +443,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 	}
+
 
 	for (i=0;i<MONO_BUFSZ;i++){
 

@@ -39,7 +39,7 @@
 #define LEDDRIVER_I2S_SCL_PINSRC           GPIO_PinSource8
 #define LEDDRIVER_I2S_SDA_PINSRC           GPIO_PinSource9
 
-#define I2C1_SPEED                        400000
+#define I2C1_SPEED                        800000
 
 #define PCA9685_MODE1 0x00 // location for Mode1 register address
 #define PCA9685_MODE2 0x01 // location for Mode2 reigster address

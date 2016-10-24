@@ -85,6 +85,7 @@ void main(void)
 	uint32_t i;
 
     NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x8000);
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);	//Set Priority Grouping mode to 2-bits for priority and 2-bits for sub-priority
 
 	LED_ON(LED_RING_OE); //actually turns the LED ring off
 	LEDDriver_Init(5);
@@ -130,39 +131,30 @@ void main(void)
 
 	//update_spread(1);
 
+	init_freq_update_timer();
+	init_ENV_update_timer();
+
 	while(1){
 
-	/*
-	Main loop period (averaged over 2000 periods):
-		34us with no motion and envelope or trigger outputs
-		87us with 70Hz square wave into Rotate trigger jack
-		146us at 90Hz square wave into Rotate trigger jack
-		...approaches infinity as Rotate approaches 100Hz, since a rotate event forces the LEDs to update
+		/* Old notes (from dev_master b63bab9): Check current timing against this!!
+		Main loop period (averaged over 2000 periods):
+			   34us with no motion and envelope or trigger outputs
+			   87us with 70Hz square wave into Rotate trigger jack
+			   146us at 90Hz square wave into Rotate trigger jack
+			   ...approaches infinity as Rotate approaches 100Hz, since a rotate event forces the LEDs to update
 
-		42us with no motion and VOCT output at low frequencies
-		100us with no motion and VOCT output at high frequencies
-		200us with fast triggers causing rotation, and VOCT output
+			   42us with no motion and VOCT output at low frequencies
+			   100us with no motion and VOCT output at high frequencies
+			   200us with fast triggers causing rotation, and VOCT output
 
-		So, with no motion in pre-VOCT firmwares, the LED ring updates every 68ms
-		unless requested to update immediately (which happens when morphpos reaches 1.0, that is, when something completes a morph)
-		Thus this 14.7Hz refresh rate is what we see with the envelope LEDs
-
-
-	 */
-		/*
-		i++;
-		if (i==1000) DEBUGA_OFF(DEBUG2);
-		if (i==2000)
-		{
-			i=0;
-			DEBUGA_ON(DEBUG2);
-		}
+			   So, with no motion in pre-VOCT firmwares, the LED ring updates every 68ms
+			   unless requested to update immediately (which happens when morphpos reaches 1.0, that is, when something completes a morph)
+			   Thus this 14.7Hz refresh rate is what we see with the envelope LEDs
 		*/
+
 		check_errors();
 
 		param_read_switches();
-
-		update_ENVOUT_PWM();
 
 		update_LED_ring();
 
@@ -177,8 +169,6 @@ void main(void)
 		process_lock_buttons();
 
 		param_read_q();
-
-		param_read_freq_nudge();
 
 		param_read_channel_level();
 

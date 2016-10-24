@@ -55,7 +55,6 @@ extern int16_t change_scale_mode;
 extern int cur_envled_state;
 extern int fine_envled;
 extern uint8_t ongoing_coarse_tuning[2];
-extern float coarse_adj_led[NUM_CHANNELS];	
 extern float coarse_adj[NUM_CHANNELS];
 
 // fine tuning
@@ -166,6 +165,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 
 	float finetune_bright[NUM_CHANNELS];
 	float avg_r, avg_g, avg_b;
+	float dimamt;
 
  	int bank_group_num;
   	int scale_num_in_group;
@@ -321,7 +321,6 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		}		
 	}
 	
-	// STANDARD BEHAVIOUR
 	else{
 		if (ui_mode==SELECT_PARAMS || ui_mode==EDIT_COLORS || ui_mode==PRE_SELECT_PARAMS || ui_mode==PRE_EDIT_COLORS){
 			for (chan=0;chan<6;chan++){
@@ -343,7 +342,25 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 				env_out_leds[chan][1]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
 				env_out_leds[chan][2]=(FW_VERSION & (1<<fw_ctr++)) ? 500 : 0;
 			}
-		} else {
+		}
+
+		else if (env_track_mode==ENV_VOLTOCT){
+			for (chan=0;chan<6;chan++){
+				dimamt = ENVOUT_PWM[chan]/4096.0;
+				if (dimamt < 0.05) dimamt = 0.05;
+
+				env_out_leds[chan][0]=(uint16_t)( (COLOR_CH[cur_colsch][chan][0]) * dimamt );
+				env_out_leds[chan][1]=(uint16_t)( (COLOR_CH[cur_colsch][chan][1]) * dimamt );
+				env_out_leds[chan][2]=(uint16_t)( (COLOR_CH[cur_colsch][chan][2]) * dimamt );
+
+				if(env_out_leds[chan][0]>1023) env_out_leds[chan][0] = 1023;
+				if(env_out_leds[chan][1]>1023) env_out_leds[chan][1] = 1023;
+				if(env_out_leds[chan][2]>1023) env_out_leds[chan][2] = 1023;
+			}
+		}
+
+		//DEFAULT (PLAY) MODE
+		else {
 			for (chan=0;chan<6;chan++){
 				env_out_leds[chan][0]=(uint16_t)((COLOR_CH[cur_colsch][chan][0]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
 				env_out_leds[chan][1]=(uint16_t)((COLOR_CH[cur_colsch][chan][1]) * ( (float)ENVOUT_PWM[chan]/4096.0) );
@@ -359,6 +376,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 }
 
 void display_filter_rotation(void){
+
 	uint16_t ring[20][3];
 	uint16_t env_out_leds[6][3];
 	uint8_t i, next_i,chan=0;
@@ -571,8 +589,9 @@ void display_scale(void){
 	calculate_envout_leds(env_out_leds);
 
 	LEDDriver_set_LED_ring(ring, env_out_leds);
-}
 
+}
+/*
 //Not used, but could be useful!
 void display_spectral_readout(void){
 
@@ -601,13 +620,14 @@ void display_spectral_readout(void){
 	LEDDriver_set_LED_ring(ring, env_out_leds);
 
 }
-
+*/
 
 inline void update_LED_ring(void){
 
 	static uint32_t led_ring_update_ctr=0;
 
 	if (led_ring_update_ctr++>2000 || flag_update_LED_ring){
+
 		led_ring_update_ctr=0;
 		flag_update_LED_ring=0;
 
@@ -621,8 +641,8 @@ inline void update_LED_ring(void){
 
 	}
 
-
 }
+
 
 
 
