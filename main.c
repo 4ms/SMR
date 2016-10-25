@@ -83,6 +83,7 @@ extern int8_t spread;
 
 extern uint8_t cur_colsch;
 extern enum Filter_Types filter_type;
+extern enum Filter_Modes filter_mode;
 
 extern uint8_t cur_param_bank;
 
@@ -200,6 +201,7 @@ void main(void)
 
 		if (ui_mode==SELECT_PARAMS){
 			handle_freqpot_changing_filtermode();
+			handle_freqpot_changing_filtermode_mode();
 			handle_slider_changing_clipmode();
 		}
 

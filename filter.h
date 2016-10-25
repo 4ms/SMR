@@ -31,7 +31,7 @@
 #define FILTER_H_
 
 // Q LPF
-#define QNUM 50				// number of q values in buffer of Q LPF
+#define QNUM 50					// number of q values in buffer of Q LPF
 #define QLPF_UPDATEPERIOD 5 	// Low-passed qval updated every QLPF_UPDATEPERIOD
 
 // CROSSFADE

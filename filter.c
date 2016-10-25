@@ -76,10 +76,12 @@ extern const uint32_t slider_led[6];
 // Filter parameters
 extern uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];					
 
-// Crossfade
-float pos_in_cf; 		 // % of Qknob position within CFR
+// 2-pass Crossfade
+float pos_in_cf; 		 // % of Qknob position within crossfade region
+float ratio_a, ratio_b;  // two-pass filter crossfade ratios
 
 extern enum Filter_Types filter_type;
+extern enum Filter_Modes filter_mode;
 
 extern float freq_nudge[NUM_CHANNELS];
 extern float freq_shift[NUM_CHANNELS];
@@ -97,13 +99,6 @@ extern float channel_level[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
 
-	// Crossfade
-// 	float CF_MIN;			 // crossfade region min Qknob value
-// 	float CF_MAX;			 // crossfade region max Qknob value
-	int logindex_a;			 // position of filter A's crossfade within log_4096 lookup table
-	int logindex_b;			 // position of filter B's crossfade within log_4096 lookup table
-	float ratio_a, ratio_b;  // two-filter crossfade ratios
-//
 
 float *c_hiq[6];
 float *c_loq[6];
@@ -114,14 +109,18 @@ float comp_gain[6];
 float filter_out[NUM_FILTS][MONO_BUFSZ];
 
 enum Filter_Types new_filter_type;
+enum Filter_Modes new_filter_mode;
 uint8_t filter_type_changed=0;
+uint8_t filter_mode_changed=0;
 
+void change_filter_mode(enum Filter_Modes newmode){
+	filter_mode_changed=1;
+	new_filter_mode=newmode;
+}
 
 void change_filter_type(enum Filter_Types newtype){
-
 	filter_type_changed=1;
 	new_filter_type=newtype;
-
 }
 
 inline void check_input_clipping(int32_t left_signal, int32_t right_signal){
@@ -169,7 +168,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	uint8_t nudge_filter_num;
 
 	// Q adjustments 
-	static float qval_adj[NUM_CHANNELS] = {0,0,0,0,0,0};	
+	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
 	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
 	static float qsum[NUM_CHANNELS] 	= {0,0,0,0,0,0};
 	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
@@ -177,12 +176,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  	static int q_update_count 			= 0;
  	
 
-	if (filter_type==BPRE && (
-			scale_bank[0]>=NUMSCALEBANKS || scale_bank[1]>=NUMSCALEBANKS
-			|| scale_bank[2]>=NUMSCALEBANKS || scale_bank[3]>=NUMSCALEBANKS
-			|| scale_bank[4]>=NUMSCALEBANKS || scale_bank[5]>=NUMSCALEBANKS  ))
-		change_filter_type(MAXQ);
-
+	if (filter_mode != TWOPASS){ // not mandatory but save CPU in most cases
+		if (filter_type==BPRE && (
+				scale_bank[0]>=NUMSCALEBANKS || scale_bank[1]>=NUMSCALEBANKS
+				|| scale_bank[2]>=NUMSCALEBANKS || scale_bank[3]>=NUMSCALEBANKS
+				|| scale_bank[4]>=NUMSCALEBANKS || scale_bank[5]>=NUMSCALEBANKS  ))
+			change_filter_type(MAXQ);
+	}
+	
 	// Convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
@@ -190,1029 +191,194 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	//Handle motion
 	update_motion(); //To-Do: move this somewhere else, so it runs on a timer
-
-
-
 	
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
 
-	//###################### 2-PASS ONLY (UPDATED) ###################################
+
+
+	//############################### 2-PASS  ###################################
 	
-	if (ENVSPEEDFAST){
-
-		//if (!CVLAG){
-		// use CVLAG to switch compressor/limiter on/off
-		// left: on
-		// right: off
+	if (filter_mode == TWOPASS){
 		
-			//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
-			//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
-			//To-Do: move this somewhere else, so it runs on a timer
-			for (i=0;i<NUM_CHANNELS;i++){
+	  // FILTER COEFFICIENTS
+		//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
+		//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
+		//To-Do: move this somewhere else, so it runs on a timer
+		for (i=0;i<NUM_CHANNELS;i++){
 
-				//Range check scale_bank and scale
-				if (scale_bank[i]<0) scale_bank[i]=0;
-				if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
-				if (scale[i]<0) scale[i]=0;
-				if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
+			//Range check scale_bank and scale
+			if (scale_bank[i]<0) scale_bank[i]=0;
+			if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
+			if (scale[i]<0) scale[i]=0;
+			if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
 
-				if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed){
+			if (scale_bank[i]!=old_scale_bank[i]){
 
-					old_scale_bank[i]=scale_bank[i];
+				old_scale_bank[i]=scale_bank[i];
 
-					ff=(float *)buf[i];
-					for (j=0;j<(NUMSCALES*NUM_FILTS);j++) {
-						*(ff+j)=0;
-						*(ff+j+1)=0;
-						*(ff+j+2)=0;
-					}
+				ff=(float *)buf[i];
+				for (j=0;j<(NUMSCALES*NUM_FILTS);j++) {
+					*(ff+j)=0;
+					*(ff+j+1)=0;
+					*(ff+j+2)=0;
+				}
 
-					if (filter_type==MAXQ){
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western);
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_maxq_coefs_indian);
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_maxq_coefs_B296);
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
+				if (scale_bank[i]==0){
+					c_hiq[i]=(float *)(filter_maxq_coefs_western);
+				} else if (scale_bank[i]==1){
+					c_hiq[i]=(float *)(filter_maxq_coefs_indian);
+				} else if (scale_bank[i]==2){
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
+				} else if (scale_bank[i]==3){
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
+				} else if (scale_bank[i]==4){
+					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
+				} else if (scale_bank[i]==5){
+					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
+				} else if (scale_bank[i]==6){
+					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
+				} else if (scale_bank[i]==7){
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
+				} else if (scale_bank[i]==8){
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
+				} else if (scale_bank[i]==9){
+					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
+				} else if (scale_bank[i]==10){
+					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
+				} else if (scale_bank[i]==11){
+					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
+				} else if (scale_bank[i]==12){
+					c_hiq[i]=(float *)(filter_maxq_coefs_B296);
+				} else if (scale_bank[i]==13){
+					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
+				} else if (scale_bank[i]==14){
+					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
 
-						} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
-							c_hiq[i]=(float *)(user_scalebank);
-						}
-
-
-					} else if (filter_type==BPRE){
-
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_indian_2Q);
-
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);
-
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);
-
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);
-
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_17ET_2Q);
-
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);
-
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic_2Q);
-
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic2_2Q);
-
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q);
-
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_mesopotamian_2Q);
-
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_shrutis_2Q);
-
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_B296_2Q);
-
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gamelan_2Q);
-
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);
-
-						} else {
-							scale_bank[i]=0;
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						}
-					}
-
+				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
+					c_hiq[i]=(float *)(user_scalebank);
 				}
 			}
-
-
-
-			//Calculate filter_out[]
-			//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
-			//filter_out[6-11] are the morph destination values
-			//filter_out[channel1-6][buffer_sample]
-			if (filter_type==MAXQ){
-
-
-				for (j=0;j<NUM_CHANNELS*2;j++){
-					if (j<6)
-						channel_num=j;
-					else
-						channel_num=j-6;
-
-					if (j<6 || motion_morphpos[channel_num]!=0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Freq nudge vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-					// EXTRA LP ON QVAL
- 						q_update_count+= 1;
- 						if (q_update_count == QLPF_UPDATEPERIOD){
-							q_update_count=0;
-							if (firstrunq){
-								qsum[channel_num] = qval[channel_num] * QNUM;
-								firstrunq=0;
-							}
-							qsum[channel_num] 	-= qsum[channel_num] / QNUM;
-							qsum[channel_num] 	+= qval[channel_num];
-							qc[channel_num]   	=  qsum[channel_num] / QNUM; 
- 						}
- 					
-					// QVAL ADJUSTMENTS
-						// first filter max Q at noon on Q knob 
-						qval_a[channel_num]	= qc[channel_num] * 2;
-						if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
-						else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
-
-						// limit q knob range on second filter
-
-//  					qval_adj[channel_num] = qc[channel_num]/2 - 2050;
-						if 		(qc[channel_num] < 3900	){qval_adj[channel_num]=1000;}
-						else if (qc[channel_num] >= 3900){qval_adj[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
-						if 		(qval_adj[channel_num] > 4095	){qval_adj[channel_num]=4095;}
-						else if (qval_adj[channel_num] < 0		){qval_adj[channel_num]=0;	 } 						
- 																		
-					//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-						c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
-						c0   = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-
-					//FREQ: c1 = 2 * pi * freq / samplerate
-						c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
-						c1 *= freq_shift[channel_num];
-						if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-						freq_comp[channel_num] = 1.0;
-
-					//AMPLITUDE: Boost high freqs and boost low resonance
-						c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
-						c2_a *= ((4096.0-qval_a[channel_num])/1024.0) + 1.04;
-						c2    = (0.003 * c1) - (0.1*c0) + 0.102;
-  						c2   *= ((4096.0-qval_adj[channel_num])/1024.0) + 1.04;
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-							check_input_clipping(left_buffer[i], right_buffer[i]);
-
-							if (channel_num & 1) tmp=right_buffer[i];
-							else tmp=left_buffer[i];
-
-						// FIRST PASS
-							buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
-							iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
-							buf_a[channel_num][scale_num][filter_num][0] = iir_a;
-
-							buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
-							filter_out_a[j][i] =  buf_a[channel_num][scale_num][filter_num][1];
-
-						// SECOND PASS
-							buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2  * (filter_out_a[j][i]/2);
-							iir = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
-							buf[channel_num][scale_num][filter_num][0] = iir;
-
-							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
-						
-						// CROSSFADE
-  							if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0;}
-  							else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1;}							
-							else {
-								pos_in_cf = (qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH;
-  	 							logindex_b = pos_in_cf * 4095.0f;
-  	 							ratio_b  	= 1-epp_lut[(uint32_t)logindex_b];
-							}
- 							ratio_a = 1 - ratio_b ;									 							
-							filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  ratio_b * filter_out_b[j][i]/(2.1*qval_adj[channel_num]/1000.0)); // output of filter two needs to be inverted to avoid phase cancellation
-						}
-					}					
-				}		
-				
-			} else {	
-				for (j=0;j<NUM_CHANNELS*2;j++){
-
-					if (j<6)
-						channel_num=j;
-					else
-						channel_num=j-6;
-
-					if (j<6 || motion_morphpos[channel_num]!=0.0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Q vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						//Freq nudge vector
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-
-						a0=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						a1=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						a2=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						c0=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						c1=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						c2=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						//Q vector
-						if (qval[channel_num]>4065) {
-							var_q=1.0;
-							inv_var_q=0.0;
-						} else {
-							var_q=log_4096[qval[channel_num]];
-							inv_var_q = 1.0-var_q;
-						}
-
-						c0=c0*var_q + a0*inv_var_q;
-						c1=c1*var_q + a1*inv_var_q;
-						c2=c2*var_q + a2*inv_var_q;
-
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-
-							//Input clipping
-							check_input_clipping(left_buffer[i], right_buffer[i]);
-
-							tmp= buf[channel_num][scale_num][filter_num][0];
-							buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
-
-							//Odd input (left) goes to odd filters (1/3/5)
-							//Even input (right) goes to even filters (2/4/6)
-							if (filter_num & 1) iir=left_buffer[i] * c0;
-							else iir=right_buffer[i] * c0;
-
-							iir -= c1*tmp;
-							fir= -tmp;
-							iir -= c2*buf[channel_num][scale_num][filter_num][0];
-							fir += iir;
-							buf[channel_num][scale_num][filter_num][1]= iir;
-
-							filter_out[j][i]= fir;
-
-						}
-					}
-				} 	// each channel #
-			} 		// MAXQ / BPRE filter				
-//		} 			// cvlag
-	} 				// env-mode
-	
-	// ##########################################################
-
-
-
-	//###################### 2-PASS + SOFT LIMITER ###################################
-	
-	if (ENVSPEEDSLOW){
-
-//		if (CVLAG){
-		// use CVLAG to switch compressor/limiter on/off
-		// left: on
-		// right: off
-
-		
-			//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
-			//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
-			//To-Do: move this somewhere else, so it runs on a timer
-			for (i=0;i<NUM_CHANNELS;i++){
-
-				//Range check scale_bank and scale
-				if (scale_bank[i]<0) scale_bank[i]=0;
-				if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
-				if (scale[i]<0) scale[i]=0;
-				if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
-
-				if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed){
-
-					old_scale_bank[i]=scale_bank[i];
-
-					ff=(float *)buf[i];
-					for (j=0;j<(NUMSCALES*NUM_FILTS);j++) {
-						*(ff+j)=0;
-						*(ff+j+1)=0;
-						*(ff+j+2)=0;
-					}
-
-					if (filter_type==MAXQ){
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western);
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_maxq_coefs_indian);
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_maxq_coefs_B296);
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
-
-						} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
-							c_hiq[i]=(float *)(user_scalebank);
-						}
-
-
-					} else if (filter_type==BPRE){
-
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_indian_2Q);
-
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);
-
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);
-
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);
-
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_17ET_2Q);
-
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);
-
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic_2Q);
-
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic2_2Q);
-
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q);
-
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_mesopotamian_2Q);
-
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_shrutis_2Q);
-
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_B296_2Q);
-
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gamelan_2Q);
-
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);
-
-						} else {
-							scale_bank[i]=0;
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						}
-					}
-
+		}
+
+	  // CALCULATE FILTER OUTPUTS		
+	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
+		//filter_out[6-11] are the morph destination values
+		//filter_out[channel1-6][buffer_sample]
+		for (j=0;j<NUM_CHANNELS*2;j++){
+
+			if (j<6)
+				channel_num=j;
+			else
+				channel_num=j-6;
+
+			if (j<6 || motion_morphpos[channel_num]!=0){
+
+			  // Set filter_num and scale_num to the Morph sources
+				if (j<6) {
+					filter_num=note[channel_num];
+					scale_num=scale[channel_num];
+
+			  // Set filter_num and scale_num to the Morph dests
+				} else {
+					filter_num=motion_fadeto_note[channel_num];
+					scale_num=motion_fadeto_scale[channel_num];
 				}
-			}
 
+			  //Freq nudge vector
+				var_f=freq_nudge[channel_num];
+				if (var_f<0.002) var_f=0.0;
+				if (var_f>0.998) var_f=1.0;
+				inv_var_f=1.0-var_f;
 
+				nudge_filter_num = filter_num + 1;
+				if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
-			//Calculate filter_out[]
-			//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
-			//filter_out[6-11] are the morph destination values
-			//filter_out[channel1-6][buffer_sample]
-			if (filter_type==MAXQ){
-
-
-				for (j=0;j<NUM_CHANNELS*2;j++){
-
-					if (j<6)
-						channel_num=j; // 0-5
-					else
-						channel_num=j-6; // 6-11 -> 0-5 
-
-					if (j<6 || motion_morphpos[channel_num]!=0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Freq nudge vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-						qval_adj[channel_num] = qval[channel_num] * 0.75 ; // adjusted scaling for Q knob to avoid extreme resonance on two-pass
-
-						//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-						c0_a  = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-						c0    = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-
-		
-						//FREQ: c1 = 2 * pi * freq / samplerate
-						c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
-						c1 *= freq_shift[channel_num];
-						if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-						freq_comp[channel_num] = 1.0;
-
-						//AMPLITUDE: Boost high freqs and boost low resonance
-						// Use env mode button to switch between 1-pass ans 2-pass filter-type FIXME -> testing only
-						// Pre: standard 1-pass
-						// Post: 2-Pass
-						c2_a = (0.003 * c1) - (0.1 * c0_a) + 0.102; 
-						c2_a *= ((4096.0-qval_adj[channel_num])/1024.0);
-						c2    =  (0.003 * c1) - (0.1 * c0) + 0.102;
-						c2   *= ((4096.0-qval_adj[channel_num])/1024.0);
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-							// For each sample in the buffer
-							// (samplerate is 96k unless in debugging mode which is 24k)
-			
-							check_input_clipping(left_buffer[i], right_buffer[i]);
-
-							if (channel_num & 1) tmp=right_buffer[i];
-							else tmp=left_buffer[i];
-			
-							// Post: 2-Pass
-							// Pass One
-							buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
-							iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
-							buf_a[channel_num][scale_num][filter_num][0] = iir_a;
-
-							buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
-							filter_out_a[j][i] = buf_a[channel_num][scale_num][filter_num][1];
-		
-							// Pass two, takes pass one output and processes it with reso and amp settings that are specific to pass 2
-							buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2 * filter_out_a[j][i]/2;
-							iir = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
-							buf[channel_num][scale_num][filter_num][0] = iir;
-
-							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
-			
-							// CROSSFADE two filter runs exponentially at 2/3 of qval
-							cross_point 	   = 0.20; // 0: full ccw, 1: full cw
-							ratio_a 		   = 1 - (qval[channel_num] / 4095.0);
-							ratio_b 		   = ( cross_point / ( 4095.0 * (1 - cross_point) ) ) * qval[channel_num] + 1 - ( cross_point / ( 1 - cross_point ) ); 
-							filter_out[j][i]   = (filter_out_a[j][i] * ratio_a) + (filter_out_b[j][i] * ratio_b);
-			
-													 
-							//Dan's DLD soft limiter
-//							filter_out[j][i] = limiter(filter_out[j][i])  ;
-						}									
+			  // EXTRA LP ON QVAL
+				q_update_count+= 1;
+				if (q_update_count == QLPF_UPDATEPERIOD){
+					q_update_count=0;
+					if (firstrunq){
+						qsum[channel_num] = qval[channel_num] * QNUM;
+						firstrunq=0;
 					}
+					qsum[channel_num] 	-= qsum[channel_num] / QNUM;
+					qsum[channel_num] 	+= qval[channel_num];
+					qc[channel_num]   	=  qsum[channel_num] / QNUM; 
 				}
-			} else {	
-				for (j=0;j<NUM_CHANNELS*2;j++){
-
-					if (j<6)
-						channel_num=j;
-					else
-						channel_num=j-6;
-
-					if (j<6 || motion_morphpos[channel_num]!=0.0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Q vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						//Freq nudge vector
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-
-						a0=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						a1=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						a2=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						c0=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						c1=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						c2=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						//Q vector
-						if (qval[channel_num]>4065) {
-							var_q=1.0;
-							inv_var_q=0.0;
-						} else {
-							var_q=log_4096[qval[channel_num]];
-							inv_var_q = 1.0-var_q;
-						}
-
-						c0=c0*var_q + a0*inv_var_q;
-						c1=c1*var_q + a1*inv_var_q;
-						c2=c2*var_q + a2*inv_var_q;
-
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-
-							//Input clipping
-							check_input_clipping(left_buffer[i], right_buffer[i]);
-
-							tmp= buf[channel_num][scale_num][filter_num][0];
-							buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
-
-							//Odd input (left) goes to odd filters (1/3/5)
-							//Even input (right) goes to even filters (2/4/6)
-							if (filter_num & 1) iir=left_buffer[i] * c0;
-							else iir=right_buffer[i] * c0;
-
-							iir -= c1*tmp;
-							fir= -tmp;
-							iir -= c2*buf[channel_num][scale_num][filter_num][0];
-							fir += iir;
-							buf[channel_num][scale_num][filter_num][1]= iir;
-
-							filter_out[j][i]= fir;
-
-						}
-					}
-				} 	// each channel #
-			} 		// MAXQ / BPRE filter				
-		//} 			// cvlag
-	} 				// env-mode
-	
-	// ##########################################################
-	
-	
-
-
-	
-	
-	
-	
-	
-	
-	
-	
-	//###################### 2-PASS ONLY ###################################
-	
-	if (ENVSPEEDSLOW){
-
-		if (!CVLAG){
-		// use CVLAG to switch compressor/limiter on/off
-		// left: on
-		// right: off
-
-		
-			//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
-			//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
-			//To-Do: move this somewhere else, so it runs on a timer
-			for (i=0;i<NUM_CHANNELS;i++){
-
-				//Range check scale_bank and scale
-				if (scale_bank[i]<0) scale_bank[i]=0;
-				if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
-				if (scale[i]<0) scale[i]=0;
-				if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
-
-				if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed){
-
-					old_scale_bank[i]=scale_bank[i];
-
-					ff=(float *)buf[i];
-					for (j=0;j<(NUMSCALES*NUM_FILTS);j++) {
-						*(ff+j)=0;
-						*(ff+j+1)=0;
-						*(ff+j+2)=0;
-					}
-
-					if (filter_type==MAXQ){
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western);
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_maxq_coefs_indian);
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_maxq_coefs_B296);
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
-
-						} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
-							c_hiq[i]=(float *)(user_scalebank);
-						}
-
-
-					} else if (filter_type==BPRE){
-
-						if (scale_bank[i]==0){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						} else if (scale_bank[i]==1){
-							c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_indian_2Q);
-
-						} else if (scale_bank[i]==2){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);
-
-						} else if (scale_bank[i]==3){
-							c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);
-
-						} else if (scale_bank[i]==4){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);
-
-						} else if (scale_bank[i]==5){
-							c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_17ET_2Q);
-
-						} else if (scale_bank[i]==6){
-							c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);
-
-						} else if (scale_bank[i]==7){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic_2Q);
-
-						} else if (scale_bank[i]==8){
-							c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_diatonic2_2Q);
-
-						} else if (scale_bank[i]==9){
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q);
-
-						} else if (scale_bank[i]==10){
-							c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_mesopotamian_2Q);
-
-						} else if (scale_bank[i]==11){
-							c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_shrutis_2Q);
-
-						} else if (scale_bank[i]==12){
-							c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_B296_2Q);
-
-						} else if (scale_bank[i]==13){
-							c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_gamelan_2Q);
-
-						} else if (scale_bank[i]==14){
-							c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);
-
-						} else {
-							scale_bank[i]=0;
-							c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-							c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
-						}
-					}
-
-				}
-			}
-
-
-
-			//Calculate filter_out[]
-			//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
-			//filter_out[6-11] are the morph destination values
-			//filter_out[channel1-6][buffer_sample]
-			if (filter_type==MAXQ){
-
-
-				for (j=0;j<NUM_CHANNELS*2;j++){
-
-					if (j<6)
-						channel_num=j; // 0-5
-					else
-						channel_num=j-6; // 6-11 -> 0-5 
-
-					if (j<6 || motion_morphpos[channel_num]!=0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Freq nudge vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-						//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-						qval_adj[channel_num] = qval[channel_num] * 0.75 ; // adjusted scaling for Q knob to avoid extreme resonance on two-pass
-						c0_a  = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-						c0    = 1.0 - exp_4096[(uint32_t)(qval_adj[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-		
-						//FREQ: c1 = 2 * pi * freq / samplerate
-						c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
-						c1 *= freq_shift[channel_num];
-						if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-						freq_comp[channel_num] = 1.0;
-
-						//AMPLITUDE: Boost high freqs and boost low resonance
-						// Use env mode button to switch between 1-pass ans 2-pass filter-type FIXME -> testing only
-						// Pre: standard 1-pass
-						// Post: 2-Pass
-						c2_a = (0.003 * c1) - (0.1 * c0_a) + 0.102; 
-						c2_a *= ((4096.0-qval_adj[channel_num])/1024.0);
-						c2    =  (0.003 * c1) - (0.1 * c0) + 0.102;
-						c2   *= ((4096.0-qval_adj[channel_num])/1024.0);
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-							// For each sample in the buffer
-							// (samplerate is 96k unless in debugging mode which is 24k)
 			
-							check_input_clipping(left_buffer[i], right_buffer[i]);
+			  // QVAL ADJUSTMENTS
+				// first filter max Q at noon on Q knob 
+				qval_a[channel_num]	= qc[channel_num] * 2;
+				if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
+				else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
 
-							if (channel_num & 1) tmp=right_buffer[i];
-							else tmp=left_buffer[i];
+			  // limit q knob range on second filter
+				if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
+				else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
+				if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
+				else if (qval_b[channel_num] < 0		){qval_b[channel_num]=0;	 } 						
+																
+			  //Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
+				c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
+				c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+
+			  //FREQ: c1 = 2 * pi * freq / samplerate
+				c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
+				c1 *= freq_shift[channel_num];
+				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
+				freq_comp[channel_num] = 1.0;
+
+			  //AMPLITUDE: Boost high freqs and boost low resonance
+				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
+				c2_a *= ((4096.0-qval_a[channel_num])/1024.0) + 1.04;
+				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
+				c2   *= ((4096.0-qval_b[channel_num])/1024.0) + 1.04;
+
+				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
+					check_input_clipping(left_buffer[i], right_buffer[i]);
+
+					if (channel_num & 1) tmp=right_buffer[i];
+					else tmp=left_buffer[i];
+
+				  // FIRST PASS (_a)
+					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
+					iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
+					buf_a[channel_num][scale_num][filter_num][0] = iir_a;
+
+					buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
+					filter_out_a[j][i] =  buf_a[channel_num][scale_num][filter_num][1];
+
+				  // SECOND PASS (_b)
+					buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2  * (filter_out_a[j][i]/2);
+					iir = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
+					buf[channel_num][scale_num][filter_num][0] = iir;
+
+					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
+					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 			
-							// Post: 2-Pass
-							// Pass One
-							buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
-							iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
-							buf_a[channel_num][scale_num][filter_num][0] = iir_a;
-
-							buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
-							filter_out_a[j][i] = buf_a[channel_num][scale_num][filter_num][1];
-		
-							// Pass two, takes pass one output and processes it with reso and amp settings that are specific to pass 2
-							buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2 * filter_out_a[j][i]/2;
-							iir = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
-							buf[channel_num][scale_num][filter_num][0] = iir;
-
-							buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-							filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
+				  // CROSSFADE
+					if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0;}
+					else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1;}							
+					else {
+						pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
+						ratio_b  	= 1-epp_lut[(uint32_t)pos_in_cf];
+					}
+					ratio_a = 1 - ratio_b ;									 							
+					filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  0.5 * ratio_b * filter_out_b[j][i]/(2.4*qval_b[channel_num]/1000.0)); // output of filter two needs to be inverted to avoid phase cancellation
 			
-							// CROSSFADE two filter runs exponentially at 2/3 of qval
-							cross_point 	   = 0.20; // 0: full ccw, 1: full cw
-							ratio_a 		   = 1 - (qval[channel_num] / 4095.0);
-							ratio_b 		   = ( cross_point / ( 4095.0 * (1 - cross_point) ) ) * qval[channel_num] + 1 - ( cross_point / ( 1 - cross_point ) ); 
-							filter_out[j][i]   = (filter_out_a[j][i] * ratio_a) + (filter_out_b[j][i] * ratio_b);
-						}									
-					}
-				}
-			} else {	
-				for (j=0;j<NUM_CHANNELS*2;j++){
-
-					if (j<6)
-						channel_num=j;
-					else
-						channel_num=j-6;
-
-					if (j<6 || motion_morphpos[channel_num]!=0.0){
-
-						// Set filter_num and scale_num to the Morph sources
-						if (j<6) {
-							filter_num=note[channel_num];
-							scale_num=scale[channel_num];
-
-						// Set filter_num and scale_num to the Morph dests
-						} else {
-							filter_num=motion_fadeto_note[channel_num];
-							scale_num=motion_fadeto_scale[channel_num];
-						}
-
-
-						//Q vector
-						var_f=freq_nudge[channel_num];
-						if (var_f<0.002) var_f=0.0;
-						if (var_f>0.998) var_f=1.0;
-						inv_var_f=1.0-var_f;
-
-						//Freq nudge vector
-						nudge_filter_num = filter_num + 1;
-						if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-
-						a0=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						a1=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						a2=*(c_loq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_loq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						c0=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 0)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 0)*inv_var_f;
-						c1=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 1)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 1)*inv_var_f;
-						c2=*(c_hiq[channel_num] + (scale_num*63) + (nudge_filter_num*3) + 2)*var_f + *(c_hiq[channel_num] + (scale_num*63) + (filter_num*3) + 2)*inv_var_f;
-
-						//Q vector
-						if (qval[channel_num]>4065) {
-							var_q=1.0;
-							inv_var_q=0.0;
-						} else {
-							var_q=log_4096[qval[channel_num]];
-							inv_var_q = 1.0-var_q;
-						}
-
-						c0=c0*var_q + a0*inv_var_q;
-						c1=c1*var_q + a1*inv_var_q;
-						c2=c2*var_q + a2*inv_var_q;
-
-
-						for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-
-							//Input clipping
-							check_input_clipping(left_buffer[i], right_buffer[i]);
-
-							tmp= buf[channel_num][scale_num][filter_num][0];
-							buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
-
-							//Odd input (left) goes to odd filters (1/3/5)
-							//Even input (right) goes to even filters (2/4/6)
-							if (filter_num & 1) iir=left_buffer[i] * c0;
-							else iir=right_buffer[i] * c0;
-
-							iir -= c1*tmp;
-							fir= -tmp;
-							iir -= c2*buf[channel_num][scale_num][filter_num][0];
-							fir += iir;
-							buf[channel_num][scale_num][filter_num][1]= iir;
-
-							filter_out[j][i]= fir;
-
-						}
-					}
-				} 	// each channel #
-			} 		// MAXQ / BPRE filter				
-		} 			// cvlag
-	} 				// env-mode
+				}	// Buffer elements 			
+			}		// not morphing
+		}			// All channels	
+	} 				// Filter type 			
 	
-	// ##########################################################
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
 	
 	
 	//###################### ORIGINAL 1-PASS ###################################
 	
-	if (!ENVSPEEDFAST && !ENVSPEEDSLOW){
+	else if (filter_mode != TWOPASS){
 		
 		//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
 		//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
@@ -1342,9 +508,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					}
 				}
-
-			}
-		}
+			} 	// new scale bank or filter type changed
+		}		// channels
 
 
 
@@ -1491,22 +656,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				}
 			}
 		}
-	} 			// env-mode
+	} 			// Filter-mode
 	
 	// ##########################################################
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
+
+
+
+
+	// MORPHING
 	
 
 	for (i=0;i<MONO_BUFSZ;i++){

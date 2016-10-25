@@ -46,6 +46,11 @@
 #define SLIDER_CLIP_LEVEL 0x50000000
 #define INPUT_LED_CLIP_LEVEL 0x58000000
 
+enum Filter_Modes {
+	TWOPASS,
+	ONEPASS
+};
+
 enum Filter_Types {
 	BPRE,
 	MAXQ

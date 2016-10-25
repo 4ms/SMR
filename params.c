@@ -39,6 +39,7 @@ extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 extern uint8_t select_colors_mode;
 
 enum Filter_Types filter_type=MAXQ;
+enum Filter_Modes filter_mode=TWOPASS;
 
 extern enum UI_Modes ui_mode;
 
@@ -142,6 +143,7 @@ void set_default_param_values(void){
 	motion_notejump=0;
 	motion_rotate=0;
 	filter_type=MAXQ;
+	filter_mode=TWOPASS;
 
 	trackcomp[0]=1.0;
 	trackcomp[1]=1.0;
@@ -284,7 +286,7 @@ void param_read_channel_level(void){
 
 			//Account for error on faceplate that doesn't allow slider to go to zero
 			t=potadc_buffer[i+SLIDER_ADC_BASE];
-			if (t<20)
+			 if (t<20)
 				t=0;
 			else
 				t=t-20;
