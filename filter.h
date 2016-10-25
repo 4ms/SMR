@@ -41,6 +41,8 @@
 #define CF_MAX (CROSSFADE_POINT + CROSSFADE_WIDTH/2)
 
 //void change_filter_type(enum Filter_Types newtype);
+//void change_filter_mode(enum Filter_Types newtype);
+
 void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht);
 inline void check_input_clipping(int32_t left_signal, int32_t right_signal);
 

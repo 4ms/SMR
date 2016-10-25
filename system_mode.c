@@ -640,7 +640,7 @@ void handle_freqpot_changing_filtermode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==10000){ //User took too long, start over
+	if (ctr==8000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
@@ -656,11 +656,11 @@ void handle_freqpot_changing_filtermode(void){
 		ctr=0;
 	}
 
-	if ((state&1) && adc_buffer[FREQNUDGE6_ADC] > 4000){
+	if ((state&1) && adc_buffer[FREQNUDGE6_ADC] > 3900){
 		state++;
 		ctr=0;
 	}
-	if (!(state&1) && adc_buffer[FREQNUDGE6_ADC] < 100){
+	if (!(state&1) && adc_buffer[FREQNUDGE6_ADC] < 200){
 		state++;
 		ctr=0;
 	}
@@ -671,7 +671,7 @@ void handle_freqpot_changing_filtermode_mode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==10000){ //User took too long, start over
+	if (ctr==8000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
@@ -679,20 +679,20 @@ void handle_freqpot_changing_filtermode_mode(void){
 	if (state==3){
 
 		if (filter_mode==TWOPASS)
-			change_filter_mode(ONEPASS);
+			filter_mode=ONEPASS;
 		else
-			change_filter_mode(TWOPASS);
+			filter_mode=TWOPASS;
 			change_filter_type(MAXQ);
 
 		state=0;
 		ctr=0;
 	}
 
-	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 4000){
+	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 3900){
 		state++;
 		ctr=0;
 	}
-	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 100){
+	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 200){
 		state++;
 		ctr=0;
 	}
