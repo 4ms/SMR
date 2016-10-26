@@ -30,7 +30,19 @@
 #ifndef FILTER_H_
 #define FILTER_H_
 
+// Q LPF
+#define QNUM 50					// number of q values in buffer of Q LPF
+#define QLPF_UPDATEPERIOD 5 	// Low-passed qval updated every QLPF_UPDATEPERIOD
+
+// CROSSFADE
+#define CROSSFADE_POINT 4095 * 3 / 4	
+#define CROSSFADE_WIDTH 1800				
+#define CF_MIN (CROSSFADE_POINT - CROSSFADE_WIDTH/2)
+#define CF_MAX (CROSSFADE_POINT + CROSSFADE_WIDTH/2)
+
 //void change_filter_type(enum Filter_Types newtype);
+void change_filter_mode(enum Filter_Modes newmode);
+
 void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht);
 inline void check_input_clipping(int32_t left_signal, int32_t right_signal);
 

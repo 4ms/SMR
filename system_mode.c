@@ -44,6 +44,7 @@ extern __IO uint16_t potadc_buffer[NUM_ADCS];
 extern __IO uint16_t adc_buffer[NUM_ADCS];
 
 extern enum Filter_Types filter_type;
+extern enum Filter_Modes filter_mode;
 
 extern uint8_t cur_colsch;
 extern float COLOR_CH[16][6][3];
@@ -104,17 +105,18 @@ extern float user_scalebank[231];
 //Parameter banks:
 #define FLASH_ADDR_START_PARAMBANKS		(FLASH_ADDR_future_globals	+ SZ_FG)		/* 134 		*/
 
-#define FLASH_OFFSET_bankstatus		(0)											/* +0 		*/
-#define FLASH_OFFSET_note			(FLASH_OFFSET_bankstatus		+ 1)		/* +1..6 	*/
-#define FLASH_OFFSET_scale			(FLASH_OFFSET_note				+ 6)		/* +7..12 	*/
-#define FLASH_OFFSET_scale_bank		(FLASH_OFFSET_scale				+ 6)		/* +13..18 	*/
-#define FLASH_OFFSET_lock			(FLASH_OFFSET_scale_bank		+ 6)		/* +19..24 	*/
-#define FLASH_OFFSET_q_locked		(FLASH_OFFSET_lock				+ 6)		/* +25..30 	*/
-#define FLASH_OFFSET_qval			(FLASH_OFFSET_q_locked			+ 6)		/* +31..54 	*/
-#define FLASH_OFFSET_filter_type	(FLASH_OFFSET_qval				+ 24)		/* +55 		*/
-#define FLASH_OFFSET_cur_colsch		(FLASH_OFFSET_filter_type		+ 1)		/* +56 		*/
-#define FLASH_OFFSET_freq_nudge		(FLASH_OFFSET_cur_colsch		+ 1)		/* +57..+80 */
+#define FLASH_OFFSET_bankstatus		(0)											/* +0 		 */
+#define FLASH_OFFSET_note			(FLASH_OFFSET_bankstatus		+ 1)		/* +1..6 	 */
+#define FLASH_OFFSET_scale			(FLASH_OFFSET_note				+ 6)		/* +7..12 	 */
+#define FLASH_OFFSET_scale_bank		(FLASH_OFFSET_scale				+ 6)		/* +13..18 	 */
+#define FLASH_OFFSET_lock			(FLASH_OFFSET_scale_bank		+ 6)		/* +19..24 	 */
+#define FLASH_OFFSET_q_locked		(FLASH_OFFSET_lock				+ 6)		/* +25..30 	 */
+#define FLASH_OFFSET_qval			(FLASH_OFFSET_q_locked			+ 6)		/* +31..54 	 */
+#define FLASH_OFFSET_filter_type	(FLASH_OFFSET_qval				+ 24)		/* +55 		 */
+#define FLASH_OFFSET_cur_colsch		(FLASH_OFFSET_filter_type		+ 1)		/* +56 		 */
+#define FLASH_OFFSET_freq_nudge		(FLASH_OFFSET_cur_colsch		+ 1)		/* +57..+80  */
 #define FLASH_OFFSET_future_params	(FLASH_OFFSET_freq_nudge		+ 24)		/* +81..+152 */
+#define FLASH_OFFSET_filter_mode	(FLASH_OFFSET_future_params		+ 72)		/* +153	 	 */
 #define SZ_FP 79
 
 #define FLASH_SIZE_parambank	(FLASH_OFFSET_future_params		+ SZ_FP)		/* size of each param bank: 160 */
@@ -150,6 +152,7 @@ uint8_t flash_q_locked[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint32_t flash_qval[FLASH_NUM_parambanks][NUM_CHANNELS];
 float flash_freq_nudge[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint8_t flash_filter_type[FLASH_NUM_parambanks];
+uint8_t flash_filter_mode[FLASH_NUM_parambanks];
 uint8_t flash_cur_colsch[FLASH_NUM_parambanks];
 float flash_COLOR_CH[16][6][3];
 float flash_user_scalebank[231];
@@ -171,6 +174,7 @@ void factory_reset(void){
 	for (i=0;i<FLASH_NUM_parambanks;i++){
 		flash_bankstatus[i] 		= 0xFF;
 		flash_filter_type[i] 		= MAXQ;
+		flash_filter_mode[i] 		= TWOPASS;
 		flash_cur_colsch[i]			= 0;
 
 		for (j=0;j<NUM_CHANNELS;j++){
@@ -219,7 +223,8 @@ void load_params_from_sram(uint8_t bank_num){
 
 	cur_colsch 			= flash_cur_colsch[bank_num];
 	change_filter_type(	  flash_filter_type[bank_num]);
-
+	filter_mode 		= flash_filter_mode[bank_num];
+	
 	for (i=0;i<NUM_CHANNELS;i++){
 		note[i]			= flash_note[bank_num][i];
 		scale[i]		= flash_scale[bank_num][i];
@@ -254,6 +259,7 @@ void store_params_into_sram(uint8_t bank_num){
 
 	flash_cur_colsch[bank_num]			= cur_colsch;
 	flash_filter_type[bank_num]			= filter_type;
+	flash_filter_mode[bank_num]			= filter_mode;
 
 	for (i=0;i<NUM_CHANNELS;i++){
 		flash_note[bank_num][i]			= note[i];
@@ -391,6 +397,7 @@ void read_all_params_from_FLASH(void){ //~200uS
 		flash_read_array((uint8_t *)flash_qval[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_qval + (FLASH_SIZE_parambank * bank_i), 24);
 
 		flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
+		flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
 		flash_cur_colsch[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
 
 		flash_read_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
@@ -417,6 +424,7 @@ void read_one_bank_params_from_FLASH(uint8_t bank_i){
 	flash_read_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
 
 	flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
+	flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
 
 	flash_cur_colsch[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
 
@@ -449,7 +457,8 @@ void write_all_params_to_FLASH(void){
 		flash_open_program_array((uint8_t *)flash_qval[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_qval + (FLASH_SIZE_parambank * bank_i), 24);
 
 		flash_open_program_byte(flash_filter_type[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
-		flash_open_program_byte(flash_cur_colsch[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
+		flash_open_program_byte(flash_filter_mode[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
+		flash_open_program_byte(flash_cur_colsch[bank_i],  FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
 
 		flash_open_program_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
 
@@ -631,14 +640,14 @@ void handle_freqpot_changing_filtermode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==10000){ //User took too long, start over
+	if (ctr==18000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
 
-	if (state==7){
+	if (state==3){
 
-		if (filter_type==MAXQ)
+		if (filter_type==MAXQ && filter_mode == ONEPASS)
 			change_filter_type(BPRE);
 		else
 			change_filter_type(MAXQ);
@@ -647,11 +656,43 @@ void handle_freqpot_changing_filtermode(void){
 		ctr=0;
 	}
 
-	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 4000){
+	if ((state&1) && adc_buffer[FREQNUDGE6_ADC] > 3500){
 		state++;
 		ctr=0;
 	}
-	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 100){
+	if (!(state&1) && adc_buffer[FREQNUDGE6_ADC] < 500){
+		state++;
+		ctr=0;
+	}
+}
+
+void handle_freqpot_changing_filtermode_mode(void){
+	static uint16_t state=0;
+	static uint16_t ctr=0;
+
+	ctr++;
+	if (ctr==18000){ //User took too long, start over
+		state=0;
+		ctr=0;
+	}
+
+	if (state==3){
+
+		if (filter_mode==TWOPASS)
+			filter_mode=ONEPASS;
+		else
+			filter_mode=TWOPASS;
+			change_filter_type(MAXQ);
+
+		state=0;
+		ctr=0;
+	}
+
+	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 3500){
+		state++;
+		ctr=0;
+	}
+	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 500){
 		state++;
 		ctr=0;
 	}

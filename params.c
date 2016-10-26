@@ -38,6 +38,7 @@ extern __IO uint16_t adc_buffer[NUM_ADCS];
 extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 
 enum Filter_Types filter_type=MAXQ;
+enum Filter_Modes filter_mode=TWOPASS;
 
 extern enum UI_Modes ui_mode;
 
@@ -102,7 +103,7 @@ float LEVEL_LPF_ATTACK=0;
 float LEVEL_LPF_DECAY=0;
 
 //Q POT AND CV
-uint32_t qval[NUM_CHANNELS];
+uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS]; qval_lin[NUM_CHANNELS];
 uint32_t qvalcv, qvalpot;
 uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
 uint8_t user_turned_Q_pot=0;
@@ -160,6 +161,7 @@ void set_default_param_values(void){
 	motion_notejump=0;
 	motion_rotate=0;
 	filter_type=MAXQ;
+	filter_mode=TWOPASS;
 
 	trackcomp[0]=1.0;
 	trackcomp[1]=1.0;
@@ -650,7 +652,7 @@ void param_read_channel_level(void){
 
 			//Account for error on faceplate that doesn't allow slider to go to zero
 			t=potadc_buffer[i+SLIDER_ADC_BASE];
-			if (t<20)
+			 if (t<20)
 				t=0;
 			else
 				t=t-20;
@@ -679,6 +681,9 @@ void param_read_q(void){
 	static uint32_t old_qpot_lpf=0xFFFF;
 	static poll_ctr=0;
 
+	// save current qval in buffer before updating so we can track changes.
+	qbuf[i]=qval[i];
+		
 	if (poll_ctr++>10){poll_ctr=0;
 
 		//Check jack
@@ -693,8 +698,8 @@ void param_read_q(void){
 		//Check pot
 		t = potadc_buffer[QPOT_ADC];
 
-	//	qpot_lpf *= QPOT_LPF;
-	//	qpot_lpf += (1.0f-QPOT_LPF)*t;
+// 	 	qpot_lpf *= QPOT_LPF;
+// 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
 
 		qpot_lpf=t;
 

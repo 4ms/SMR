@@ -52,6 +52,7 @@ void exit_system_mode(uint8_t reset_locks);
 void handle_edit_colors(void);
 
 void handle_freqpot_changing_filtermode(void);
+void handle_freqpot_changing_filtermode_mode(void);
 void handle_slider_changing_clipmode(void);
 
 void read_all_params_from_FLASH(void);
