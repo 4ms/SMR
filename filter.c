@@ -196,8 +196,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		filter_type=new_filter_type;
 
 
-
-
 	//############################### 2-PASS  ###################################
 	
 	if (filter_mode == TWOPASS){
@@ -214,7 +212,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			if (scale[i]<0) scale[i]=0;
 			if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
 
-			if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed || filter_mode_changed){
+			if (scale_bank[i]!=old_scale_bank[i] ){
 
 				old_scale_bank[i]=scale_bank[i];
 

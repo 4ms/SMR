@@ -656,11 +656,11 @@ void handle_freqpot_changing_filtermode(void){
 		ctr=0;
 	}
 
-	if ((state&1) && adc_buffer[FREQNUDGE6_ADC] > 3900){
+	if ((state&1) && adc_buffer[FREQNUDGE6_ADC] > 3500){
 		state++;
 		ctr=0;
 	}
-	if (!(state&1) && adc_buffer[FREQNUDGE6_ADC] < 200){
+	if (!(state&1) && adc_buffer[FREQNUDGE6_ADC] < 500){
 		state++;
 		ctr=0;
 	}
@@ -688,11 +688,11 @@ void handle_freqpot_changing_filtermode_mode(void){
 		ctr=0;
 	}
 
-	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 3900){
+	if ((state&1) && adc_buffer[FREQNUDGE1_ADC] > 3500){
 		state++;
 		ctr=0;
 	}
-	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 200){
+	if (!(state&1) && adc_buffer[FREQNUDGE1_ADC] < 500){
 		state++;
 		ctr=0;
 	}
