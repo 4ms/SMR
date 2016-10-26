@@ -223,7 +223,7 @@ void load_params_from_sram(uint8_t bank_num){
 
 	cur_colsch 			= flash_cur_colsch[bank_num];
 	change_filter_type(	  flash_filter_type[bank_num]);
-	change_filter_mode(	  flash_filter_mode[bank_num]);
+	filter_mode 		= flash_filter_mode[bank_num];
 	
 	for (i=0;i<NUM_CHANNELS;i++){
 		note[i]			= flash_note[bank_num][i];
@@ -640,7 +640,7 @@ void handle_freqpot_changing_filtermode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==15000){ //User took too long, start over
+	if (ctr==18000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
@@ -671,7 +671,7 @@ void handle_freqpot_changing_filtermode_mode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==15000){ //User took too long, start over
+	if (ctr==18000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
