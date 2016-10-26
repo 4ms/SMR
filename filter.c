@@ -259,7 +259,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			}
 		}
 
-
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
 		//filter_out[6-11] are the morph destination values
