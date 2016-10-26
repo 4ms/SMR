@@ -640,14 +640,14 @@ void handle_freqpot_changing_filtermode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==8000){ //User took too long, start over
+	if (ctr==15000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
 
 	if (state==3){
 
-		if (filter_type==MAXQ)
+		if (filter_type==MAXQ && filter_mode == ONEPASS)
 			change_filter_type(BPRE);
 		else
 			change_filter_type(MAXQ);
@@ -671,7 +671,7 @@ void handle_freqpot_changing_filtermode_mode(void){
 	static uint16_t ctr=0;
 
 	ctr++;
-	if (ctr==8000){ //User took too long, start over
+	if (ctr==15000){ //User took too long, start over
 		state=0;
 		ctr=0;
 	}
