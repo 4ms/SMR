@@ -200,6 +200,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
+				
+	
 
 	//############################### 2-PASS  ###################################
 	
@@ -278,6 +280,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				channel_num=j;
 			else
 				channel_num=j-6;
+
+			// READ ADC FOR SLIDER AND Q KNOB		
+			param_read_one_channel_level(channel_num);
+			param_read_one_q(channel_num);
 
 			if (j<6 || motion_morphpos[channel_num]!=0){
 

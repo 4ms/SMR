@@ -173,9 +173,8 @@ void main(void)
 
 		process_lock_buttons();
 
-		param_read_q();
-
-		param_read_channel_level();
+//		param_read_q();
+//		param_read_channel_level();
 
 		process_rotary_button();
 
