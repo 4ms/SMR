@@ -106,9 +106,9 @@ float filter_out[NUM_FILTS][MONO_BUFSZ];
  
 // ADC readout smoothing
 static float prev_level[12] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
-static float smooth_level[NUM_CHANNELS];							// ADC readout of channel level smoothed between samples
+static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];							// ADC readout of channel level smoothed between samples
 static float prev_qval[12]  = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};		// previous qval
-static float smooth_qval[NUM_CHANNELS];					 		// ADC readout of qval smoothed between samples
+static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					 		// ADC readout of qval smoothed between samples
 //
 
 
@@ -146,6 +146,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	//~78us static, ~104us morphing, every 166us = 6kHz ( = 96k / 16 samples)
 	int16_t i,j;
 	uint8_t k;
+	uint8_t l;
 	int32_t s;
 	uint32_t t;
 	float env_in;
@@ -179,7 +180,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
 	static int firstrunq 		 		= 1;
  	static int q_update_count 			= 0;
- 	
+
+	// ADC readout smoothing
+	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
+	static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];				// ADC readout of channel level smoothed between samples
+	static float prev_qval[NUM_CHANNELS]  = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous qval
+	static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					// ADC readout of qval smoothed between samples
+	// 	
 
 	if (filter_mode != TWOPASS){ // not mandatory but save CPU in most cases
 		if (filter_type==BPRE && (
@@ -281,10 +288,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			else
 				channel_num=j-6;
 
-			// READ ADC FOR SLIDER AND Q KNOB		
-			param_read_one_channel_level(channel_num);
-			param_read_one_q(channel_num);
-
 			if (j<6 || motion_morphpos[channel_num]!=0){
 
 			  // Set filter_num and scale_num to the Morph sources
@@ -330,7 +333,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
 				else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
 				if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
-				else if (qval_b[channel_num] < 0		){qval_b[channel_num]=0;	 } 						
+				else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;} 						
 																
 			  //Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 				c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
@@ -360,7 +363,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
-
+					
 				  // FIRST PASS (_a)
 					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
 					iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
@@ -385,7 +388,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						ratio_b  	= 1-epp_lut[(uint32_t)pos_in_cf];
 					}
 					ratio_a = 1 - ratio_b ;									 							
-					filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  0.5 * ratio_b * filter_out_b[j][i]/(2.4*qval_b[channel_num]/1000.0)); // output of filter two needs to be inverted to avoid phase cancellation
+					filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  ratio_b * filter_out_b[j][i]/(0.0048 * qval_b[channel_num])); // output of filter two needs to be inverted to avoid phase cancellation
 			
 				}	// Buffer elements 			
 			}		// not morphing
@@ -683,15 +686,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	// MORPHING
 	
-
-
 	for (i=0;i<MONO_BUFSZ;i++){
 
 		filtered_buffer[i]=0;
 		filtered_bufferR[i]=0;
+		
 
 		for (j=0;j<NUM_CHANNELS;j++){
-
+		
 			//When blending, 1.5us/sample. When static, 0.7us/sample = 11-24us total
 
 			if (motion_morphpos[j]==0)
@@ -700,10 +702,19 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
 
 
+			// update current value
+// 			if (l=1){
+			param_read_one_channel_level(j);
+// 			l=0;
+// 			}
+// 			else{l++;}
+			
+			// APPLY LEVEL TO AUDIO OUT
+			  	// apply level
 				if (j & 1)
-					s = filtered_buffer[i] + (f_blended*channel_level[j]);
+					s = filtered_buffer[i]  + (f_blended * channel_level[j]);
 				else
-					s = filtered_bufferR[i] + (f_blended*channel_level[j]);
+					s = filtered_bufferR[i] + (f_blended * channel_level[j]);
 				
 				
 				asm("ssat %[dst], #32, %[src]" : [dst] "=r" (s) : [src] "r" (s));
@@ -715,7 +726,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				
 				
 				if (ui_mode==PLAY){
-					if (((f_blended*channel_level[j]))>SLIDER_CLIP_LEVEL){
+					if ((f_blended * (channel_level[j])) > SLIDER_CLIP_LEVEL){
+// 					if ((f_blended * (channel_level[j] + smooth_level[j][i])) > SLIDER_CLIP_LEVEL){
 						if (slider_led_mode==SHOW_CLIPPING){
 							LED_SLIDER_ON(slider_led[j]);
 						}

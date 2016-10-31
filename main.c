@@ -65,6 +65,10 @@ extern uint8_t cur_colsch;
 extern enum Filter_Types filter_type;
 extern enum Filter_Modes filter_mode;
 
+// FIXME - temporaty for testing
+extern enum Env_Out_Modes env_track_mode;
+//
+
 extern uint8_t cur_param_bank;
 
 
@@ -173,7 +177,8 @@ void main(void)
 
 		process_lock_buttons();
 
-//		param_read_q();
+		param_read_q();
+		
 //		param_read_channel_level();
 
 		process_rotary_button();
