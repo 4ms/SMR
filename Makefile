@@ -61,7 +61,7 @@ $(HEX): $(ELF)
 $(ELF): $(OBJECTS)
 	$(LD) $(LFLAGS) -o $@ $(OBJECTS)
 
-$(BUILDDIR)/%.o: %.c
+$(BUILDDIR)/%.o: %.c $(wildcard *.h)
 	mkdir -p $(dir $@)
 	$(CC) -c $(CFLAGS) $< -o $@
 
