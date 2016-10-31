@@ -103,6 +103,15 @@ float comp_gain[6];
 
 float filter_out[NUM_FILTS][MONO_BUFSZ];
 
+ 
+// ADC readout smoothing
+static float prev_level[12] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
+static float smooth_level[NUM_CHANNELS];							// ADC readout of channel level smoothed between samples
+static float prev_qval[12]  = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};		// previous qval
+static float smooth_qval[NUM_CHANNELS];					 		// ADC readout of qval smoothed between samples
+//
+
+
 enum Filter_Types new_filter_type;
 enum Filter_Modes new_filter_mode;
 uint8_t filter_type_changed=0;

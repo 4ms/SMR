@@ -64,6 +64,8 @@
 
 void param_read_freq(void);
 void param_read_channel_level(void);
+void param_read_one_channel_level(uint8_t i);
+void param_read_one_q(uint32_t i);
 void param_poll_switches(void);
 void param_read_q(void);
 inline void update_lock_leds(void);

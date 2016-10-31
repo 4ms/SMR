@@ -674,6 +674,31 @@ void param_read_channel_level(void){
 	}
 }
 
+void param_read_one_channel_level(uint8_t i)
+{
+	uint16_t t;
+	float level_lpf;
+
+	t=potadc_buffer[i+SLIDER_ADC_BASE];
+	 if (t<20)
+		t=0;
+	else
+		t=t-20;
+
+	level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
+
+	if (level_lpf<=0.007) level_lpf=0.0;
+
+	if(channel_level[i] < level_lpf) {
+		channel_level[i] *= LEVEL_LPF_ATTACK;
+		channel_level[i] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
+	} else {
+		channel_level[i] *= LEVEL_LPF_DECAY;
+		channel_level[i] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
+	}
+
+
+}
 
 void param_read_q(void){
 	int32_t t, i, num_locked;
@@ -731,6 +756,60 @@ void param_read_q(void){
 				qval[i]=qvalcv + qvalpot;
 				if (qval[i]>4095) qval[i]=4095;
 			}
+		}
+	}
+}
+
+void param_read_one_q(uint32_t i){
+	int32_t t, num_locked;
+	static uint32_t qpot_lpf=0;
+	static uint32_t old_qpot_lpf=0xFFFF;
+	static poll_ctr=0;
+
+	// save current qval in buffer before updating so we can track changes.
+	qbuf[i]=qval[i];
+		
+	if (poll_ctr++>10){poll_ctr=0;
+
+		//Check jack
+		t=adc_buffer[QVAL_ADC];
+
+		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
+			qvalcv=adc_buffer[QVAL_ADC];
+		}
+
+		//Check pot
+		t = potadc_buffer[QPOT_ADC];
+
+// 	 	qpot_lpf *= QPOT_LPF;
+// 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
+
+		qpot_lpf=t;
+		num_locked=0;
+
+		if (diff(qpot_lpf, old_qpot_lpf) > QPOT_MIN_CHANGE){
+			old_qpot_lpf=qpot_lpf;
+
+			if (ui_mode==PLAY){
+				if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+					q_locked[i]=1;
+					user_turned_Q_pot=1;
+
+					qval[i]=qpot_lpf;
+					num_locked++;
+				}
+			}
+
+			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
+			//if (!j) qvalpot=qpot_lpf;
+		}
+
+		if (!num_locked) qvalpot=qpot_lpf;
+
+		if (!q_locked[i]){
+			qval[i]=qvalcv + qvalpot;
+			if (qval[i]>4095) qval[i]=4095;
 		}
 	}
 }
