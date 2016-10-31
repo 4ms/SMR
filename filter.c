@@ -70,7 +70,7 @@ extern float ENVOUT_preload[NUM_CHANNELS];
 extern const uint32_t slider_led[6];
 
 // Filter parameters
-extern uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS];					
+extern uint32_t qval[NUM_CHANNELS];					
 
 // 2-pass Crossfade
 float pos_in_cf; 		 // % of Qknob position within crossfade region

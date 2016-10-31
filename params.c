@@ -103,7 +103,7 @@ float LEVEL_LPF_ATTACK=0;
 float LEVEL_LPF_DECAY=0;
 
 //Q POT AND CV
-uint32_t qval[NUM_CHANNELS], qbuf[NUM_CHANNELS]; qval_lin[NUM_CHANNELS];
+uint32_t qval[NUM_CHANNELS];
 uint32_t qvalcv, qvalpot;
 uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
 uint8_t user_turned_Q_pot=0;
@@ -705,9 +705,6 @@ void param_read_q(void){
 	static uint32_t qpot_lpf=0;
 	static uint32_t old_qpot_lpf=0xFFFF;
 	static poll_ctr=0;
-
-	// save current qval in buffer before updating so we can track changes.
-	qbuf[i]=qval[i];
 		
 	if (poll_ctr++>10){poll_ctr=0;
 
@@ -719,15 +716,10 @@ void param_read_q(void){
 			qvalcv=adc_buffer[QVAL_ADC];
 		}
 
-
-		//Check pot
+		// LPF qpot
 		t = potadc_buffer[QPOT_ADC];
-
-// 	 	qpot_lpf *= QPOT_LPF;
-// 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
-
-		qpot_lpf=t;
-
+ 	 	qpot_lpf *= QPOT_LPF;
+ 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
 		num_locked=0;
 
 		if (diff(qpot_lpf, old_qpot_lpf) > QPOT_MIN_CHANGE){
@@ -741,16 +733,10 @@ void param_read_q(void){
 
 						qval[i]=qpot_lpf;
 						num_locked++;
-					}
+					}else if (!lock[i]){qvalpot=qpot_lpf;}
 				}
 			}
-
-			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
-			//if (!j) qvalpot=qpot_lpf;
 		}
-
-		if (!num_locked) qvalpot=qpot_lpf;
-
 		for (i=0;i<NUM_CHANNELS;i++){
 			if (!q_locked[i]){
 				qval[i]=qvalcv + qvalpot;
@@ -760,59 +746,6 @@ void param_read_q(void){
 	}
 }
 
-void param_read_one_q(uint32_t i){
-	int32_t t, num_locked;
-	static uint32_t qpot_lpf=0;
-	static uint32_t old_qpot_lpf=0xFFFF;
-	static poll_ctr=0;
-
-	// save current qval in buffer before updating so we can track changes.
-	qbuf[i]=qval[i];
-		
-	if (poll_ctr++>10){poll_ctr=0;
-
-		//Check jack
-		t=adc_buffer[QVAL_ADC];
-
-		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
-			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
-			qvalcv=adc_buffer[QVAL_ADC];
-		}
-
-		//Check pot
-		t = potadc_buffer[QPOT_ADC];
-
-// 	 	qpot_lpf *= QPOT_LPF;
-// 	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
-
-		qpot_lpf=t;
-		num_locked=0;
-
-		if (diff(qpot_lpf, old_qpot_lpf) > QPOT_MIN_CHANGE){
-			old_qpot_lpf=qpot_lpf;
-
-			if (ui_mode==PLAY){
-				if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
-					q_locked[i]=1;
-					user_turned_Q_pot=1;
-
-					qval[i]=qpot_lpf;
-					num_locked++;
-				}
-			}
-
-			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
-			//if (!j) qvalpot=qpot_lpf;
-		}
-
-		if (!num_locked) qvalpot=qpot_lpf;
-
-		if (!q_locked[i]){
-			qval[i]=qvalcv + qvalpot;
-			if (qval[i]>4095) qval[i]=4095;
-		}
-	}
-}
 
 void param_read_switches(void){
 	static uint32_t old_cvlag=0xFFFF;

@@ -51,7 +51,7 @@
 #define ADC_JACK_LPF	0.90
 
 #define QPOT_MIN_CHANGE 100
-#define QPOT_LPF 0.995
+#define QPOT_LPF 0.95
 
 #define QLOCK_FLASH_SPEED 1500
 
