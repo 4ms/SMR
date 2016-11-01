@@ -365,7 +365,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				else {
 					pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
 					//ratio_a  	= epp_lut[(uint32_t)pos_in_cf];
-					ratio_a  	= 1.0f-pos_in_cf;
+					ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
 				}
 				ratio_b = (1.0f - ratio_a);
 				//ratio_b /= (0.0048 * qval_b[channel_num]);
@@ -383,7 +383,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 					check_input_clipping(left_buffer[i], right_buffer[i]);
 
-					if (channel_num & 1) tmp=right_buffer[i];
+			if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
 					
 				  // FIRST PASS (_a)
@@ -414,7 +414,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}			// All channels	
 	} 				// Filter type 			
 	
-
 	
 	
 	//###################### ORIGINAL 1-PASS ###################################
