@@ -759,7 +759,7 @@ void param_read_q(void){
 	static float qpot_lpf=0;
 	static float old_qpot_lpf=0xFFFF;
 	static uint16_t poll_ctr=0;
-	uint8_t update_rate_q = 100;
+	uint8_t update_rate_q = 10000;
 	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	
