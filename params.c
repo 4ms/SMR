@@ -693,6 +693,7 @@ void param_read_one_channel_level(uint8_t i)
 	t_lpf[i] += (1.0f-0.99902319908142089844)*t;
 	//0.9990234375 =  1-(1/(4096*0.25))
 	
+
 	level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[i])/4096.0;
 
 	if (level_lpf<=0.007) level_lpf=0.0;
@@ -709,12 +710,174 @@ void param_read_one_channel_level(uint8_t i)
 }
 
 void param_read_q(void){
+// 	int32_t t, i, num_locked;
+// 	static float qpot_lpf=0;
+// 	static float old_qpot_lpf=0xFFFF;
+// //	static poll_ctr=0;
+// 		
+// //	if (poll_ctr++>10){poll_ctr=0;
+// 
+// 		//Check jack
+// 		t=adc_buffer[QVAL_ADC];
+// 
+// 		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+// 			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
+// 			qvalcv=adc_buffer[QVAL_ADC];
+// 		}
+// 
+// 		// LPF qpot
+// 		t = potadc_buffer[QPOT_ADC];
+//  	 	qpot_lpf *= QPOT_LPF;
+//  	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
+// 		num_locked=0;
+// 
+// 		if (fabsf(qpot_lpf - old_qpot_lpf) > QPOT_MIN_CHANGE){
+// 			old_qpot_lpf=qpot_lpf;
+// 
+// 			if (ui_mode==PLAY){
+// 				for (i=0;i<6;i++){
+// 					if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+// 						q_locked[i]=1;
+// 						user_turned_Q_pot=1;
+// 
+// 						qval[i]=qpot_lpf;
+// 						num_locked++;
+// 					}
+// 				}
+// 			}
+// 		}
+// 		if (!num_locked) qvalpot=qpot_lpf;
+// 		for (i=0;i<NUM_CHANNELS;i++){
+// 			if (!q_locked[i]){
+// 				qval[i]=4095;
+// 				if (qval[i]>4095) qval[i]=4095;
+// 			}
+// 		}
+// //	}
+// }
 	int32_t t, i, num_locked;
-	static uint32_t qpot_lpf=0;
-	static uint32_t old_qpot_lpf=0xFFFF;
-	static poll_ctr=0;
+	static float qpot_lpf=0;
+	static float old_qpot_lpf=0xFFFF;
+	static uint16_t poll_ctr=0;
+	uint8_t update_rate_q = 100;
+	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+	
+	 	
+ 	if (poll_ctr++>update_rate_q){ // UPDATE RATE 
+		poll_ctr=0;
+
+		//Check jack + LPF
+		t=adc_buffer[QVAL_ADC];
+		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
+			t=adc_buffer[QVAL_ADC];
+			qvalcv *= QCV_LPF;
+			qvalcv += (1.0f-QCV_LPF)*t;
+		}
+
+
+		//Check pot + LPF
+		t = potadc_buffer[QPOT_ADC];
+		qpot_lpf *= QPOT_LPF;
+		qpot_lpf += (1.0f-QPOT_LPF)*t;
+
+		num_locked=0;
+
+		if (fabsf(qpot_lpf - old_qpot_lpf) > QPOT_MIN_CHANGE){
+			old_qpot_lpf=qpot_lpf;
+
+			if (ui_mode==PLAY){
+				for (i=0;i<6;i++){
+					if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+						q_locked[i]=1;
+						user_turned_Q_pot=1;
+
+						qval_goal[i]=qpot_lpf;
+						num_locked++;
+					}
+				}
+			}
+			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
+			//if (!j) qvalpot=qpot_lpf;
+		}
+
+		if (!num_locked) qvalpot=qpot_lpf;
+
+		for (i=0;i<NUM_CHANNELS;i++){
+			if (!q_locked[i]){
+				prev_qval[i]=qval_goal[i];
+				qval_goal[i]=qvalcv + qvalpot;
+				if (qval_goal[i]>4095) qval_goal[i]=4095;
+			}
+		}
+ 	}
+ 	// SMOOTH OUT DATA BETWEEN ADC READS
+ 	for (i=0;i<NUM_CHANNELS;i++){
+ 		qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/(float)(update_rate_q)));
+ 	}
+}
+
+// 
+//  	if (poll_ctr++>100){poll_ctr=0;
+// 
+// 		//Check jack + LPF
+// 		t=adc_buffer[QVAL_ADC];
+// 		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+// 			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
+// 			t=adc_buffer[QVAL_ADC];
+// 			qvalcv *= QCV_LPF;
+// 			qvalcv += (1.0f-QCV_LPF)*t;
+// 		}
+// 
+// 
+// 		//Check pot + LPF
+// 		t = potadc_buffer[QPOT_ADC];
+// 		qpot_lpf *= QPOT_LPF;
+// 		qpot_lpf += (1.0f-QPOT_LPF)*t;
+// 
+// 		num_locked=0;
+// 
+// 		if (fabsf(qpot_lpf -  old_qpot_lpf) > QPOT_MIN_CHANGE){
+// 			old_qpot_lpf=qpot_lpf;
+// 
+// 			if (ui_mode==PLAY){
+// 				for (i=0;i<6;i++){
+// 					if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+// 						q_locked[i]=1;
+// 						user_turned_Q_pot=1;
+// 
+// 						qval[i]=qpot_lpf;
+// 						num_locked++;
+// 					}
+// 				}
+// 			}
+// 
+// 			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
+// 			//if (!j) qvalpot=qpot_lpf;
+// 		}
+// 
+// 		if (!num_locked) qvalpot=qpot_lpf;
+// 
+// 		for (i=0;i<NUM_CHANNELS;i++){
+// 			if (!q_locked[i]){
+// 				qval[i]=qvalcv + qvalpot;
+// 				if (qval[i]>4095) qval[i]=4095;
+// 			}
+// 		}
+// 	}
+//}
+
+
+
+
+void param_read_one_q(int16_t i){
+	int32_t t, num_locked;
+	static float qpot_lpf 		= 0.0;
+	static float old_qpot_lpf 	= 0.0;
+	//static poll_ctr=0;
 		
-	if (poll_ctr++>10){poll_ctr=0;
+	//if (poll_ctr++>10){poll_ctr=0;
 
 		//Check jack
 		t=adc_buffer[QVAL_ADC];
@@ -730,28 +893,27 @@ void param_read_q(void){
  	 	qpot_lpf += (1.0f-QPOT_LPF)*t;
 		num_locked=0;
 
-		if (diff(qpot_lpf, old_qpot_lpf) > QPOT_MIN_CHANGE){
+		if (fabsf(qpot_lpf - old_qpot_lpf) > QPOT_MIN_CHANGE){
 			old_qpot_lpf=qpot_lpf;
 
 			if (ui_mode==PLAY){
-				for (i=0;i<6;i++){
-					if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
-						q_locked[i]=1;
-						user_turned_Q_pot=1;
+				if (lock_pressed[i]){ //if lock button is being held down, then q_lock the channel and assign its qval
+					q_locked[i]=1;
+					user_turned_Q_pot=1;
 
-						qval[i]=qpot_lpf;
-						num_locked++;
-					}else if (!lock[i]){qvalpot=qpot_lpf;}
+					qval[i]=qpot_lpf;
+					num_locked++;
 				}
 			}
 		}
-		for (i=0;i<NUM_CHANNELS;i++){
-			if (!q_locked[i]){
-				qval[i]=qvalcv + qvalpot;
-				if (qval[i]>4095) qval[i]=4095;
-			}
+		
+		if (!num_locked) qvalpot=qpot_lpf;
+
+		if (!q_locked[i]){
+			qval[i]=qvalcv + qvalpot;
+			if (qval[i]>4095) qval[i]=4095;
 		}
-	}
+	//}
 }
 
 
@@ -814,8 +976,9 @@ void param_read_switches(void){
 		old_cvlag=lag_val;
 
 		if (lag_val){ //CVLAG switch is flipped on, latch the current Morph adc value and use that to calculate LPF coefficients
-			lag_val=adc_buffer[MORPH_ADC];
-			if (lag_val<400) lag_val=400; //force some amount of CV Slew even if Morph knob is all the way down
+			lag_val=(float)(adc_buffer[MORPH_ADC])/2 + 2000;
+			//if (lag_val<2000) lag_val=2000; //force some amount of CV Slew even if Morph knob is all the way down
+			if (lag_val>4095) lag_val=4095;
 
 			t_LEVEL_LPF_ATTACK=	1.0 - (1.0/((lag_val)*0.10)); //0.95 to 0.997558
 			t_LEVEL_LPF_DECAY=	1.0 - (1.0/((lag_val)*0.25)); //0.98 to 0.999023
@@ -828,11 +991,9 @@ void param_read_switches(void){
 
 
 
-		}else{
-			lag_val=400;
-			
-			t_LEVEL_LPF_ATTACK=	0.975;
-			t_LEVEL_LPF_DECAY=	0.99;
+		}else{			
+			t_LEVEL_LPF_ATTACK=	0.995; //lag_val = 2000
+			t_LEVEL_LPF_DECAY=	0.998; //lag_val = 2000
 
 			if (t_LEVEL_LPF_ATTACK<0 || t_LEVEL_LPF_ATTACK>=1)	LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
 			else LEVEL_LPF_ATTACK = t_LEVEL_LPF_ATTACK;

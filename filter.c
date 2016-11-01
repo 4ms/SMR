@@ -74,7 +74,7 @@ extern uint32_t qval[NUM_CHANNELS];
 
 // 2-pass Crossfade
 float pos_in_cf; 		 // % of Qknob position within crossfade region
-float ratio_a, ratio_b;  // two-pass filter crossfade ratios
+uint16_t ratio_a, ratio_b;  // two-pass filter crossfade ratios
 
 extern enum Filter_Types filter_type;
 extern enum Filter_Modes filter_mode;
@@ -310,19 +310,25 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				nudge_filter_num = filter_num + 1;
 				if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
-			  // EXTRA LP ON QVAL
-				q_update_count+= 1;
-				if (q_update_count == QLPF_UPDATEPERIOD){
-					q_update_count=0;
-					if (firstrunq){
-						qsum[channel_num] = qval[channel_num] * QNUM;
-						firstrunq=0;
-					}
-					qsum[channel_num] 	-= qsum[channel_num] / QNUM;
-					qsum[channel_num] 	+= qval[channel_num];
-					qc[channel_num]   	=  qsum[channel_num] / QNUM; 
-				}
-			
+
+			  // UPDATE QVAL
+ 			  param_read_q();
+			   //param_read_one_q(channel_num);
+// 
+// 			  // EXTRA LP ON QVAL
+// 				q_update_count+= 1;
+// 				if (q_update_count == QLPF_UPDATEPERIOD){
+// 					q_update_count=0;
+// 					if (firstrunq){
+// 						qsum[channel_num] = qval[channel_num] * QNUM;
+// 						firstrunq=0;
+// 					}
+// 					qsum[channel_num] 	-= qsum[channel_num] / QNUM;
+// 					qsum[channel_num] 	+= qval[channel_num];
+// 					qc[channel_num]   	=  qsum[channel_num] / QNUM; 
+// 				}
+				qc[channel_num]   	=  qval[channel_num]; 
+			  
 			  // QVAL ADJUSTMENTS
 				// first filter max Q at noon on Q knob 
 				qval_a[channel_num]	= qc[channel_num] * 2;
@@ -385,10 +391,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1;}							
 					else {
 						pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
-						ratio_b  	= 1-epp_lut[(uint32_t)pos_in_cf];
+						ratio_a  	= (uint16_t)(1000 * epp_lut[(uint32_t)pos_in_cf]);
 					}
-					ratio_a = 1 - ratio_b ;									 							
-					filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  ratio_b * filter_out_b[j][i]/(0.0048 * qval_b[channel_num])); // output of filter two needs to be inverted to avoid phase cancellation
+					ratio_b = (1000 - ratio_a);
+														 							
+//  					filter_out[j][i] = (ratio_a * filter_out_a[j][i] -  ratio_b * filter_out_b[j][i]/(0.0048 * qval_b[channel_num])); // output of filter two needs to be inverted to avoid phase cancellation
+ 					filter_out[j][i] = (((float)(ratio_a) * filter_out_a[j][i]/1000.0f) -  ((float)(ratio_b) * filter_out_b[j][i] * 10 / ( 48 * qval_b[channel_num]))); // output of filter two needs to be inverted to avoid phase cancellation
+//					filter_out[j][i] = (0.3 * (ratio_b + ratio_a) * filter_out_b[j][i]);//(0.0048 * qval_b[channel_num])); // output of filter two needs to be inverted to avoid phase cancellation
 			
 				}	// Buffer elements 			
 			}		// not morphing

@@ -52,6 +52,7 @@
 
 #define QPOT_MIN_CHANGE 100
 #define QPOT_LPF 0.95
+#define QCV_LPF 0.95
 
 #define QLOCK_FLASH_SPEED 1500
 
@@ -65,9 +66,9 @@
 void param_read_freq(void);
 void param_read_channel_level(void);
 void param_read_one_channel_level(uint8_t i);
-void param_read_one_q(uint32_t i);
 void param_poll_switches(void);
 void param_read_q(void);
+void param_read_one_q(int16_t i);
 inline void update_lock_leds(void);
 inline uint8_t num_locks_pressed(void);
 void param_read_lock_buttons(void);
