@@ -363,7 +363,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 					check_input_clipping(left_buffer[i], right_buffer[i]);
 
-			if (channel_num & 1) tmp=right_buffer[i];
+					if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
 					
 				  // FIRST PASS (_a)
@@ -676,7 +676,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 	// MORPHING
-	
+	DEBUGA_ON(DEBUG0);
 	for (i=0;i<MONO_BUFSZ;i++){
 
 		filtered_buffer[i]=0;
@@ -693,12 +693,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
 
 
+			DEBUGA_ON(DEBUG1);
 			// update current value
 // 			if (l=1){
 			param_read_one_channel_level(j);
 // 			l=0;
 // 			}
 // 			else{l++;}
+			DEBUGA_OFF(DEBUG1);
 			
 			// APPLY LEVEL TO AUDIO OUT
 			  	// apply level
@@ -736,9 +738,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 
 	}
-
+	DEBUGA_OFF(DEBUG0);
+	
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
 
 	filter_type_changed=0;
-
+	
 }
