@@ -256,7 +256,7 @@ void update_spread(int8_t t_spread){
 
 
 inline void update_motion(void){
-	float f_morph;
+	static float f_morph=0.0;
 	uint16_t chan;
 	uint16_t test_chan;
 	int16_t i;
@@ -264,7 +264,8 @@ inline void update_motion(void){
 
 
 	//f_morph is how fast we morph (cross-fade increment)
-	f_morph=exp_4096[(adc_buffer[MORPH_ADC])];
+	f_morph *= 0.99;
+	f_morph += 0.01*exp_4096[(adc_buffer[MORPH_ADC])];
 
 	for (chan=0;chan<NUM_CHANNELS;chan++){
 

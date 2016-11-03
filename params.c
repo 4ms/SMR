@@ -1323,8 +1323,8 @@ void init_freq_update_timer(void)
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM10, ENABLE);
 
 	nvic.NVIC_IRQChannel = TIM1_UP_TIM10_IRQn;
-	nvic.NVIC_IRQChannelPreemptionPriority = 3;
-	nvic.NVIC_IRQChannelSubPriority = 3;
+	nvic.NVIC_IRQChannelPreemptionPriority = 1;
+	nvic.NVIC_IRQChannelSubPriority = 0;
 	nvic.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&nvic);
 
@@ -1336,7 +1336,7 @@ void init_freq_update_timer(void)
 
 	//168MHz / (Period+1)
 	TIM_TimeBaseStructInit(&tim);
-	tim.TIM_Period = 8195;
+	tim.TIM_Period = 4095;
 	tim.TIM_Prescaler = 0;
 	tim.TIM_ClockDivision = 0;
 	tim.TIM_CounterMode = TIM_CounterMode_Up;

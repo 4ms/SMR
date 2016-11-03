@@ -35,7 +35,7 @@ OBJCPY = $(ARCH)-objcopy
 OBJDMP = $(ARCH)-objdump
 GDB = $(ARCH)-gdb
 
-CFLAGS = -g2 -Ofast -fno-tree-loop-distribute-patterns 
+CFLAGS = -g -Ofast -fno-tree-loop-distribute-patterns 
 CFLAGS += -mlittle-endian -mthumb
 CFLAGS +=  -I. -DARM_MATH_CM4 -D'__FPU_PRESENT=1'  $(INCLUDES)  -DUSE_STDPERIPH_DRIVER
 CFLAGS += -mcpu=cortex-m4 -mfloat-abi=hard

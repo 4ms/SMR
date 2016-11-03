@@ -94,6 +94,9 @@ extern float channel_level[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
 extern enum Env_Out_Modes env_track_mode;
+extern uint8_t flag_update_LED_ring;
+extern int8_t motion_spread_dest[NUM_CHANNELS];
+extern int8_t motion_spread_dir[NUM_CHANNELS];
 
 ///
 	//CHANNEL LEVELS/SLEW
@@ -170,9 +173,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	float var_q, inv_var_q, var_f, inv_var_f;
-	register float tmp, fir, iir, iir_a;
+	float tmp, fir, iir, iir_a;
 	float c0,c0_a,c1,c2,c2_a;
-	float norm_exp; 
 	float a0,a1,a2;
 
 ///
@@ -181,7 +183,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float level_lpf;
 	//static float poll_ctr[NUM_CHANNELS]= {0.0,0.0,0.0,0.0,0.0,0.0};
 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
-	uint32_t update_rate_lvl= 50;
+	//uint32_t update_rate_lvl= 50;
 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 ///
@@ -189,6 +191,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
+
+	int32_t *ptmp_i32;
+	int32_t *ptmp_f;
 
 	// Q adjustments 
 	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
@@ -198,6 +203,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	static int firstrunq 		 		= 1;
  	static int q_update_count 			= 0;
 
+ 	static float level_inc[NUM_CHANNELS] = {0,0,0,0,0,0};
 	// ADC readout smoothing
 // 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
 // 	static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];				// ADC readout of channel level smoothed between samples
@@ -215,6 +221,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 //	static uint32_t q_poll_ctr=0;
 
 
+ 	static float f_morph=0.0;
 
  	DEBUGA_ON(DEBUG0);
 
@@ -230,6 +237,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	// Convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
+
+	//update_motion();
+
 
 	if (filter_type_changed)
 		filter_type=new_filter_type;
@@ -316,9 +326,145 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	 	//extra 8us when morphing with param_read_q() inside the channel loop.
 		param_read_q(); //Min time 0.643us, Mean time 0.91us, Max time 2.1us
 
+
+
+		for (channel_num=0; channel_num<NUM_CHANNELS; channel_num++)
+		{
+
+			filter_num=note[channel_num];
+			scale_num=scale[channel_num];
+
+		  //Freq nudge vector
+			var_f=freq_nudge[channel_num];
+			if (var_f<0.002) var_f=0.0;
+			if (var_f>0.998) var_f=1.0;
+			inv_var_f=1.0-var_f;
+
+			qc[channel_num]   	=  qval[channel_num];
+
+			//QVAL ADJUSTMENTS
+
+			// first filter max Q at noon on Q knob
+			qval_a[channel_num]	= qc[channel_num] * 2;
+			if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
+			//Can we skip this check? qval[] should always be positive, so should qc[] and thus qval_a[]
+			//else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
+
+			// limit q knob range on second filter
+			if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
+			else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;} //1000 to 3925
+			//Can we skip this check? We should be able to if qval[] is guarenteed to stay in range.
+			//if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
+			//else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;}
+
+			//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
+			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
+			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+
+
+			//FREQ: c1 = 2 * pi * freq / samplerate
+			c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
+			c1 *= freq_nudge[channel_num];
+			c1 *= freq_shift[channel_num];
+			if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
+
+			if (env_track_mode==ENV_VOLTOCT)
+				ENVOUT_preload[channel_num]=c1;
+
+			// CROSSFADE
+			if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0.0f; ratio_a=1.0f;}
+			else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1.0f; ratio_a=0.0f;}///DG set ratio_a to 0.0f but am not sure if this should be something else?
+			else {
+				pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
+				ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
+			}
+			ratio_b = (1.0f - ratio_a);
+			ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
+
+		  //AMPLITUDE: Boost high freqs and boost low resonance
+			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
+			c2    = (0.003 * c1) - (0.1*c0) + 0.102;
+			c2 *= ratio_b;
+
+			if (channel_num & 1) ptmp_i32=right_buffer;
+			else ptmp_i32=left_buffer;
+
+			j=channel_num;
+			for (i=0;i<MONO_BUFSZ;i++)
+			{
+			  // FIRST PASS (_a)
+				buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * (*ptmp_i32++);
+				buf_a[channel_num][scale_num][filter_num][0] = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
+
+				buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
+				filter_out_a[j][i] =  buf_a[channel_num][scale_num][filter_num][1];
+
+			  // SECOND PASS (_b)
+				buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2  * (filter_out_a[j][i]);
+				buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
+
+				buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
+				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
+
+				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
+
+			}	// Buffer elements
+
+
+			if (motion_morphpos[channel_num]>0.00001)
+			{
+
+				filter_num=motion_fadeto_note[channel_num];
+				scale_num=motion_fadeto_scale[channel_num];
+
+				//FREQ: c1 = 2 * pi * freq / samplerate
+				c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
+				c1 *= freq_nudge[channel_num];
+				c1 *= freq_shift[channel_num];
+				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
+
+				//AMPLITUDE: Boost high freqs and boost low resonance
+				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
+				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
+				c2 *= ratio_b;
+
+
+				if (channel_num & 1) ptmp_i32=right_buffer;
+				else ptmp_i32=left_buffer;
+
+				j=channel_num+6;
+				for (i=0;i<MONO_BUFSZ;i++)
+				{
+				  // FIRST PASS (_a)
+					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * (*ptmp_i32++);
+					buf_a[channel_num][scale_num][filter_num][0] = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
+
+					buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
+					filter_out_a[j][i] =  buf_a[channel_num][scale_num][filter_num][1];
+
+				  // SECOND PASS (_b)
+					buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2  * (filter_out_a[j][i]);
+					buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
+
+					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
+					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
+
+					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
+
+				}	// Buffer elements
+
+
+				if (env_track_mode==ENV_VOLTOCT && env_prepost_mode==PRE)
+						ENVOUT_preload[channel_num] = (ENVOUT_preload[channel_num] * (1.0f-motion_morphpos[channel_num])) + (c1 * motion_morphpos[channel_num]);
+
+			}
+		}
+
+
+
+/*
 		for (j=0;j<NUM_CHANNELS*2;j++)
 		{
-		 	DEBUGA_ON(DEBUG3);
 /////////////////from here to setting c0_a takes 0.73us per channel = 8.8us
 
 			if (j<6)
@@ -363,9 +509,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
 				else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;}
 
-			 	DEBUGA_OFF(DEBUG3);
-
-			 	DEBUGA_ON(DEBUG2);
 /////////////////Calculating the coefficients takes 0.95us per channel = 11.4us morphing
 
 			  //Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
@@ -392,6 +535,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				else {
 					pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
 					ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
+					//Note: ratio_a can go negative with the knob at 0, is that ok?
 				}
 				ratio_b = (1.0f - ratio_a);
 				ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
@@ -400,16 +544,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
 				c2 *= ratio_b;
-			 	DEBUGA_OFF(DEBUG2);
 
-			 	DEBUGA_ON(DEBUG1);
 /////////////////The buffer loop takes 3.9us for each channel = 46.8us morphing
-				for (i=0;i<MONO_BUFSZ/*/(96000/SAMPLERATE)*/;i++){
-					if (channel_num & 1) tmp=right_buffer[i];
-					else tmp=left_buffer[i];
-					
+				if (channel_num & 1) ptmp_i32=right_buffer;
+				else ptmp_i32=left_buffer;
+
+				for (i=0;i<MONO_BUFSZ;i++){
 				  // FIRST PASS (_a)
-					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * tmp;
+					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * (*ptmp_i32++);
 					iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
 					buf_a[channel_num][scale_num][filter_num][0] = iir_a;
 
@@ -425,14 +567,18 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
  							
  					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
-			
+
 				}	// Buffer elements
-			 	DEBUGA_OFF(DEBUG1);
 
 			}		// not morphing
 		}			// All channels	
 
-	} 				// Filter type 			
+
+*/
+
+
+
+	} 				// Filter type
 
 	
 	
@@ -716,8 +862,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	// ##########################################################
 
 
-
-
 	// MORPHING
 	for (i=0;i<MONO_BUFSZ;i++){
 
@@ -736,83 +880,77 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 			poll_ctr[j] +=1;
-			if (poll_ctr[j]>update_rate_lvl){ // UPDATE RATE 
+			if (poll_ctr[j]>50){ // UPDATE RATE
 		
 				poll_ctr[j]=0;
 				
-				t=potadc_buffer[j+SLIDER_ADC_BASE];
-				 if (t<20)
-					t=0;
-				else
-					t=t-20;
-
+				t = potadc_buffer[j+SLIDER_ADC_BASE];
+				if (t<20) t=0;
+				else t-=20;
 
 				// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
-				t_lpf[j] *= 0.9523012275f; //0.999023199f ^50
-				t_lpf[j] += 0.04769877248f *t;
-
+				//t_lpf[j] *= 0.9523012275f; //0.999023199f ^50
+				//t_lpf[j] += 0.04769877248f *t;
 				//0.9990234375 =  1-(1/(4096*0.25))
+				//Attenuate the CV signal by the slider value
+				//	level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
 
-				level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
-
-				prev_level[j] = level_goal[j];
-				
+				level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
 				if (level_lpf<=0.007) level_lpf=0.0;
 
-				if(level_goal[j] < level_lpf) {
-					level_goal[j] *= LEVEL_LPF_ATTACK;
-					level_goal[j] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
-				} else {
-					level_goal[j] *= LEVEL_LPF_DECAY;
-					level_goal[j] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
-				}
+				prev_level[j] = level_goal[j];
+
+				level_goal[j] *= LEVEL_LPF_DECAY;
+				level_goal[j] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
+
+				level_inc[j] = (level_goal[j]-prev_level[j])/50.0;
+				channel_level[j] = prev_level[j];
 			}
- 		  // SMOOTH OUT DATA BETWEEN ADC READS
- 	 		channel_level[j] = (prev_level[j] + ((float)poll_ctr[j] * (level_goal[j]-prev_level[j])/((float)update_rate_lvl)));
+			else // SMOOTH OUT DATA BETWEEN ADC READS
+				channel_level[j] += level_inc[j];
 
-
-			// update current value
- //			if (l=17){	
-//			param_read_one_channel_level(j);			
-// 			l=0;
-// 			}
-// 			else{l++;}
 			
 			// APPLY LEVEL TO AUDIO OUT
-			  	// apply level
-				if (j & 1)
-					s = filtered_buffer[i]  + (f_blended * channel_level[j]);
-				else
-					s = filtered_bufferR[i] + (f_blended * channel_level[j]);
-				
-				
-				asm("ssat %[dst], #32, %[src]" : [dst] "=r" (s) : [src] "r" (s));
 
-				if (j & 1)
-					filtered_buffer[i] = (int32_t)(s);
-				else
-					filtered_bufferR[i] = (int32_t)(s);
-				
-				
-				if (ui_mode==PLAY){
-					if ((f_blended * (channel_level[j])) > SLIDER_CLIP_LEVEL){
-// 					if ((f_blended * (channel_level[j] + smooth_level[j][i])) > SLIDER_CLIP_LEVEL){
-						if (slider_led_mode==SHOW_CLIPPING){
-							LED_SLIDER_ON(slider_led[j]);
-						}
+			if (j & 1)
+				filtered_buffer[i] += (f_blended * channel_level[j]);
+			else
+				filtered_bufferR[i] += (f_blended * channel_level[j]);
 
-					}
-				}
+			/*
+			if (j & 1)
+				s = filtered_buffer[i]  + (f_blended * channel_level[j]);
+			else
+				s = filtered_bufferR[i] + (f_blended * channel_level[j]);
 
-			if (env_track_mode != ENV_VOLTOCT){
-				if (f_blended>0)
-					ENVOUT_preload[j]=f_blended;
-				else
-					ENVOUT_preload[j]=-1.0*f_blended;
-			}
+			asm("ssat %[dst], #32, %[src]" : [dst] "=r" (s) : [src] "r" (s));
+
+			if (j & 1)
+				filtered_buffer[i] = (int32_t)(s);
+			else
+				filtered_bufferR[i] = (int32_t)(s);
+			*/
+
 
 		}
 
+	}
+
+	for (j=0;j<NUM_CHANNELS;j++)
+	{
+		f_blended = (filter_out[j][0] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][0] * motion_morphpos[j]);
+
+		if (slider_led_mode==SHOW_CLIPPING && ui_mode==PLAY){
+			if ((f_blended * channel_level[j]) > SLIDER_CLIP_LEVEL)
+				LED_SLIDER_ON(slider_led[j]);
+		}
+
+		if (env_track_mode != ENV_VOLTOCT){
+			if (f_blended>0)
+				ENVOUT_preload[j]=f_blended;
+			else
+				ENVOUT_preload[j]=-1.0*f_blended;
+		}
 	}
 	
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
