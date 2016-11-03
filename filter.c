@@ -705,7 +705,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		
 				poll_ctr[j]=0;
 				
-				t=potadc_buffer[i+SLIDER_ADC_BASE];
+				t=potadc_buffer[j+SLIDER_ADC_BASE];
 				 if (t<20)
 					t=0;
 				else
@@ -715,9 +715,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
 				t_lpf[j] *= 0.9523012275f; //0.999023199f ^50
 				t_lpf[j] += 0.04769877248f *t;
+
 				//0.9990234375 =  1-(1/(4096*0.25))
 
-				level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
+				level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
 
 				prev_level[j] = level_goal[j];
 				
