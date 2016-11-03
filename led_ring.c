@@ -63,6 +63,8 @@ extern uint8_t ongoing_fine_tuning[2];
 extern uint32_t fine_tuning_timeout[2];
 extern uint8_t lock[NUM_CHANNELS]; 
 
+// freq block
+extern int freqblock;
 
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
@@ -442,7 +444,16 @@ void display_filter_rotation(void){
 	for (i=0;i<20;i++){
 		for (chan=0;chan<6;chan++){
 			next_i=motion_fadeto_note[chan];
-			if (note[chan]==i){
+			
+			// DISPLAY BLOCKED FREQUENCIES
+			if ((freqblock & (1<<i))>>i){
+				ring[i][0] = 75;
+				ring[i][1] = 75;
+				ring[i][2] = 75;
+			}
+			
+			// PROCESS REST OF LED RING
+			else if (note[chan]==i){
 
 				if (inv_fade[chan]>0.0){
 					if (ring[i][0]+ring[i][1]+ring[i][2]==0){
@@ -473,8 +484,6 @@ void display_filter_rotation(void){
 					if (ring[next_i][0]>1023) ring[next_i][0]=1023;
 					if (ring[next_i][1]>1023) ring[next_i][1]=1023;
 					if (ring[next_i][2]>1023) ring[next_i][2]=1023;
-
-
 				}
 				chan=6;//break;
 			}
