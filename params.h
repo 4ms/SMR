@@ -65,7 +65,7 @@
 
 void param_read_freq(void);
 void param_read_channel_level(void);
-void param_read_one_channel_level(uint8_t i);
+// void param_read_one_channel_level(uint8_t i);
 void param_poll_switches(void);
 void param_read_q(void);
 void param_read_one_q(int16_t i);

@@ -40,8 +40,19 @@
  */
 void audio_convert_2x16_to_stereo24(uint16_t sz, int16_t *src, int32_t *ldst, int32_t *rdst)
 {
+
 	while(sz)
 	{
+		if (*ldst>INPUT_LED_CLIP_LEVEL)
+			LED_CLIPL_ON;
+		else
+			LED_CLIPL_OFF;
+
+		if (*rdst>INPUT_LED_CLIP_LEVEL)
+			LED_CLIPR_ON;
+		else
+			LED_CLIPR_OFF;
+
 		*ldst = ((int32_t)(*src))<<16;
 		*src++;
 		*ldst += *src;
@@ -51,7 +62,7 @@ void audio_convert_2x16_to_stereo24(uint16_t sz, int16_t *src, int32_t *ldst, in
 		*rdst = ((int32_t)(*src++))<<16;
 		*rdst += *src++;
 		*rdst++;
-
+		
 		sz-=4;
 	}
 }

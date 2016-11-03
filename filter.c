@@ -95,6 +95,14 @@ extern enum UI_Modes ui_mode;
 
 extern enum Env_Out_Modes env_track_mode;
 
+///
+	//CHANNEL LEVELS/SLEW
+	extern float LEVEL_LPF_ATTACK;
+	extern float LEVEL_LPF_DECAY;
+	extern uint16_t potadc_buffer[NUM_ADC3S];
+	extern uint16_t adc_buffer[NUM_ADCS];
+///
+	
 float *c_hiq[6];
 float *c_loq[6];
 float buf_a[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3]; // buffer for first filter of two-pass
@@ -105,10 +113,10 @@ float filter_out[NUM_FILTS][MONO_BUFSZ];
 
  
 // ADC readout smoothing
-static float prev_level[12] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
-static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];							// ADC readout of channel level smoothed between samples
-static float prev_qval[12]  = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};		// previous qval
-static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					 		// ADC readout of qval smoothed between samples
+// static float prev_level[12] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
+// static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];							// ADC readout of channel level smoothed between samples
+// static float prev_qval[12]  = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};		// previous qval
+// static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					 		// ADC readout of qval smoothed between samples
 //
 
 
@@ -127,18 +135,6 @@ void change_filter_mode(enum Filter_Modes newmode){
 void change_filter_type(enum Filter_Types newtype){
 	filter_type_changed=1;
 	new_filter_type=newtype;
-}
-
-inline void check_input_clipping(int32_t left_signal, int32_t right_signal){
-		if (left_signal>INPUT_LED_CLIP_LEVEL)
-			LED_CLIPL_ON;
-		else
-			LED_CLIPL_OFF;
-
-		if (right_signal>INPUT_LED_CLIP_LEVEL)
-			LED_CLIPR_ON;
-		else
-			LED_CLIPR_OFF;
 }
 
 void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
@@ -169,6 +165,17 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float norm_exp; 
 	float a0,a1,a2;
 
+///
+// 	uint16_t t;
+	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
+	float level_lpf;
+	//static float poll_ctr[NUM_CHANNELS]= {0.0,0.0,0.0,0.0,0.0,0.0};
+	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
+	uint32_t update_rate_lvl= 50;
+	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+///
+
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
 	uint8_t nudge_filter_num;
@@ -182,11 +189,16 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  	static int q_update_count 			= 0;
 
 	// ADC readout smoothing
-	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
-	static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];				// ADC readout of channel level smoothed between samples
-	static float prev_qval[NUM_CHANNELS]  = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous qval
-	static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					// ADC readout of qval smoothed between samples
+// 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
+// 	static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];				// ADC readout of channel level smoothed between samples
+// 	static float prev_qval[NUM_CHANNELS]  = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous qval
+// 	static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					// ADC readout of qval smoothed between samples
 	// 	
+
+
+ 	DEBUGA_ON(DEBUG0);
+
+
 
 	if (filter_mode != TWOPASS){ // not mandatory but save CPU in most cases
 		if (filter_type==BPRE && (
@@ -359,10 +371,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
 				c2 *= ratio_b;
-				
-				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-					check_input_clipping(left_buffer[i], right_buffer[i]);
 
+				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 					if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
 					
@@ -575,8 +585,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 					for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
-						check_input_clipping(left_buffer[i], right_buffer[i]);
-
 						if (channel_num & 1) tmp=right_buffer[i];
 						else tmp=left_buffer[i];
 
@@ -647,9 +655,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
 
-						//Input clipping
-						check_input_clipping(left_buffer[i], right_buffer[i]);
-
+						
 						tmp= buf[channel_num][scale_num][filter_num][0];
 						buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][1];
 
@@ -675,8 +681,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	// ##########################################################
 
 
+
+
 	// MORPHING
-	DEBUGA_ON(DEBUG0);
 	for (i=0;i<MONO_BUFSZ;i++){
 
 		filtered_buffer[i]=0;
@@ -693,14 +700,47 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
 
 
-			DEBUGA_ON(DEBUG1);
+			poll_ctr[j] +=1;
+			if (poll_ctr[j]>update_rate_lvl){ // UPDATE RATE 
+		
+				poll_ctr[j]=0;
+				
+				t=potadc_buffer[i+SLIDER_ADC_BASE];
+				 if (t<20)
+					t=0;
+				else
+					t=t-20;
+
+
+				// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
+				t_lpf[j] *= 0.9523012275f; //0.999023199f ^50
+				t_lpf[j] += 0.04769877248f *t;
+				//0.9990234375 =  1-(1/(4096*0.25))
+
+				level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
+
+				prev_level[j] = level_goal[j];
+				
+				if (level_lpf<=0.007) level_lpf=0.0;
+
+				if(level_goal[j] < level_lpf) {
+					level_goal[j] *= LEVEL_LPF_ATTACK;
+					level_goal[j] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
+				} else {
+					level_goal[j] *= LEVEL_LPF_DECAY;
+					level_goal[j] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
+				}
+			}
+ 		  // SMOOTH OUT DATA BETWEEN ADC READS
+ 	 		channel_level[j] = (prev_level[j] + ((float)poll_ctr[j] * (level_goal[j]-prev_level[j])/((float)update_rate_lvl)));
+
+
 			// update current value
-// 			if (l=1){
-			param_read_one_channel_level(j);
+ //			if (l=17){	
+//			param_read_one_channel_level(j);			
 // 			l=0;
 // 			}
 // 			else{l++;}
-			DEBUGA_OFF(DEBUG1);
 			
 			// APPLY LEVEL TO AUDIO OUT
 			  	// apply level
@@ -738,10 +778,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 
 	}
-	DEBUGA_OFF(DEBUG0);
 	
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
 
 	filter_type_changed=0;
-	
+	DEBUGA_OFF(DEBUG0);
 }

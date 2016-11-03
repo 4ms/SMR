@@ -674,50 +674,51 @@ void param_read_channel_level(void){
 	}
 }
 
-void param_read_one_channel_level(uint8_t i)
-{
-	uint16_t t;
-	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
-	float level_lpf;
-	uint16_t poll_ctr;
-
- 	if (poll_ctr++>update_rate_q){ // UPDATE RATE 
-		poll_ctr=0;
-		
-		
-		t=potadc_buffer[i+SLIDER_ADC_BASE];
-		 if (t<20)
-			t=0;
-		else
-			t=t-20;
-
-
-		// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
-		t_lpf[i] *= 0.999023199f;
-		t_lpf[i] += (0.000976801f)*t;
-		//0.9990234375 =  1-(1/(4096*0.25))
-
-
-		level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[i])/4096.0;
-
-
-		prev_level[i] = channel_level_goal[i];
-		
-		if (level_lpf<=0.007) level_lpf=0.0;
-
-		if(channel_level[i] < level_lpf) {
-			channel_level_goal[i] *= LEVEL_LPF_ATTACK;
-			channel_level_goal[i] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
-		} else {
-			channel_level_goal[i] *= LEVEL_LPF_DECAY;
-			channel_level_goal[i] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
-		}
-	}
- 	// SMOOTH OUT DATA BETWEEN ADC READS
- 	for (i=0;i<NUM_CHANNELS;i++){
- 		channel_level[i] = (uint32_t)(prev_level[i] + (poll_ctr * (channel_level_goal[i]-prev_level[i])/(float)(update_rate_q)));
- 	}
-}
+// void param_read_one_channel_level(uint8_t i)
+// {
+// 	uint16_t t;
+// 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
+// 	float level_lpf;
+// 	//static float poll_ctr[NUM_CHANNELS]= {0.0,0.0,0.0,0.0,0.0,0.0};
+// 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
+// 	uint32_t update_rate_lvl= 50;
+// 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+// 	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+// 	
+// 	poll_ctr[i] +=1;
+//  	if (poll_ctr[i]>update_rate_lvl){ // UPDATE RATE 
+// 		
+// 		poll_ctr[i]=0;
+// 				
+// 		t=potadc_buffer[i+SLIDER_ADC_BASE];
+// 		 if (t<20)
+// 			t=0;
+// 		else
+// 			t=t-20;
+// 
+// 
+// 		// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
+// 		t_lpf[i] *= 0.9523012275f; //0.999023199f ^50
+// 		t_lpf[i] += 0.04769877248f *t;
+// 		//0.9990234375 =  1-(1/(4096*0.25))
+// 
+// 		level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[i])/4096.0;
+// 
+// 		prev_level[i] = level_goal[i];
+// 				
+//  		if (level_lpf<=0.007) level_lpf=0.0;
+// 
+// 		if(level_goal[i] < level_lpf) {
+// 			level_goal[i] *= LEVEL_LPF_ATTACK;
+// 			level_goal[i] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
+// 		} else {
+// 			level_goal[i] *= LEVEL_LPF_DECAY;
+// 			level_goal[i] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
+// 		}
+// 	}
+//  	// SMOOTH OUT DATA BETWEEN ADC READS
+//  	 	channel_level[i] = (prev_level[i] + ((float)poll_ctr[i] * (level_goal[i]-prev_level[i])/((float)update_rate_lvl)));
+// }
 
 void param_read_q(void){
 
@@ -906,8 +907,8 @@ void param_read_switches(void){
 
 
 		}else{			
-			LEVEL_LPF_ATTACK=	0.995; //lag_val = 2000
-			LEVEL_LPF_DECAY=	0.998; //lag_val = 2000			
+			LEVEL_LPF_ATTACK=	0.778; //0.995 ^50 lag_val = 2000
+			LEVEL_LPF_DECAY=	0.904; //lag_val = 2000			
 		}
 	}
 
