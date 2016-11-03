@@ -35,6 +35,8 @@
 #include "rotary.h"
 #include "math.h"
 
+extern float exp_4096[4096];
+
 extern __IO uint16_t adc_buffer[NUM_ADCS];
 extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 
@@ -100,8 +102,7 @@ uint16_t rotate_to_next_scale;
 
 //CHANNEL LEVELS/SLEW
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
-float LEVEL_LPF_ATTACK=0;
-float LEVEL_LPF_DECAY=0;
+float CHANNEL_LEVEL_LPF=0;
 
 //Q POT AND CV
 uint32_t qval[NUM_CHANNELS];
@@ -623,103 +624,6 @@ void param_read_freq(void){
 
 }
 
-void param_read_channel_level(void){
-	float level_lpf;
-	uint8_t i;
-	uint16_t t;
-
-	if (ui_mode==EDIT_SCALES){
-		if (env_track_mode!=ENV_SLOW ) channel_level[0]=1.0;
-		else channel_level[0]=0.0;
-
-		if (env_track_mode!=ENV_FAST && env_track_mode!=ENV_VOLTOCT) channel_level[5]=1.0;
-		else channel_level[5]=0.0;
-
-		channel_level[1]=0.0;
-		channel_level[2]=0.0;
-		channel_level[3]=0.0;
-		channel_level[4]=0.0;
-
-	} else {
-
-		for (i=0;i<NUM_CHANNELS;i++){
-
-			//This is to be used if the sliders provide offset to the CV (hardware should be modified to remove Vref from switch tab of CV jacks)
-			//level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0)  +  ((float)(potadc_buffer[i+SLIDER_ADC_BASE])/4096.0f);
-			//if (level_lpf>1.0f) level_lpf=1.0f;
-
-
-			//This is to be used if the sliders attenuate the CV:
-
-			//Account for error on faceplate that doesn't allow slider to go to zero
-			t=potadc_buffer[i+SLIDER_ADC_BASE];
-			 if (t<20)
-				t=0;
-			else
-				t=t-20;
-
-			level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
-
-			if (level_lpf<=0.007) level_lpf=0.0;
-
-			if(channel_level[i] < level_lpf) {
-				channel_level[i] *= LEVEL_LPF_ATTACK;
-				channel_level[i] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
-			} else {
-				channel_level[i] *= LEVEL_LPF_DECAY;
-				channel_level[i] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
-			}
-
-			//if (channel_level[i]<0.0003) channel_level[i]=0.0;
-		}
-	}
-}
-
-// void param_read_one_channel_level(uint8_t i)
-// {
-// 	uint16_t t;
-// 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
-// 	float level_lpf;
-// 	//static float poll_ctr[NUM_CHANNELS]= {0.0,0.0,0.0,0.0,0.0,0.0};
-// 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
-// 	uint32_t update_rate_lvl= 50;
-// 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-// 	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-// 	
-// 	poll_ctr[i] +=1;
-//  	if (poll_ctr[i]>update_rate_lvl){ // UPDATE RATE 
-// 		
-// 		poll_ctr[i]=0;
-// 				
-// 		t=potadc_buffer[i+SLIDER_ADC_BASE];
-// 		 if (t<20)
-// 			t=0;
-// 		else
-// 			t=t-20;
-// 
-// 
-// 		// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
-// 		t_lpf[i] *= 0.9523012275f; //0.999023199f ^50
-// 		t_lpf[i] += 0.04769877248f *t;
-// 		//0.9990234375 =  1-(1/(4096*0.25))
-// 
-// 		level_lpf=((float)(adc_buffer[i+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[i])/4096.0;
-// 
-// 		prev_level[i] = level_goal[i];
-// 				
-//  		if (level_lpf<=0.007) level_lpf=0.0;
-// 
-// 		if(level_goal[i] < level_lpf) {
-// 			level_goal[i] *= LEVEL_LPF_ATTACK;
-// 			level_goal[i] += (1.0f-LEVEL_LPF_ATTACK)*level_lpf;
-// 		} else {
-// 			level_goal[i] *= LEVEL_LPF_DECAY;
-// 			level_goal[i] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
-// 		}
-// 	}
-//  	// SMOOTH OUT DATA BETWEEN ADC READS
-//  	 	channel_level[i] = (prev_level[i] + ((float)poll_ctr[i] * (level_goal[i]-prev_level[i])/((float)update_rate_lvl)));
-// }
 
 void param_read_q(void){
 
@@ -727,19 +631,20 @@ void param_read_q(void){
 	static float qpot_lpf=0;
 	static float old_qpot_lpf=0xFFFF;
 	static uint32_t poll_ctr=0;
-	uint32_t update_rate_q = 15;
 	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	
 
- 	if (poll_ctr++>update_rate_q){ // UPDATE RATE
+ 	if (poll_ctr++>15){ // UPDATE RATE
 		poll_ctr=0;
 
 		//Check jack + LPF
 		t=adc_buffer[QVAL_ADC];
-		if (diff(t,old_adc_buffer[QVAL_ADC])>15){
+		if (diff(t,old_adc_buffer[QVAL_ADC])>15)
+		{
 			old_adc_buffer[QVAL_ADC]=adc_buffer[QVAL_ADC];
 			t=adc_buffer[QVAL_ADC];
+
 			qvalcv *= QCV_LPF;
 			qvalcv += (1.0f-QCV_LPF)*t;
 		}
@@ -767,7 +672,6 @@ void param_read_q(void){
 				}
 			}
 			//otherwise, if no lock buttons were held down, then change the qvalpot (which effects all non-q_locked channels)
-			//if (!j) qvalpot=qpot_lpf;
 		}
 
 		if (!num_locked) qvalpot=qpot_lpf;
@@ -778,12 +682,12 @@ void param_read_q(void){
 				qval_goal[i]=qvalcv + qvalpot;
 				if (qval_goal[i]>4095) qval_goal[i]=4095;
 			}
+
 		}
  	}
  	// SMOOTH OUT DATA BETWEEN ADC READS
- 	for (i=0;i<NUM_CHANNELS;i++){
- 		qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/(float)(update_rate_q)));
- 		//qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])));
+	 for (i=0;i<NUM_CHANNELS;i++){
+ 		qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/15.0));
  	}
 }
 
@@ -893,24 +797,34 @@ void param_read_switches(void){
 		old_cvlag=lag_val;
 
 		if (lag_val){ //CVLAG switch is flipped on, latch the current Morph adc value and use that to calculate LPF coefficients
-			lag_val=(float)(adc_buffer[MORPH_ADC]) + 2000;
+
+			//Read from morph pot, and scale to 137..4095
+			lag_val = adc_buffer[MORPH_ADC] + 137;
+			if (lag_val>4095) lag_val=4095;
+
+
+			CHANNEL_LEVEL_LPF = 1.0 - exp_4096[lag_val];
+
 			//if (lag_val<2000) lag_val=2000; //force some amount of CV Slew even if Morph knob is all the way down
 			//if (lag_val>4095) lag_val=4095;
 
-			t_LEVEL_LPF_ATTACK=	1.0 - (1.0/((lag_val)*0.10)); 
-			t_LEVEL_LPF_DECAY=	1.0 - (1.0/((lag_val)*0.25)); 
+			//t_LEVEL_LPF_ATTACK=	1.0 - (1.0/((lag_val)*0.10));
+			//t_LEVEL_LPF_DECAY=	1.0 - (1.0/((lag_val)*0.25));
 
-			if (t_LEVEL_LPF_ATTACK<0 || t_LEVEL_LPF_ATTACK>=1)	LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
-			else LEVEL_LPF_ATTACK = t_LEVEL_LPF_ATTACK;
+			//if (t_LEVEL_LPF_ATTACK<0 || t_LEVEL_LPF_ATTACK>=1)	LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
+			//else LEVEL_LPF_ATTACK = t_LEVEL_LPF_ATTACK;
 
-			if (t_LEVEL_LPF_DECAY<0 || t_LEVEL_LPF_DECAY>=1)	LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
-			else LEVEL_LPF_DECAY = t_LEVEL_LPF_DECAY;
+		//	if (t_LEVEL_LPF_DECAY<0 || t_LEVEL_LPF_DECAY>=1)	LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
+			//else LEVEL_LPF_DECAY = t_LEVEL_LPF_DECAY;
 
 
 
 		}else{			
-			LEVEL_LPF_ATTACK=	0.778; //0.995 ^50 lag_val = 2000
-			LEVEL_LPF_DECAY=	0.904; //lag_val = 2000			
+			//LEVEL_LPF_ATTACK=	0.778; //0.995 ^50 lag_val = 2000
+			//LEVEL_LPF_DECAY=	0.904; //lag_val = 2000
+
+			CHANNEL_LEVEL_LPF = CHANNEL_LEVEL_MIN_LPF;
+
 		}
 	}
 

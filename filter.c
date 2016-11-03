@@ -94,14 +94,10 @@ extern float channel_level[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
 extern enum Env_Out_Modes env_track_mode;
-extern uint8_t flag_update_LED_ring;
-extern int8_t motion_spread_dest[NUM_CHANNELS];
-extern int8_t motion_spread_dir[NUM_CHANNELS];
 
 ///
 	//CHANNEL LEVELS/SLEW
-	extern float LEVEL_LPF_ATTACK;
-	extern float LEVEL_LPF_DECAY;
+	extern float CHANNEL_LEVEL_LPF;
 	extern uint16_t potadc_buffer[NUM_ADC3S];
 	extern uint16_t adc_buffer[NUM_ADCS];
 ///
@@ -181,9 +177,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 // 	uint16_t t;
 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 	float level_lpf;
-	//static float poll_ctr[NUM_CHANNELS]= {0.0,0.0,0.0,0.0,0.0,0.0};
 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
-	//uint32_t update_rate_lvl= 50;
 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 ///
@@ -193,7 +187,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	uint8_t nudge_filter_num;
 
 	int32_t *ptmp_i32;
-	int32_t *ptmp_f;
 
 	// Q adjustments 
 	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
@@ -204,13 +197,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  	static int q_update_count 			= 0;
 
  	static float level_inc[NUM_CHANNELS] = {0,0,0,0,0,0};
-	// ADC readout smoothing
-// 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
-// 	static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];				// ADC readout of channel level smoothed between samples
-// 	static float prev_qval[NUM_CHANNELS]  = {0.0,0.0,0.0,0.0,0.0,0.0};	// previous qval
-// 	static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					// ADC readout of qval smoothed between samples
-	// 	
-
 
  	//from param_read_q()
 //	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
@@ -221,10 +207,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 //	static uint32_t q_poll_ctr=0;
 
 
- 	static float f_morph=0.0;
-
  	DEBUGA_ON(DEBUG0);
-
 
 
 	if (filter_mode != TWOPASS){ // not mandatory but save CPU in most cases
@@ -238,13 +221,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	// Convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
-	//update_motion();
+	if (filter_type_changed) filter_type=new_filter_type;
 
 
-	if (filter_type_changed)
-		filter_type=new_filter_type;
 
-				
 
 	//############################### 2-PASS  ###################################
 	
@@ -256,6 +236,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		//To-Do: move this somewhere else, so it runs on a timer
 
 		for (i=0;i<NUM_CHANNELS;i++){ //This loop takes 1.51us when not changing scales
+
+			  // UPDATE QVAL
+				param_read_q();
 
 			//Range check scale_bank and scale
 			if (scale_bank[i]<0) scale_bank[i]=0;
@@ -316,21 +299,16 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 
 
+
+
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
 		//filter_out[6-11] are the morph destination values
 		//filter_out[channel1-6][buffer_sample]
 
-	  // UPDATE QVAL
-	   //35.4us - 66.4us morphing with param_read_q() outside the channel loop
-	 	//extra 8us when morphing with param_read_q() inside the channel loop.
-		param_read_q(); //Min time 0.643us, Mean time 0.91us, Max time 2.1us
-
-
 
 		for (channel_num=0; channel_num<NUM_CHANNELS; channel_num++)
 		{
-
 			filter_num=note[channel_num];
 			scale_num=scale[channel_num];
 
@@ -342,38 +320,30 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 			qc[channel_num]   	=  qval[channel_num];
 
-			//QVAL ADJUSTMENTS
+		// QVAL ADJUSTMENTS
 
 			// first filter max Q at noon on Q knob
 			qval_a[channel_num]	= qc[channel_num] * 2;
 			if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
-			//Can we skip this check? qval[] should always be positive, so should qc[] and thus qval_a[]
-			//else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
 
 			// limit q knob range on second filter
 			if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
 			else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;} //1000 to 3925
-			//Can we skip this check? We should be able to if qval[] is guarenteed to stay in range.
-			//if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
-			//else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;}
 
-			//Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
+			// Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
 			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
 
-
-			//FREQ: c1 = 2 * pi * freq / samplerate
+			// FREQ: c1 = 2 * pi * freq / samplerate
 			c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
 			c1 *= freq_nudge[channel_num];
 			c1 *= freq_shift[channel_num];
 			if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 
-			if (env_track_mode==ENV_VOLTOCT)
-				ENVOUT_preload[channel_num]=c1;
 
-			// CROSSFADE
-			if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0.0f; ratio_a=1.0f;}
-			else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1.0f; ratio_a=0.0f;}///DG set ratio_a to 0.0f but am not sure if this should be something else?
+			// CROSSFADE between the two filters
+			if 		(qc[channel_num] < CF_MIN) 	{ratio_a=1.0f;}
+			else if (qc[channel_num] > CF_MAX) 	{ratio_a=0.0f;}
 			else {
 				pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
 				ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
@@ -381,7 +351,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			ratio_b = (1.0f - ratio_a);
 			ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
 
-		  //AMPLITUDE: Boost high freqs and boost low resonance
+		    // AMPLITUDE: Boost high freqs and boost low resonance
 			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 			c2    = (0.003 * c1) - (0.1*c0) + 0.102;
 			c2 *= ratio_b;
@@ -408,9 +378,16 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
 
-			}	// Buffer elements
+			}
+
+			// VOCT output
+			if (env_track_mode==ENV_VOLTOCT) ENVOUT_preload[channel_num]=c1;
 
 
+
+			// Calculate the morph destination filter:
+			// Calcuate c1 and c2, which must be updated since the freq changed, and then calculate an entire filter for each channel that's morphing
+			// (Clearly, it makes for poor readability to duplicate the inner loop section above, but we save critical CPU time to do it this way)
 			if (motion_morphpos[channel_num]>0.00001)
 			{
 
@@ -428,7 +405,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
 				c2 *= ratio_b;
 
-
+				//Point to the left or right input buffer
 				if (channel_num & 1) ptmp_i32=right_buffer;
 				else ptmp_i32=left_buffer;
 
@@ -451,134 +428,16 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
 
-				}	// Buffer elements
+				}
 
-
+				// VOCT output with glissando
 				if (env_track_mode==ENV_VOLTOCT && env_prepost_mode==PRE)
 						ENVOUT_preload[channel_num] = (ENVOUT_preload[channel_num] * (1.0f-motion_morphpos[channel_num])) + (c1 * motion_morphpos[channel_num]);
 
 			}
 		}
 
-
-
-/*
-		for (j=0;j<NUM_CHANNELS*2;j++)
-		{
-/////////////////from here to setting c0_a takes 0.73us per channel = 8.8us
-
-			if (j<6)
-				channel_num=j;
-			else
-				channel_num=j-6;
-
-			if (j<6 || motion_morphpos[channel_num]!=0){
-			  // Set filter_num and scale_num to the Morph sources
-				if (j<6) {
-					filter_num=note[channel_num];
-					scale_num=scale[channel_num];
-
-			  // Set filter_num and scale_num to the Morph dests
-				} else {
-					filter_num=motion_fadeto_note[channel_num];
-					scale_num=motion_fadeto_scale[channel_num];
-				}
-
-			  //Freq nudge vector
-				var_f=freq_nudge[channel_num];
-				if (var_f<0.002) var_f=0.0;
-				if (var_f>0.998) var_f=1.0;
-				inv_var_f=1.0-var_f;
-
-				nudge_filter_num = filter_num + 1;
-				if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
-
-
-
-				qc[channel_num]   	=  qval[channel_num]; 
-			  
-			  // QVAL ADJUSTMENTS
-				// first filter max Q at noon on Q knob 
-				qval_a[channel_num]	= qc[channel_num] * 2;
-				if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
-				else if (qval_a[channel_num] < 0	){qval_a[channel_num]=0;   	}
-
-			  // limit q knob range on second filter
-				if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
-				else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
-				if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
-				else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;}
-
-/////////////////Calculating the coefficients takes 0.95us per channel = 11.4us morphing
-
-			  //Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-				c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
-				c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
-
-			  //FREQ: c1 = 2 * pi * freq / samplerate
-				c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
-                c1 *= freq_nudge[channel_num];				
-				c1 *= freq_shift[channel_num];
-				if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
-
-				if (env_track_mode==ENV_VOLTOCT){
-					if (j<6)
-						ENVOUT_preload[j]=c1;
-					else if (j>=6 && env_prepost_mode==PRE)
-						ENVOUT_preload[j-6] = (ENVOUT_preload[j-6] * (1.0f-motion_morphpos[j-6])) + (c1 * motion_morphpos[j-6]);
-				}
-
-			
-			  // CROSSFADE
-				if 		(qc[channel_num] < CF_MIN) 	{ratio_b = 0.0f;}
-				else if (qc[channel_num] > CF_MAX) 	{ratio_b = 1.0f;}							
-				else {
-					pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
-					ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
-					//Note: ratio_a can go negative with the knob at 0, is that ok?
-				}
-				ratio_b = (1.0f - ratio_a);
-				ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
-
-			  //AMPLITUDE: Boost high freqs and boost low resonance
-				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
-				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
-				c2 *= ratio_b;
-
-/////////////////The buffer loop takes 3.9us for each channel = 46.8us morphing
-				if (channel_num & 1) ptmp_i32=right_buffer;
-				else ptmp_i32=left_buffer;
-
-				for (i=0;i<MONO_BUFSZ;i++){
-				  // FIRST PASS (_a)
-					buf_a[channel_num][scale_num][filter_num][2] = (c0_a * buf_a[channel_num][scale_num][filter_num][1] + c1 * buf_a[channel_num][scale_num][filter_num][0]) - c2_a * (*ptmp_i32++);
-					iir_a = buf_a[channel_num][scale_num][filter_num][0] - (c1 * buf_a[channel_num][scale_num][filter_num][2]);
-					buf_a[channel_num][scale_num][filter_num][0] = iir_a;
-
-					buf_a[channel_num][scale_num][filter_num][1] = buf_a[channel_num][scale_num][filter_num][2];
-					filter_out_a[j][i] =  buf_a[channel_num][scale_num][filter_num][1];
-
-				  // SECOND PASS (_b)
-					buf[channel_num][scale_num][filter_num][2] = (c0 * buf[channel_num][scale_num][filter_num][1] + c1 * buf[channel_num][scale_num][filter_num][0]) - c2  * (filter_out_a[j][i]);
-					iir = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
-					buf[channel_num][scale_num][filter_num][0] = iir;
-
-					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
- 							
- 					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
-
-				}	// Buffer elements
-
-			}		// not morphing
-		}			// All channels	
-
-
-*/
-
-
-
-	} 				// Filter type
+	} 	// Filter type
 
 	
 	
@@ -878,37 +737,51 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			else
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
 
+		 	if (ui_mode==EDIT_SCALES){
+				if (env_track_mode!=ENV_SLOW ) channel_level[0]=1.0;
+				else channel_level[0]=0.0;
 
-			poll_ctr[j] +=1;
-			if (poll_ctr[j]>50){ // UPDATE RATE
-		
-				poll_ctr[j]=0;
-				
-				t = potadc_buffer[j+SLIDER_ADC_BASE];
-				if (t<20) t=0;
-				else t-=20;
+				if (env_track_mode!=ENV_FAST && env_track_mode!=ENV_VOLTOCT) channel_level[5]=1.0;
+				else channel_level[5]=0.0;
 
-				// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
-				//t_lpf[j] *= 0.9523012275f; //0.999023199f ^50
-				//t_lpf[j] += 0.04769877248f *t;
-				//0.9990234375 =  1-(1/(4096*0.25))
-				//Attenuate the CV signal by the slider value
-				//	level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
+				channel_level[1]=0.0;
+				channel_level[2]=0.0;
+				channel_level[3]=0.0;
+				channel_level[4]=0.0;
 
-				level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
-				if (level_lpf<=0.007) level_lpf=0.0;
+		 	} else {
 
-				prev_level[j] = level_goal[j];
+				poll_ctr[j] +=1;
+				if (poll_ctr[j]>50){ // UPDATE RATE
 
-				level_goal[j] *= LEVEL_LPF_DECAY;
-				level_goal[j] += (1.0f-LEVEL_LPF_DECAY)*level_lpf;
+					poll_ctr[j]=0;
 
-				level_inc[j] = (level_goal[j]-prev_level[j])/50.0;
-				channel_level[j] = prev_level[j];
-			}
-			else // SMOOTH OUT DATA BETWEEN ADC READS
-				channel_level[j] += level_inc[j];
+					t = potadc_buffer[j+SLIDER_ADC_BASE];
+					if (t<20) t=0;
+					else t-=20;
 
+					// We may want to add this back:
+					// apply LPF (equivalent to maximum cvlag) to slider adc readout, at all times
+					//t_lpf[j] *= 0.9523012275f;
+					//t_lpf[j] += 0.04769877248f *t;
+					//Attenuate the CV signal by the slider value
+					//	level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t_lpf[j])/4096.0;
+
+
+					level_lpf=((float)(adc_buffer[j+LEVEL_ADC_BASE])/4096.0) *  (float)(t)/4096.0;
+					if (level_lpf<=0.007) level_lpf=0.0;
+
+					prev_level[j] = level_goal[j];
+
+					level_goal[j] *= CHANNEL_LEVEL_LPF;
+					level_goal[j] += (1.0f-CHANNEL_LEVEL_LPF)*level_lpf;
+
+					level_inc[j] = (level_goal[j]-prev_level[j])/50.0;
+					channel_level[j] = prev_level[j];
+				}
+				else // SMOOTH OUT DATA BETWEEN ADC READS
+					channel_level[j] += level_inc[j];
+		 	}
 			
 			// APPLY LEVEL TO AUDIO OUT
 
@@ -916,21 +789,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				filtered_buffer[i] += (f_blended * channel_level[j]);
 			else
 				filtered_bufferR[i] += (f_blended * channel_level[j]);
-
-			/*
-			if (j & 1)
-				s = filtered_buffer[i]  + (f_blended * channel_level[j]);
-			else
-				s = filtered_bufferR[i] + (f_blended * channel_level[j]);
-
-			asm("ssat %[dst], #32, %[src]" : [dst] "=r" (s) : [src] "r" (s));
-
-			if (j & 1)
-				filtered_buffer[i] = (int32_t)(s);
-			else
-				filtered_bufferR[i] = (int32_t)(s);
-			*/
-
 
 		}
 
