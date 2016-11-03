@@ -26,6 +26,7 @@
  * -----------------------------------------------------------------------------
  */
 
+
 #include "globals.h"
 #include "params.h"
 #include "dig_inouts.h"
@@ -725,13 +726,13 @@ void param_read_q(void){
 	int32_t t, i, num_locked;
 	static float qpot_lpf=0;
 	static float old_qpot_lpf=0xFFFF;
-	static uint16_t poll_ctr=0;
-	uint8_t update_rate_q = 255;
+	static uint32_t poll_ctr=0;
+	uint32_t update_rate_q = 15;
 	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	
-	 	
- 	if (poll_ctr++>update_rate_q){ // UPDATE RATE 
+
+ 	if (poll_ctr++>update_rate_q){ // UPDATE RATE
 		poll_ctr=0;
 
 		//Check jack + LPF
@@ -782,6 +783,7 @@ void param_read_q(void){
  	// SMOOTH OUT DATA BETWEEN ADC READS
  	for (i=0;i<NUM_CHANNELS;i++){
  		qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/(float)(update_rate_q)));
+ 		//qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])));
  	}
 }
 
@@ -1351,6 +1353,9 @@ void TIM1_UP_TIM10_IRQHandler(void)
 	if (TIM_GetITStatus(TIM10, TIM_IT_Update) != RESET) {
 
 		param_read_freq();
+
+		update_slider_LEDs();
+		update_motion();
 
 		TIM_ClearITPendingBit(TIM10, TIM_IT_Update);
 

@@ -102,6 +102,16 @@ extern enum Env_Out_Modes env_track_mode;
 	extern uint16_t potadc_buffer[NUM_ADC3S];
 	extern uint16_t adc_buffer[NUM_ADCS];
 ///
+
+	///
+	///param_read_q():
+//	extern uint16_t old_adc_buffer[NUM_ADCS];
+//	extern uint32_t qvalcv, qvalpot;
+//	extern uint8_t lock_pressed[NUM_CHANNELS]; 	// MOMENTARY 1 while button pressed. 0 otherwise
+//	extern uint8_t q_locked[NUM_CHANNELS];
+//	extern uint8_t user_turned_Q_pot;
+	///
+
 	
 float *c_hiq[6];
 float *c_loq[6];
@@ -196,6 +206,16 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	// 	
 
 
+ 	//from param_read_q()
+//	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+//	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
+//	static float qpot_lpf=0;
+//	static float old_qpot_lpf=0xFFFF;
+//	int16_t num_locked;
+//	static uint32_t q_poll_ctr=0;
+
+
+
  	DEBUGA_ON(DEBUG0);
 
 
@@ -207,20 +227,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				|| scale_bank[4]>=NUMSCALEBANKS || scale_bank[5]>=NUMSCALEBANKS  ))
 			change_filter_type(MAXQ);
 	}
-	
+
 	// Convert 16-bit pairs to 24-bits stuffed into 32-bit integers: 1.6us
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
-	update_slider_LEDs(); //To-Do: move this somewhere else, so it runs on a timer
-
-	//Handle motion
-	update_motion(); //To-Do: move this somewhere else, so it runs on a timer
-	
 	if (filter_type_changed)
 		filter_type=new_filter_type;
 
 				
-	
 
 	//############################### 2-PASS  ###################################
 	
@@ -230,7 +244,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
 		//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
 		//To-Do: move this somewhere else, so it runs on a timer
-		for (i=0;i<NUM_CHANNELS;i++){
+
+		for (i=0;i<NUM_CHANNELS;i++){ //This loop takes 1.51us when not changing scales
 
 			//Range check scale_bank and scale
 			if (scale_bank[i]<0) scale_bank[i]=0;
@@ -287,13 +302,24 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(user_scalebank);
 				}
 			}
+
 		}
+
 
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
 		//filter_out[6-11] are the morph destination values
 		//filter_out[channel1-6][buffer_sample]
-		for (j=0;j<NUM_CHANNELS*2;j++){
+
+	  // UPDATE QVAL
+	   //35.4us - 66.4us morphing with param_read_q() outside the channel loop
+	 	//extra 8us when morphing with param_read_q() inside the channel loop.
+		param_read_q(); //Min time 0.643us, Mean time 0.91us, Max time 2.1us
+
+		for (j=0;j<NUM_CHANNELS*2;j++)
+		{
+		 	DEBUGA_ON(DEBUG3);
+/////////////////from here to setting c0_a takes 0.73us per channel = 8.8us
 
 			if (j<6)
 				channel_num=j;
@@ -301,7 +327,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				channel_num=j-6;
 
 			if (j<6 || motion_morphpos[channel_num]!=0){
-
 			  // Set filter_num and scale_num to the Morph sources
 				if (j<6) {
 					filter_num=note[channel_num];
@@ -323,8 +348,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
 
 
-			  // UPDATE QVAL
- 			 	param_read_q();
+
 				qc[channel_num]   	=  qval[channel_num]; 
 			  
 			  // QVAL ADJUSTMENTS
@@ -337,8 +361,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
 				else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;}
 				if 		(qval_b[channel_num] > 4095	){qval_b[channel_num]=4095;}
-				else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;} 						
-																
+				else if (qval_b[channel_num] < 0	){qval_b[channel_num]=0;}
+
+			 	DEBUGA_OFF(DEBUG3);
+
+			 	DEBUGA_ON(DEBUG2);
+/////////////////Calculating the coefficients takes 0.95us per channel = 11.4us morphing
+
 			  //Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 				c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
 				c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
@@ -371,8 +400,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 				c2    = (0.003 * c1) - (0.1*c0) + 0.102;
 				c2 *= ratio_b;
+			 	DEBUGA_OFF(DEBUG2);
 
-				for (i=0;i<MONO_BUFSZ/(96000/SAMPLERATE);i++){
+			 	DEBUGA_ON(DEBUG1);
+/////////////////The buffer loop takes 3.9us for each channel = 46.8us morphing
+				for (i=0;i<MONO_BUFSZ/*/(96000/SAMPLERATE)*/;i++){
 					if (channel_num & 1) tmp=right_buffer[i];
 					else tmp=left_buffer[i];
 					
@@ -394,11 +426,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  							
  					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
 			
-				}	// Buffer elements 			
+				}	// Buffer elements
+			 	DEBUGA_OFF(DEBUG1);
+
 			}		// not morphing
 		}			// All channels	
+
 	} 				// Filter type 			
-	
+
 	
 	
 	//###################### ORIGINAL 1-PASS ###################################

@@ -30,6 +30,7 @@
 #ifndef FILTER_H_
 #define FILTER_H_
 
+#include "globals.h"
 // Q LPF
 #define QNUM 50					// number of q values in buffer of Q LPF
 #define QLPF_UPDATEPERIOD 5 	// Low-passed qval updated every QLPF_UPDATEPERIOD
