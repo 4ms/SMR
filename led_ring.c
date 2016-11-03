@@ -64,7 +64,8 @@ extern uint32_t fine_tuning_timeout[2];
 extern uint8_t lock[NUM_CHANNELS]; 
 
 // freq block
-extern int freqblock;
+extern uint32_t freqblock;
+//
 
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;

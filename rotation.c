@@ -60,7 +60,7 @@ extern uint16_t rotate_to_next_scale;
 extern uint8_t flag_update_LED_ring;
 
 //FREQ BLOCKS
-extern int freqblock;
+extern uint32_t freqblock;
 uint32_t test_spot;
 //
 

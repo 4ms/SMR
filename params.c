@@ -99,7 +99,7 @@ float envspeed_attack, envspeed_decay;
 uint16_t rotate_to_next_scale;
 
 //FREQ BLOCKS
-int freqblock = 0b00000000000000000000; // 20 freq positions
+uint32_t freqblock = 0b00000000000000000000; // 20 freq positions
 
 //CHANNEL LEVELS/SLEW
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
@@ -835,22 +835,46 @@ void process_lock_buttons(){
 	 
 	// LOCK BUTTON PROCESSING
 	for (i=0;i<6;i++){
+		
 		if (LOCKBUTTON(i)){
 			lock_up[i]=1;
-			if(ROTARY_SW){
+			
+			// FREQ BLOCK
+			if((ui_mode==PLAY) && ROTARY_SW){
+		
+			  	// APPLY / CLEAR SINGLE FREQ BLOCKS
 				if(!(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5])){				
+		
 					//disable lock state change
 					already_handled_lock_release[i]=1;					
-					// freq-block frequency if freq-unblocked
-					if (!((freqblock & (1 << i)) >> i)){
+		
+				  	// freq-block frequency if freq-unblocked
+					if (!(freqblock & (1<<note[i]))) {
 						freqblock |= (1 << note[i]);  
-					}
 					// freq-unblock frequency if freq-blocked
-					else {
-						freqblock &= !(1 << note[i]);  
+					}else{  
+						freqblock &= ~(1 << note[i]);  
 					}
-				}	
+		
+				 	
+				}else{
+		
+			  	// CLEAR ALL FREQBLOCKS
+				// if all lock buttons pressed, and rotary switched
+				// clear all freq-blocks
+				// 	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
+				// 		if(ROTARY_SW){
+				freqblock &= 0b00000000000000000000;
+				already_handled_lock_release[0]=1;	
+				already_handled_lock_release[1]=1;	
+				already_handled_lock_release[2]=1;	
+				already_handled_lock_release[3]=1;	
+				already_handled_lock_release[4]=1;	
+				already_handled_lock_release[5]=1;	
+				}
+				
 			}else{
+		
 				if (lock_down[i]!=0
 					&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
 					lock_down[i]++;
@@ -947,22 +971,6 @@ void process_lock_buttons(){
 
 			lock_down[i]=1;
 
-		}
-	}
-	
-
-	// FREQBLOCK CLEAR
-	// if all lock buttons pressed, and rotary switched
-	// clear all freq-blocks
-	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
-		if(ROTARY_SW){
-		freqblock &= 0b00000000000000000000;
-		already_handled_lock_release[0]=1;	
-		already_handled_lock_release[1]=1;	
-		already_handled_lock_release[2]=1;	
-		already_handled_lock_release[3]=1;	
-		already_handled_lock_release[4]=1;	
-		already_handled_lock_release[5]=1;	
 		}
 	}
 
