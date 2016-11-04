@@ -41,7 +41,7 @@ extern float envspeed_attack, envspeed_decay;
 
 extern float channel_level[NUM_CHANNELS];
 
-float VOLTOCT_PWM_TRACKING[NUM_CHANNELS]={1.0f, 1.05f, 1.1f, 0.95f, 0.9f, 0.75f};
+float VOLTOCT_PWM_TRACKING[NUM_CHANNELS]={1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
 
 
 void init_envout_pwm(void){
