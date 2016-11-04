@@ -100,6 +100,7 @@ uint16_t rotate_to_next_scale;
 
 //FREQ BLOCKS
 uint32_t freqblock = 0b00000000000000000000; // 20 freq positions
+int num_freq_blocked=0;
 
 //CHANNEL LEVELS/SLEW
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
@@ -848,12 +849,14 @@ void process_lock_buttons(){
 					//disable lock state change
 					already_handled_lock_release[i]=1;					
 		
-				  	// freq-block frequency if freq-unblocked
-					if (!(freqblock & (1<<note[i]))) {
-						freqblock |= (1 << note[i]);  
+				  	// freq-block frequency if freq-unblocked, and less than 15 freq have been locked
+					if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<13)) {
+						freqblock |= (1 << note[i]); 
+						num_freq_blocked += 1; 
 					// freq-unblock frequency if freq-blocked
 					}else{  
 						freqblock &= ~(1 << note[i]);  
+						num_freq_blocked -= 1; 
 					}
 		
 				 	
@@ -865,6 +868,7 @@ void process_lock_buttons(){
 				// 	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
 				// 		if(ROTARY_SW){
 				freqblock &= 0b00000000000000000000;
+				num_freq_blocked = 0;
 				already_handled_lock_release[0]=1;	
 				already_handled_lock_release[1]=1;	
 				already_handled_lock_release[2]=1;	
