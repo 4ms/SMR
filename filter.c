@@ -217,7 +217,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	if (filter_type_changed) filter_type=new_filter_type;
 
 
-
 	//############################### 2-PASS  ###################################
 	
 	if (filter_mode == TWOPASS){
@@ -289,13 +288,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 
 
+	 // UPDATE QVAL
+		param_read_q();
 
 
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
 		//filter_out[6-11] are the morph destination values
 		//filter_out[channel1-6][buffer_sample]
-
 
 		for (channel_num=0; channel_num<NUM_CHANNELS; channel_num++)
 		{
@@ -308,8 +308,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			if (var_f>0.998) var_f=1.0;
 			inv_var_f=1.0-var_f;
 
-		 // UPDATE QVAL
-			param_read_q();
 			qc[channel_num]   	=  qval[channel_num];
 
 		// QVAL ADJUSTMENTS
