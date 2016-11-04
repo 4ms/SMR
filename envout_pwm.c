@@ -41,7 +41,7 @@ extern float envspeed_attack, envspeed_decay;
 
 extern float channel_level[NUM_CHANNELS];
 
-float VOLTOCT_PWM_TRACKING[NUM_CHANNELS]={1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+float voltoct_pwm_tracking = 1.0f;
 
 
 void init_envout_pwm(void){
@@ -180,10 +180,12 @@ void update_ENVOUT_PWM(void){
 
 	if (env_track_mode==ENV_VOLTOCT) //takes 5us, every 20us
 	{
-		for (j=0;j<NUM_CHANNELS;j++){
-			//k=ENVOUT_preload[j] * (8192.0 * VOLTOCT_PWM_TRACKING[j]);
-			k=ENVOUT_preload[j] * 8192;
-			ENVOUT_PWM[j] = (uint32_t)(VOLTOCT_PWM_TRACKING[j] * (float)(FreqCoef_to_PWMval(k,ENVOUT_preload[j])));
+		for (j=0;j<NUM_CHANNELS;j++)
+		{
+			k=ENVOUT_preload[j] * 8192;		//multiply the preload float value by 8192 so we can do a series of integer comparisons in FreqCoef_to_PWMval()
+											//it turns out integer comparisons are faster than float comparisons, and we do a lot of them in FreqCoef_to_PWMval()
+
+			ENVOUT_PWM[j] = (uint32_t)(voltoct_pwm_tracking * (float)(FreqCoef_to_PWMval(k,ENVOUT_preload[j])));
 		}
 	}
 	else if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST)
@@ -254,7 +256,10 @@ uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 	// ,$s/\(\d*\),\(\d*\),\(\d*\),\(\d*\)/else if (k<=\1) {t=\1;b=\2;tval=\3;bval=\4;}/
 	// ,$s/\(\d*\.\d*\),\(\d*\.\d*\),\(\d*\),\(\d*\)/else if (k<=\1) {t=\1;b=\2;tval=\3;bval=\4;}/
 
-/*
+/* This is what the comparisons would be if we did float comparisons.
+ * It's more accurate to do it this way, but time tests show that it's slower than comparing integers
+ * Todo: Is it possible to optimize float comparisons to be of equal speed as integers?
+ *
 	if (k<=0.001799870791119) return(0);
 	else if (k<=0.001906896677806) {t=0.001906896677806;b=0.001799870791119;tval=43;bval=0;}
 	else if (k<=0.002020286654891) {t=0.002020286654891;b=0.001906896677806;tval=85;bval=43;}

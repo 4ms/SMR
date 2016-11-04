@@ -163,6 +163,7 @@ void main(void)
 		if (ui_mode==EDIT_SCALES){
 			handle_edit_scale();
 			handle_edit_tracking();
+			handle_edit_voct();
 		}
 
 		if (ui_mode==EDIT_COLORS)

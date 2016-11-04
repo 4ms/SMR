@@ -47,14 +47,15 @@ extern enum UI_Modes ui_mode;
 
 extern uint8_t editscale_notelocked;
 extern uint8_t editscale_tracklocked;
+extern uint8_t editscale_voctlocked;
 
 uint16_t old_adc_buffer[NUM_ADCS];
 uint16_t old_potadc_buffer[NUM_ADC3S];
 
 extern uint32_t rotary_state;
 
-float trackcomp[NUM_CHANNELS]={1.0,1.0};
-int16_t trackoffset[NUM_CHANNELS]={0,0};
+float trackcomp[2]={1.0,1.0};
+int16_t trackoffset[2]={0,0};
 
 
 //FREQ NUDGE/LOCK JACKS
@@ -930,10 +931,22 @@ void process_lock_buttons(){
 				}
 				if (ui_mode==EDIT_SCALES){
 					if (i<4)
-						editscale_notelocked=1-editscale_notelocked;
-					else
-						editscale_tracklocked=1-editscale_tracklocked;
+					{
+						editscale_notelocked = 1-editscale_notelocked;
+						editscale_tracklocked = 1;
+						editscale_voctlocked = 1;
+					} else if (i==4)
+					{
+						editscale_notelocked = 1;
+						editscale_tracklocked = 1-editscale_tracklocked;
+						editscale_voctlocked = 1;
 
+					} else
+					{
+						editscale_notelocked = 1;
+						editscale_tracklocked = 1;
+						editscale_voctlocked = 1-editscale_voctlocked;
+					}
 				}
 
 				if (ui_mode==SELECT_PARAMS){

@@ -68,8 +68,10 @@ extern uint8_t hover_scale_bank;
 
 extern uint8_t slider_led_mode;
 
-extern float trackcomp[NUM_CHANNELS];
-extern int16_t trackoffset[NUM_CHANNELS];
+extern float trackcomp[2];
+extern int16_t trackoffset[2];
+
+extern float voltoct_pwm_tracking;
 
 extern float user_scalebank[231];
 
@@ -99,8 +101,11 @@ extern float user_scalebank[231];
 #define FLASH_ADDR_trackoffset2 	(FLASH_ADDR_trackoffset1 	+ SZ_TO1) 		/* 20 ..23	*/
 #define SZ_TO2 4
 
-#define FLASH_ADDR_future_globals	(FLASH_ADDR_trackoffset2	+ SZ_TO2)		/* 24 ..133 */
-#define SZ_FG 110
+#define FLASH_ADDR_voltoct_pwm_tracking (FLASH_ADDR_trackoffset2 + SZ_TO2) 		/* 24 ..27	*/
+#define SZ_VOT 4
+
+#define FLASH_ADDR_future_globals	(FLASH_ADDR_voltoct_pwm_tracking + SZ_VOT)		/* 28 ..133 */
+#define SZ_FG 106
 
 //Parameter banks:
 #define FLASH_ADDR_START_PARAMBANKS		(FLASH_ADDR_future_globals	+ SZ_FG)		/* 134 		*/
@@ -141,8 +146,8 @@ extern float user_scalebank[231];
 uint32_t flash_firmware_version=0;
 uint8_t flash_startupbank=0;
 uint8_t flash_clipmode=0;
-float flash_trackcomp[NUM_CHANNELS]={1.0,1.0};
-int32_t flash_trackoffset[NUM_CHANNELS]={0,0};
+float flash_trackcomp[2]={1.0,1.0};
+int32_t flash_trackoffset[2]={0,0};
 uint8_t flash_bankstatus[FLASH_NUM_parambanks];
 uint8_t flash_note[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint8_t flash_scale[FLASH_NUM_parambanks][NUM_CHANNELS];
@@ -156,7 +161,7 @@ uint8_t flash_filter_mode[FLASH_NUM_parambanks];
 uint8_t flash_cur_colsch[FLASH_NUM_parambanks];
 float flash_COLOR_CH[16][6][3];
 float flash_user_scalebank[231];
-
+float flash_voltoct_pwm_tracking;
 
 
 void factory_reset(void){
@@ -170,6 +175,7 @@ void factory_reset(void){
 	flash_trackcomp[1]=1.0;
 	flash_trackoffset[0]=0;
 	flash_trackoffset[1]=0;
+	flash_voltoct_pwm_tracking = 1.0;
 
 	for (i=0;i<FLASH_NUM_parambanks;i++){
 		flash_bankstatus[i] 		= 0xFF;
@@ -275,7 +281,7 @@ void store_params_into_sram(uint8_t bank_num){
 
 //load SRAM globals into active params
 void load_global_params(void){
-	uint8_t chan;
+	uint8_t i;
 	uint32_t sz;
 	uint8_t *src;
 	uint8_t *dst;
@@ -295,13 +301,21 @@ void load_global_params(void){
 
 	slider_led_mode = (flash_clipmode==DONT_SHOW_CLIPPING) ? DONT_SHOW_CLIPPING : SHOW_CLIPPING;
 
-	for (chan=0;chan<NUM_CHANNELS;chan++){
-		trackcomp[chan] = flash_trackcomp[chan];
-		if (trackcomp[chan]<0.5 || trackcomp[chan]>2.0) trackcomp[chan]=1.0; //sanity check
+	trackcomp[0] = flash_trackcomp[0];
+	if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
 
-		trackoffset[chan] = flash_trackoffset[chan];
-		if (trackoffset[chan] < -100 || trackoffset[chan] > 100) trackoffset[chan]=0; //sanity check
-	}
+	trackoffset[0] = flash_trackoffset[0];
+	if (trackoffset[0] < -100 || trackoffset[0] > 100) trackoffset[0]=0; //sanity check
+
+	trackcomp[1] = flash_trackcomp[1];
+	if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
+
+	trackoffset[1] = flash_trackoffset[1];
+	if (trackoffset[1] < -100 || trackoffset[1] > 100) trackoffset[1]=0; //sanity check
+
+	voltoct_pwm_tracking = flash_voltoct_pwm_tracking;
+	if (voltoct_pwm_tracking < 0.5 || voltoct_pwm_tracking > 2.0) voltoct_pwm_tracking=1.0; //sanity check
+
 }
 
 //stores active global params into SRAM
@@ -332,6 +346,8 @@ void store_globals_into_sram(void){
 	flash_trackoffset[0] = trackoffset[0];
 	flash_trackcomp[1] = trackcomp[1];
 	flash_trackoffset[1] = trackoffset[1];
+
+	flash_voltoct_pwm_tracking =  voltoct_pwm_tracking;
 }
 
 
@@ -384,6 +400,10 @@ void read_all_params_from_FLASH(void){ //~200uS
 	flash_trackoffset[0] = flash_read_word(FLASH_ADDR_trackoffset1);
 	flash_trackoffset[1] = flash_read_word(FLASH_ADDR_trackoffset2);
 
+
+	t = flash_read_word(FLASH_ADDR_voltoct_pwm_tracking);
+	if (t==0xFFFFFFFF) t=1;
+	flash_voltoct_pwm_tracking=*(float *)&t;
 
 	for (bank_i=0;bank_i<6;bank_i++){
 		flash_bankstatus[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_bankstatus + (FLASH_SIZE_parambank * bank_i));
@@ -474,6 +494,9 @@ void write_all_params_to_FLASH(void){
 	flash_open_program_word(*(uint32_t *)&(flash_trackcomp[0]), FLASH_ADDR_trackcomp1);
 	flash_open_program_word(*(uint32_t *)&(flash_trackcomp[1]), FLASH_ADDR_trackcomp2);
 
+	flash_open_program_word(*(uint32_t *)&(flash_voltoct_pwm_tracking), FLASH_ADDR_voltoct_pwm_tracking);
+
+
 	flash_end_open_program();
 }
 
@@ -541,9 +564,6 @@ void exit_select_colors_mode(void){
 
 
 uint8_t old_lock[NUM_CHANNELS];
-extern uint8_t lock_pressed[NUM_CHANNELS];
-extern uint8_t lock_up[NUM_CHANNELS];
-extern uint8_t already_handled_lock_release[NUM_CHANNELS];
 
 void enter_system_mode(void){
 	uint8_t i;

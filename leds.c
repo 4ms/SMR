@@ -39,8 +39,10 @@ extern enum UI_Modes ui_mode;
 extern float channel_level[NUM_CHANNELS];
 extern uint8_t 	cur_param_bank;
 extern uint8_t lock[NUM_CHANNELS];
+
 extern uint8_t editscale_notelocked;
 extern uint8_t editscale_tracklocked;
+extern uint8_t editscale_voctlocked;
 
 uint8_t slider_led_mode=SHOW_CLIPPING;
 
@@ -171,10 +173,12 @@ inline void update_lock_leds(void){
 			if (editscale_notelocked) LOCKLED_ON(i);
 			else LOCKLED_OFF(i);
 		}
-		for (i=4;i<6;i++){
-			if (editscale_tracklocked) LOCKLED_ON(i);
-			else LOCKLED_OFF(i);
-		}
+
+		if (editscale_tracklocked) LOCKLED_ON(4);
+		else LOCKLED_OFF(4);
+
+		if (editscale_voctlocked) LOCKLED_ON(5);
+		else LOCKLED_OFF(5);
 
 	} else {
 		if (lock_led_update_ctr++>QLOCK_FLASH_SPEED){

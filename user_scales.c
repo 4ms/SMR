@@ -41,6 +41,8 @@ extern float trackcomp[NUM_CHANNELS];
 extern int16_t trackoffset[NUM_CHANNELS];
 extern enum Env_Out_Modes env_track_mode;
 
+extern float voltoct_pwm_tracking;
+
 float user_scalebank[231];
 
 float DEFAULT_user_scalebank[21]={
@@ -70,19 +72,17 @@ float DEFAULT_user_scalebank[21]={
 
 uint8_t editscale_notelocked=0;
 uint8_t editscale_tracklocked=0;
+uint8_t editscale_voctlocked=0;
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
 extern uint8_t scale_bank[NUM_CHANNELS];
-extern uint8_t lock[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
 
 
-extern __IO uint16_t adc_buffer[NUM_ADCS];
 extern __IO uint16_t potadc_buffer[NUM_ADC3S];
 
-extern int16_t change_scale_mode;
 
 uint8_t old_scale_bank[NUM_CHANNELS];
 uint8_t old_note[NUM_CHANNELS];
@@ -100,6 +100,7 @@ void enter_edit_scale(void){
 
 	editscale_notelocked=1;
 	editscale_tracklocked=1;
+	editscale_voctlocked=1;
 
 	ui_mode=EDIT_SCALES;
 }
@@ -181,6 +182,39 @@ void handle_edit_scale(void){
 	}
 
 }
+
+#define CENTER_PLATEAU 80
+void handle_edit_voct(void)
+{
+	uint32_t track_adc;
+	float t_f;
+	static float voct_lpf;
+
+	if (!editscale_voctlocked){
+
+		t_f = potadc_buffer[4+SLIDER_ADC_BASE] * 0.9; //coarse
+		t_f += potadc_buffer[5+SLIDER_ADC_BASE] * 0.1; //fine
+		voct_lpf *= 0.99;
+		voct_lpf += t_f*0.01;
+
+		track_adc = (uint32_t)voct_lpf;
+
+		if (track_adc > (2047 + CENTER_PLATEAU))
+			voltoct_pwm_tracking 	= exp_1voct[(track_adc-(2047+CENTER_PLATEAU)) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
+
+		else if (track_adc < (2047 - CENTER_PLATEAU))
+			voltoct_pwm_tracking	= 1.0 / exp_1voct[((2047-CENTER_PLATEAU) - track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+
+		else
+			voltoct_pwm_tracking 	= 1.0;
+
+		if (voltoct_pwm_tracking < 0.5 || voltoct_pwm_tracking > 2.0) voltoct_pwm_tracking = 1.0; //sanity check!
+
+
+	}
+
+}
+
 
 void handle_edit_tracking(void){
 
