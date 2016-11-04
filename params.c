@@ -279,7 +279,7 @@ void param_read_freq(void){
 			
 			// update buffers
 			f_nudge_odds_buf = old_f_nudge_odds;
-			old_f_nudge_odds=f_nudge_odds;
+			old_f_nudge_odds = f_nudge_odds;
 
 			// enable fine tuning timer for slow display release
 			fine_timer[0] = 1;	
@@ -337,8 +337,9 @@ void param_read_freq(void){
 			 		if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
 			 		else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
 			 		
-			 		// apply coarse adjustment	
-			 		freq_nudge[j] = f_nudge_buf[1] * coarse_adj[j];
+			 		// apply coarse adjustment (in case channel is locked)
+			 		freq_nudge[j] = f_nudge_buf[0] * coarse_adj[j];
+
 					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
 		 		}else{coarse_lock[j]=1;}
 		 	}
@@ -410,8 +411,9 @@ void param_read_freq(void){
 			 		if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
 			 		else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
 			 		
-			 		// apply coarse adjustment	
+			 		// apply coarse adjustment	(in case channel is locked)
 			 		freq_nudge[j] = f_nudge_buf[1] * coarse_adj[j];
+
 					already_handled_lock_release[j] = 1; 
 		 		}else{coarse_lock[j]=1;}
 		 	}
@@ -513,7 +515,7 @@ void param_read_freq(void){
 			if (!lock[2]){
 				if (fknob_lock[0]==1){ 								
 					if((fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001) && !lock_pressed[2]){fknob_lock[0]=0;}
-					else {freq_nudge[2]=f_nudge_buf[0] * coarse_adj[2];}
+					else {freq_nudge[2]=f_nudge_buf[0] * coarse_adj[2];}	//
 				}
 				if (fknob_lock[0]==0){freq_nudge[2]=f_nudge_odds * coarse_adj[2];}; 
 			}
@@ -522,7 +524,7 @@ void param_read_freq(void){
 			if (!lock[4]){
 				if (fknob_lock[0]==1){ 								
 					if((fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001) && !lock_pressed[4]){fknob_lock[0]=0;}
-					else {freq_nudge[4]=f_nudge_buf[0] * coarse_adj[4];}
+					else {freq_nudge[4]=f_nudge_buf[0] * coarse_adj[4];}	//
 				}
 				if (fknob_lock[0]==0){freq_nudge[4]=f_nudge_odds * coarse_adj[4];}; 
 			}
@@ -545,7 +547,7 @@ void param_read_freq(void){
 		if (!lock[5]){
 			if (fknob_lock[1]==1){ 													
 				if((fabsf(f_nudge_evens - f_nudge_buf[1]) < 0.001) && !lock_pressed[5]){fknob_lock[1]=0;} 	
-				else {freq_nudge[5]=f_nudge_buf[1] * coarse_adj[5];} 			
+				else {freq_nudge[5]=f_nudge_buf[1] * coarse_adj[5];} 	//
 			}
 			if (fknob_lock[1]==0){freq_nudge[5]=f_nudge_evens * coarse_adj[5];}; 
 		}
@@ -555,7 +557,7 @@ void param_read_freq(void){
 			if (!lock[1]){
 				if (fknob_lock[1]==1){ 								
 					if((fabsf(f_nudge_evens - f_nudge_buf[1]) < 0.001) && !lock_pressed[1]){fknob_lock[1]=0;}
-					else {freq_nudge[1]=f_nudge_buf[1] * coarse_adj[1];}
+					else {freq_nudge[1]=f_nudge_buf[1] * coarse_adj[1];}	//
 				}
 				if (fknob_lock[1]==0){freq_nudge[1]=f_nudge_evens * coarse_adj[1];}; 
 			}
@@ -564,7 +566,7 @@ void param_read_freq(void){
 			if (!lock[3]){
 				if (fknob_lock[1]==1){ 								
 					if((fabsf(f_nudge_evens - f_nudge_buf[1]) < 0.001) && !lock_pressed[3]){fknob_lock[1]=0;}
-					else {freq_nudge[3]=f_nudge_buf[1] * coarse_adj[3];}
+					else {freq_nudge[3]=f_nudge_buf[1] * coarse_adj[3];}	//
 				}
 				if (fknob_lock[1]==0){freq_nudge[3]=f_nudge_evens * coarse_adj[3];}; 
 			}
