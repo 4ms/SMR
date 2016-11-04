@@ -45,6 +45,8 @@ extern __IO uint16_t adc_buffer[NUM_ADCS];
 
 extern enum Filter_Types filter_type;
 extern enum Filter_Modes filter_mode;
+extern uint32_t freqblock;
+extern int num_freq_blocked;
 
 extern uint8_t cur_colsch;
 extern float COLOR_CH[16][6][3];
@@ -117,6 +119,8 @@ extern float user_scalebank[231];
 #define FLASH_OFFSET_freq_nudge		(FLASH_OFFSET_cur_colsch		+ 1)		/* +57..+80  */
 #define FLASH_OFFSET_future_params	(FLASH_OFFSET_freq_nudge		+ 24)		/* +81..+152 */
 #define FLASH_OFFSET_filter_mode	(FLASH_OFFSET_future_params		+ 72)		/* +153	 	 */
+#define FLASH_OFFSET_freqblock		(FLASH_OFFSET_filter_mode		+ 1)		/* +154	 	 */
+
 #define SZ_FP 79
 
 #define FLASH_SIZE_parambank	(FLASH_OFFSET_future_params		+ SZ_FP)		/* size of each param bank: 160 */
@@ -138,24 +142,25 @@ extern float user_scalebank[231];
 #define FLASH_SYMBOL_startupoffset 0xAA
 #define FLASH_SYMBOL_firmwareoffset 0xAA550000
 
-uint32_t flash_firmware_version=0;
-uint8_t flash_startupbank=0;
-uint8_t flash_clipmode=0;
-float flash_trackcomp[NUM_CHANNELS]={1.0,1.0};
-int32_t flash_trackoffset[NUM_CHANNELS]={0,0};
-uint8_t flash_bankstatus[FLASH_NUM_parambanks];
-uint8_t flash_note[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint8_t flash_scale[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint8_t flash_scale_bank[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint8_t flash_lock[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint8_t flash_q_locked[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint32_t flash_qval[FLASH_NUM_parambanks][NUM_CHANNELS];
-float flash_freq_nudge[FLASH_NUM_parambanks][NUM_CHANNELS];
-uint8_t flash_filter_type[FLASH_NUM_parambanks];
-uint8_t flash_filter_mode[FLASH_NUM_parambanks];
-uint8_t flash_cur_colsch[FLASH_NUM_parambanks];
-float flash_COLOR_CH[16][6][3];
-float flash_user_scalebank[231];
+uint32_t 	flash_firmware_version=0;
+uint8_t		flash_startupbank=0;
+uint8_t 	flash_clipmode=0;
+float 		flash_trackcomp[NUM_CHANNELS]={1.0,1.0};
+int32_t 	flash_trackoffset[NUM_CHANNELS]={0,0};
+uint8_t 	flash_bankstatus[FLASH_NUM_parambanks];
+uint8_t 	flash_note[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint8_t 	flash_scale[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint8_t 	flash_scale_bank[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint8_t 	flash_lock[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint8_t 	flash_q_locked[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint32_t 	flash_qval[FLASH_NUM_parambanks][NUM_CHANNELS];
+float 		flash_freq_nudge[FLASH_NUM_parambanks][NUM_CHANNELS];
+uint8_t 	flash_filter_type[FLASH_NUM_parambanks];
+uint8_t 	flash_filter_mode[FLASH_NUM_parambanks];
+int 		flash_freqblock[FLASH_NUM_parambanks];
+uint8_t 	flash_cur_colsch[FLASH_NUM_parambanks];
+float 		flash_COLOR_CH[16][6][3];
+float 		flash_user_scalebank[231];
 
 
 
@@ -175,6 +180,7 @@ void factory_reset(void){
 		flash_bankstatus[i] 		= 0xFF;
 		flash_filter_type[i] 		= MAXQ;
 		flash_filter_mode[i] 		= TWOPASS;
+		flash_freqblock[i] 			= 0b00000000000000000000;
 		flash_cur_colsch[i]			= 0;
 
 		for (j=0;j<NUM_CHANNELS;j++){
@@ -218,12 +224,18 @@ void factory_reset(void){
 
 //Loads the active parameters from an SRAM bank
 void load_params_from_sram(uint8_t bank_num){
-	uint8_t i;
+	uint8_t i,j;
 	uint8_t already_set_hover=0;
 
 	cur_colsch 			= flash_cur_colsch[bank_num];
 	change_filter_type(	  flash_filter_type[bank_num]);
 	filter_mode 		= flash_filter_mode[bank_num];
+	freqblock 			= flash_freqblock[bank_num];
+	num_freq_blocked	= 0;
+	for (j=0; j<NUMSCALEBANKS; j++){
+		if (freqblock & (1<<j))
+		num_freq_blocked+=1;
+	}	
 	
 	for (i=0;i<NUM_CHANNELS;i++){
 		note[i]			= flash_note[bank_num][i];
@@ -260,6 +272,7 @@ void store_params_into_sram(uint8_t bank_num){
 	flash_cur_colsch[bank_num]			= cur_colsch;
 	flash_filter_type[bank_num]			= filter_type;
 	flash_filter_mode[bank_num]			= filter_mode;
+	flash_freqblock[bank_num]			= freqblock;
 
 	for (i=0;i<NUM_CHANNELS;i++){
 		flash_note[bank_num][i]			= note[i];
@@ -398,9 +411,10 @@ void read_all_params_from_FLASH(void){ //~200uS
 
 		flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 		flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
-		flash_cur_colsch[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
+		flash_cur_colsch[bank_i]  = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch  + (FLASH_SIZE_parambank * bank_i));
 
-		flash_read_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+		flash_read_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+		flash_read_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
 	}
 
@@ -418,10 +432,11 @@ void read_one_bank_params_from_FLASH(uint8_t bank_i){
 	flash_read_array((uint8_t *)flash_scale[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_scale + (FLASH_SIZE_parambank * bank_i), 6);
 	flash_read_array((uint8_t *)flash_scale_bank[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_scale_bank + (FLASH_SIZE_parambank * bank_i), 6);
 
-	flash_read_array((uint8_t *)flash_lock[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_lock + (FLASH_SIZE_parambank * bank_i), 6);
-	flash_read_array((uint8_t *)flash_q_locked[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_q_locked + (FLASH_SIZE_parambank * bank_i), 6);
-	flash_read_array((uint8_t *)flash_qval[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_qval + (FLASH_SIZE_parambank * bank_i), 24);
-	flash_read_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+	flash_read_array((uint8_t  *)flash_lock[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_lock + (FLASH_SIZE_parambank * bank_i), 6);
+	flash_read_array((uint8_t  *)flash_q_locked[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_q_locked + (FLASH_SIZE_parambank * bank_i), 6);
+	flash_read_array((uint8_t  *)flash_qval[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_qval + (FLASH_SIZE_parambank * bank_i), 24);
+	flash_read_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+	flash_read_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
 	flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 	flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
@@ -458,9 +473,10 @@ void write_all_params_to_FLASH(void){
 
 		flash_open_program_byte(flash_filter_type[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 		flash_open_program_byte(flash_filter_mode[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
-		flash_open_program_byte(flash_cur_colsch[bank_i],  FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
+		flash_open_program_byte(flash_cur_colsch[bank_i],  FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch  + (FLASH_SIZE_parambank * bank_i));
 
-		flash_open_program_array((uint8_t *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+		flash_open_program_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
+		flash_open_program_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
 	}
 
