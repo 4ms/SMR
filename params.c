@@ -944,22 +944,28 @@ void process_freq_blocks(){
 	int i;
 	
 	if(lock_pressed[0] || lock_pressed[1] || lock_pressed[2] || lock_pressed[3] || lock_pressed[4] || lock_pressed[5]){				
+		
 		if((ui_mode==PLAY) && rotary_switch_b){
 			change_scale_mode=0;
 			just_switched_to_change_scale_mode=0;
+			
 			// APPLY / CLEAR SINGLE FREQ BLOCKS
 			if(!(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5])){				
+				
 				for (i=0; i<NUM_CHANNELS; i++){
+				
 					if (lock_pressed[i]){
+				
 						//disable lock state change
 						already_handled_lock_release[i]=1;					
 	
 						// freq-block frequency if freq-unblocked, and less than 15 freq have been locked
-						if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<13)) {
+						if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<14)) {
 							freqblock |= (1 << note[i]); 
 							num_freq_blocked += 1; 
+				
 						// freq-unblock frequency if freq-blocked
-						}else{  
+						}else if (freqblock & (1<<note[i])){  
 							freqblock &= ~(1 << note[i]);  
 							num_freq_blocked -= 1; 
 						}
