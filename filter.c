@@ -377,7 +377,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 			// Calculate the morph destination filter:
 			// Calcuate c1 and c2, which must be updated since the freq changed, and then calculate an entire filter for each channel that's morphing
-			// (Clearly, it makes for poor readability to duplicate the inner loop section above, but we save critical CPU time to do it this way)
+			// (Although it makes for poor readability to duplicate the inner loop section above, we save critical CPU time to do it this way)
 			if (motion_morphpos[channel_num]>0.0)
 			{
 
@@ -427,16 +427,17 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			}
 		}
 
-	} 	// Filter type
+	}
 
 	
 	
-	//###################### ORIGINAL 1-PASS ###################################
+	//###################### 1-PASS ###################################
 	
-	else if (filter_mode != TWOPASS){
+	else if (filter_mode != TWOPASS)
+	{
 		
 		// UPDATE QVAL
-			param_read_q();
+		param_read_q();
 
 
 		//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
@@ -574,7 +575,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 		//Calculate filter_out[]
 		//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. filter_out[6-11] are the morph destination values
-		if (filter_type==MAXQ){
+		if (filter_type==MAXQ)
+		{
 			for (j=0;j<NUM_CHANNELS*2;j++){
 
 				if (j<6)
@@ -610,6 +612,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 				//FREQ: c1 = 2 * pi * freq / samplerate
 					c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
+					c1 *= freq_nudge[channel_num];
 					c1 *= freq_shift[channel_num];
 					if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 
@@ -631,7 +634,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					}
 				}
 			}
-		} else {
+
+
+		} else { //filter_type==BPRE
 
 			for (j=0;j<NUM_CHANNELS*2;j++){
 
