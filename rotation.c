@@ -231,7 +231,6 @@ void update_spread(int8_t t_spread){
 				}
 
 				// Check to see if test_spot is a distinct value:
-
 				for (is_distinct=1,j=0;j<NUM_CHANNELS;j++){
 					//...if the test spot is already assigned to a locked or stationary channel (2), or a channel we already spread'ed, or a blocked frequency then try again
 					if ((i!=j && ((test_spot==test_motion[j] && j<i) || (test_spot==motion_fadeto_note[j] && (lock[j]==1 || j==2)))) || ( freqblock & (1<<test_spot)))
@@ -342,14 +341,14 @@ inline void update_motion(void){
 
 
 					//Check if the new destination is occupied by a locked channel, a channel we already notejump'ed or a blocked freq
-// 					if  (freqblock & (1<<motion_fadeto_note[chan])){
-// 						is_distinct=0;
-// 					}else{
+					if  (freqblock & (1<<motion_fadeto_note[chan])){
+						is_distinct=0;
+					}else{
 						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-							if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)))// || (freqblock & (1<<motion_fadeto_note[chan])))
+							if (chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan))
 								is_distinct=0;
 						}
-// 					}
+					}
 					while (!is_distinct){
 
 						//Inc/decrement circularly
@@ -362,14 +361,14 @@ inline void update_motion(void){
 						}
 
 						//Check if the new destination is occupied by a locked channel, a channel we already notejump'ed or a blocked freq						
-// 						if  (freqblock & (1<<motion_fadeto_note[chan])){
-// 								is_distinct=0;
-// 						}else{
+						if  (freqblock & (1<<motion_fadeto_note[chan])){
+								is_distinct=0;
+						}else{
 							for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-								if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)))
+								if (chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan))
 									is_distinct=0;
 							}
-// 						}
+						}
 					}
 					//Start the motion morph
 					motion_morphpos[chan] = f_morph;
@@ -408,10 +407,13 @@ inline void update_motion(void){
 			if (motion_spread_dest[chan] != note[chan]){
 
 	//Check if the spread destination is still available
-
-				for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-					if ((chan!=test_chan && (motion_spread_dest[chan]==motion_spread_dest[test_chan]) && (lock[test_chan]==1 || test_chan<chan || motion_spread_dir[test_chan]==0)) )//|| (freqblock & (1<<motion_spread_dest[test_chan])))
-						is_distinct=0;
+				if  (freqblock & (1<<motion_spread_dest[chan])){
+					is_distinct=0;
+				}else{
+					for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+						if (chan!=test_chan && (motion_spread_dest[chan]==motion_spread_dest[test_chan]) && (lock[test_chan]==1 || test_chan<chan || motion_spread_dir[test_chan]==0)) 
+							is_distinct=0;
+					}
 				}
 				while (!is_distinct){
 
@@ -427,9 +429,13 @@ inline void update_motion(void){
 					}
 
 					//Check that it's not already taken by a locked channel, channel with a higher priority, a blocked freq or a non-moving channel
-					for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-						if ((chan!=test_chan && (motion_spread_dest[chan]==motion_spread_dest[test_chan]) && (lock[test_chan]==1 || test_chan<chan || motion_spread_dir[test_chan]==0))) //|| (freqblock & (1<<motion_spread_dest[test_chan])))
-							is_distinct=0;
+					if  (freqblock & (1<<motion_spread_dest[chan])){
+						is_distinct=0;
+					}else{
+						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+							if (chan!=test_chan && (motion_spread_dest[chan]==motion_spread_dest[test_chan]) && (lock[test_chan]==1 || test_chan<chan || motion_spread_dir[test_chan]==0))
+								is_distinct=0;
+						}
 					}
 				}
 
@@ -458,9 +464,13 @@ inline void update_motion(void){
 							motion_fadeto_note[chan]++;
 
 						//Check that it's not already taken by a locked channel, channel with a higher priority, a blocked freq, or a non-moving channel
-						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-							if ((chan!=test_chan && (motion_fadeto_note[chan]==motion_fadeto_note[test_chan]) && (lock[test_chan]==1 || test_chan<chan))  )//|| (freqblock & (1<<motion_fadeto_note[test_chan])))
-								is_distinct=0;
+						if  (freqblock & (1<<motion_fadeto_note[chan])){
+							is_distinct=0;
+						}else{
+							for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+								if (chan!=test_chan && (motion_fadeto_note[chan]==motion_fadeto_note[test_chan]) && (lock[test_chan]==1 || test_chan<chan)) 
+									is_distinct=0;
+							}
 						}
 					}
 				} else
@@ -492,9 +502,13 @@ inline void update_motion(void){
 							motion_fadeto_note[chan]--;
 
 						//Check that it's not already taken by a locked channel, channel with a higher priority, a blocked freq, or a non-moving channel
-						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-							if ((chan!=test_chan && (motion_fadeto_note[chan]==motion_fadeto_note[test_chan]) && (lock[test_chan]==1 || test_chan<chan)) )//|| (freqblock & (1<<motion_fadeto_note[test_chan])))
-								is_distinct=0;
+						if  (freqblock & (1<<motion_fadeto_note[chan])){
+							is_distinct=0;
+						}else{						
+							for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+								if (chan!=test_chan && (motion_fadeto_note[chan]==motion_fadeto_note[test_chan]) && (lock[test_chan]==1 || test_chan<chan)) 
+									is_distinct=0;
+							}
 						}
 					}
 				}
