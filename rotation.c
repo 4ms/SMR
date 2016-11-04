@@ -342,10 +342,14 @@ inline void update_motion(void){
 
 
 					//Check if the new destination is occupied by a locked channel, a channel we already notejump'ed or a blocked freq
-					for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-						if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)) || (freqblock & (1<<motion_fadeto_note[test_chan])))
-							is_distinct=0;
-					}
+// 					if  (freqblock & (1<<motion_fadeto_note[chan])){
+// 						is_distinct=0;
+// 					}else{
+						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+							if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)))// || (freqblock & (1<<motion_fadeto_note[chan])))
+								is_distinct=0;
+						}
+// 					}
 					while (!is_distinct){
 
 						//Inc/decrement circularly
@@ -357,11 +361,15 @@ inline void update_motion(void){
 							else motion_fadeto_note[chan] = motion_fadeto_note[chan] - 1;
 						}
 
-						//Check if the new destination is occupied by a locked channel, a channel we already notejump'ed or a blocked freq
-						for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
-							if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)) || (freqblock & (1<<motion_fadeto_note[test_chan])))
-								is_distinct=0;
-						}
+						//Check if the new destination is occupied by a locked channel, a channel we already notejump'ed or a blocked freq						
+// 						if  (freqblock & (1<<motion_fadeto_note[chan])){
+// 								is_distinct=0;
+// 						}else{
+							for (is_distinct=1,test_chan=0;test_chan<NUM_CHANNELS;test_chan++){
+								if ((chan!=test_chan && motion_fadeto_note[chan]==motion_fadeto_note[test_chan] && (lock[test_chan] || test_chan<chan)))
+									is_distinct=0;
+							}
+// 						}
 					}
 					//Start the motion morph
 					motion_morphpos[chan] = f_morph;
