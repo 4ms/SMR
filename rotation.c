@@ -52,6 +52,8 @@ int8_t motion_scalecv_overage[NUM_CHANNELS]={0,0,0,0,0,0};
 
 float motion_morphpos[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 
+float f_morph=0.0;
+
 
 extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
@@ -252,35 +254,44 @@ void update_spread(int8_t t_spread){
 
 }
 
+inline void update_morph(void)
+{
+	uint16_t chan;
 
+	f_morph *= 0.999;
+	f_morph += 0.001*(exp_4096[(adc_buffer[MORPH_ADC])]/16.0);
+
+	//if morph is happening, continue it
+	//if it hits the limit, just hold it there until we can run update_motion()
+	for (chan=0;chan<NUM_CHANNELS;chan++)
+	{
+		if (motion_morphpos[chan]>0.0)
+			motion_morphpos[chan] += f_morph;
+
+		if (motion_morphpos[chan]>=1.0) motion_morphpos[chan]=1.0;
+	}
+
+}
 
 
 inline void update_motion(void){
-	static float f_morph=0.0;
 	uint16_t chan;
 	uint16_t test_chan;
 	int16_t i;
 	uint8_t is_distinct;
 
 
-	//f_morph is how fast we morph (cross-fade increment)
-	f_morph *= 0.99;
-	f_morph += 0.01*exp_4096[(adc_buffer[MORPH_ADC])];
-
-	for (chan=0;chan<NUM_CHANNELS;chan++){
-
-		//if morph is happening, continue it
-		if (motion_morphpos[chan]>0)
-			motion_morphpos[chan] += f_morph;
-
+	for (chan=0;chan<NUM_CHANNELS;chan++)
+	{
 		//if morph has reached the end, shift our present position to the (former) fadeto destination
-		if (motion_morphpos[chan]>=1.0){
+		if (motion_morphpos[chan]>=1.0)
+		{
 			note[chan] = motion_fadeto_note[chan];
 			scale[chan] = motion_fadeto_scale[chan];
-
 			//scale_bank[chan] = motion_fadeto_bank[chan];
 
-			if (motion_spread_dest[chan] == note[chan]) motion_spread_dir[chan] = 0;
+			if (motion_spread_dest[chan] == note[chan])
+				motion_spread_dir[chan] = 0;
 
 			motion_morphpos[chan]=0.0;
 
@@ -291,7 +302,6 @@ inline void update_motion(void){
 
 
 	//Initiate a motion if one is not happening
-
 	if (!is_morphing()){
 
 	//Rotation CW

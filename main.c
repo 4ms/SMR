@@ -61,14 +61,6 @@ extern uint8_t do_ROTDOWN;
 
 extern int8_t spread;
 
-extern uint8_t cur_colsch;
-extern enum Filter_Types filter_type;
-extern enum Filter_Modes filter_mode;
-
-// FIXME - temporaty for testing
-extern enum Env_Out_Modes env_track_mode;
-//
-
 extern uint8_t cur_param_bank;
 
 
@@ -145,22 +137,6 @@ void main(void)
 
 	while(1){
 
-		/* Old notes (from dev_master b63bab9): Check current timing against this!!
-		Main loop period (averaged over 2000 periods):
-			   34us with no motion and envelope or trigger outputs
-			   87us with 70Hz square wave into Rotate trigger jack
-			   146us at 90Hz square wave into Rotate trigger jack
-			   ...approaches infinity as Rotate approaches 100Hz, since a rotate event forces the LEDs to update
-
-			   42us with no motion and VOCT output at low frequencies
-			   100us with no motion and VOCT output at high frequencies
-			   200us with fast triggers causing rotation, and VOCT output
-
-			   So, with no motion in pre-VOCT firmwares, the LED ring updates every 68ms
-			   unless requested to update immediately (which happens when morphpos reaches 1.0, that is, when something completes a morph)
-			   Thus this 14.7Hz refresh rate is what we see with the envelope LEDs
-		*/
-
 		check_errors();
 
 		param_read_switches();
@@ -176,10 +152,6 @@ void main(void)
 		process_lock_jacks();
 
 		process_lock_buttons();
-
-//  	param_read_q();
-		
-//		param_read_channel_level();
 
 		process_rotary_button();
 

@@ -120,15 +120,6 @@ float comp_gain[6];
 
 float filter_out[NUM_FILTS][MONO_BUFSZ];
 
- 
-// ADC readout smoothing
-// static float prev_level[12] = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};	// previous channel level
-// static float smooth_level[NUM_CHANNELS][MONO_BUFSZ];							// ADC readout of channel level smoothed between samples
-// static float prev_qval[12]  = {0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0};		// previous qval
-// static float smooth_qval[NUM_CHANNELS][MONO_BUFSZ];					 		// ADC readout of qval smoothed between samples
-//
-
-
 enum Filter_Types new_filter_type;
 enum Filter_Modes new_filter_mode;
 uint8_t filter_type_changed=0;
@@ -207,6 +198,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 //	static uint32_t q_poll_ctr=0;
 
 
+ 	static float t_morph = 0.0;
+
  	DEBUGA_ON(DEBUG0);
 
 
@@ -225,7 +218,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 
 
-
 	//############################### 2-PASS  ###################################
 	
 	if (filter_mode == TWOPASS){
@@ -237,8 +229,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 		for (i=0;i<NUM_CHANNELS;i++){ //This loop takes 1.51us when not changing scales
 
-			  // UPDATE QVAL
-				param_read_q();
 
 			//Range check scale_bank and scale
 			if (scale_bank[i]<0) scale_bank[i]=0;
@@ -318,6 +308,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			if (var_f>0.998) var_f=1.0;
 			inv_var_f=1.0-var_f;
 
+		 // UPDATE QVAL
+			param_read_q();
 			qc[channel_num]   	=  qval[channel_num];
 
 		// QVAL ADJUSTMENTS
@@ -388,7 +380,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			// Calculate the morph destination filter:
 			// Calcuate c1 and c2, which must be updated since the freq changed, and then calculate an entire filter for each channel that's morphing
 			// (Clearly, it makes for poor readability to duplicate the inner loop section above, but we save critical CPU time to do it this way)
-			if (motion_morphpos[channel_num]>0.00001)
+			if (motion_morphpos[channel_num]>0.0)
 			{
 
 				filter_num=motion_fadeto_note[channel_num];
@@ -445,6 +437,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	
 	else if (filter_mode != TWOPASS){
 		
+		// UPDATE QVAL
+			param_read_q();
+
+
 		//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
 		//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
 		//To-Do: move this somewhere else, so it runs on a timer
@@ -727,15 +723,15 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		filtered_buffer[i]=0;
 		filtered_bufferR[i]=0;
 		
+		update_morph();
 
 		for (j=0;j<NUM_CHANNELS;j++){
 		
-			//When blending, 1.5us/sample. When static, 0.7us/sample = 11-24us total
-
-			if (motion_morphpos[j]==0)
+			if (motion_morphpos[j]==0.0)
 				f_blended = filter_out[j][i];
 			else
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
+
 
 		 	if (ui_mode==EDIT_SCALES){
 				if (env_track_mode!=ENV_SLOW ) channel_level[0]=1.0;

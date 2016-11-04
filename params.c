@@ -687,7 +687,7 @@ void param_read_q(void){
  	}
  	// SMOOTH OUT DATA BETWEEN ADC READS
 	 for (i=0;i<NUM_CHANNELS;i++){
- 		qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/15.0));
+		 	qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/15.0));
  	}
 }
 
@@ -1250,7 +1250,7 @@ void init_freq_update_timer(void)
 
 	//168MHz / (Period+1)
 	TIM_TimeBaseStructInit(&tim);
-	tim.TIM_Period = 4095;
+	tim.TIM_Period = 8195;
 	tim.TIM_Prescaler = 0;
 	tim.TIM_ClockDivision = 0;
 	tim.TIM_CounterMode = TIM_CounterMode_Up;
