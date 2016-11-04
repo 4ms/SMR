@@ -72,6 +72,8 @@ extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
  
 // ROTARY BUTTON
+uint16_t rotary_mon;
+uint16_t rotary_toggle;
 uint16_t rotsw_up, rotsw_down;
 uint32_t rotary_button_hold_ctr;
 uint8_t user_turned_rotary=0;
@@ -83,7 +85,7 @@ uint8_t lock_up[NUM_CHANNELS];  		// MOMENTARY 1 while button pressed. 0 otherwi
 uint32_t lock_down[NUM_CHANNELS];		// COUNTER starts at 1 and goes up while button's pressed
 uint8_t num_clear_coarse_staged = 0; 	// number of coarse tunings staged to be cleared
 uint8_t already_handled_lock_release[NUM_CHANNELS];
-
+	
 //ENV OUTS
 uint32_t env_prepost_mode;
 
@@ -101,6 +103,7 @@ uint16_t rotate_to_next_scale;
 //FREQ BLOCKS
 uint32_t freqblock = 0b00000000000000000000; // 20 freq positions
 int num_freq_blocked=0;
+int rotary_switch_b = 0;
 
 //CHANNEL LEVELS/SLEW
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
@@ -139,6 +142,7 @@ uint8_t scale_cv[NUM_CHANNELS];
 //Scale bank
 uint8_t hover_scale_bank=0;
 int16_t change_scale_mode=0;
+uint8_t just_switched_to_change_scale_mode=0;
 
 extern uint8_t cur_param_bank;
 extern uint8_t cur_colsch;
@@ -833,92 +837,49 @@ inline uint8_t num_locks_pressed(void){
 
 void process_lock_buttons(){
 	uint8_t i;
-	 
-	// LOCK BUTTON PROCESSING
 	for (i=0;i<6;i++){
-		
 		if (LOCKBUTTON(i)){
 			lock_up[i]=1;
-			
-			// FREQ BLOCK
-			if((ui_mode==PLAY) && ROTARY_SW){
-		
-			  	// APPLY / CLEAR SINGLE FREQ BLOCKS
-				if(!(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5])){				
-		
-					//disable lock state change
-					already_handled_lock_release[i]=1;					
-		
-				  	// freq-block frequency if freq-unblocked, and less than 15 freq have been locked
-					if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<13)) {
-						freqblock |= (1 << note[i]); 
-						num_freq_blocked += 1; 
-					// freq-unblock frequency if freq-blocked
-					}else{  
-						freqblock &= ~(1 << note[i]);  
-						num_freq_blocked -= 1; 
-					}
-		
-				 	
-				}else{
-		
-			  	// CLEAR ALL FREQBLOCKS
-				// if all lock buttons pressed, and rotary switched
-				// clear all freq-blocks
-				// 	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
-				// 		if(ROTARY_SW){
-				freqblock &= 0b00000000000000000000;
-				num_freq_blocked = 0;
-				already_handled_lock_release[0]=1;	
-				already_handled_lock_release[1]=1;	
-				already_handled_lock_release[2]=1;	
-				already_handled_lock_release[3]=1;	
-				already_handled_lock_release[4]=1;	
-				already_handled_lock_release[5]=1;	
+			if (lock_down[i]!=0
+				&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
+				lock_down[i]++;
+
+			if (lock_down[i]==5){ //first time we notice lock button is solidly down...
+				lock_pressed[i]=1;
+				user_turned_Q_pot=0;
+				already_handled_lock_release[i]=0;
+			}
+
+			if (ui_mode==PLAY){
+				//check to see if it's been held down for a while, and the user hasn't turned the Q pot
+				//if so, then we should unlock immediately, but not unlock the q_lock
+				if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot && q_locked[i]) {
+						lock[i]=0;
+						LOCKLED_OFF(i);
+						already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
+						lock_down[i]=0; //stop checking this button until it's released
 				}
-				
-			}else{
-		
-				if (lock_down[i]!=0
-					&& lock_down[i]!=0xFFFFFFFF)  //don't wrap our counter!
-					lock_down[i]++;
+			}
+			if (ui_mode==SELECT_PARAMS){
+				if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
 
-				if (lock_down[i]==5){ //first time we notice lock button is solidly down...
-					lock_pressed[i]=1;
-					user_turned_Q_pot=0;
-					already_handled_lock_release[i]=0;
-				}
+					if (num_locks_pressed() == 6 && ROTARY_SW){
+						factory_reset();
+						exit_system_mode(0); //do not restore lock[] because factory reset clears them
+						while (ROTARY_SW) {;}
+						already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
+						already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
 
-				if (ui_mode==PLAY){
-					//check to see if it's been held down for a while, and the user hasn't turned the Q pot
-					//if so, then we should unlock immediately, but not unlock the q_lock
-					if (lock_down[i]>LOCK_BUTTON_QUNLOCK_HOLD_TIME && lock[i] && !user_turned_Q_pot && q_locked[i]) {
-							lock[i]=0;
-							LOCKLED_OFF(i);
-							already_handled_lock_release[i]=1; //set this flag so that we don't do anything when the button is released
-							lock_down[i]=0; //stop checking this button until it's released
-					}
-				}
-				if (ui_mode==SELECT_PARAMS){
-					if (lock_down[i]>LOCK_BUTTON_LONG_HOLD_TIME){
+					} else {
+						exit_system_mode(1); //restore lock[] so that it gets saved
+						save_param_bank(i);
+						already_handled_lock_release[i]=1;
+						lock_down[i]=0; //stop checking this button until it's released
 
-						if (num_locks_pressed() == 6 && ROTARY_SW){
-							factory_reset();
-							exit_system_mode(0); //do not restore lock[] because factory reset clears them
-							while (ROTARY_SW) {;}
-							already_handled_lock_release[0]=1;already_handled_lock_release[1]=1;already_handled_lock_release[2]=1;
-							already_handled_lock_release[3]=1;already_handled_lock_release[4]=1;already_handled_lock_release[5]=1;
-
-						} else {
-							exit_system_mode(1); //restore lock[] so that it gets saved
-							save_param_bank(i);
-							already_handled_lock_release[i]=1;
-							lock_down[i]=0; //stop checking this button until it's released
-
-						}
 					}
 				}
 			}
+
 		} else {
 			if (lock_up[i]!=0) lock_up[i]++;
 			if (lock_up[i]>5){ lock_up[i]=0;
@@ -977,7 +938,52 @@ void process_lock_buttons(){
 
 		}
 	}
+}
 
+void process_freq_blocks(){
+	int i;
+	
+	if(lock_pressed[0] || lock_pressed[1] || lock_pressed[2] || lock_pressed[3] || lock_pressed[4] || lock_pressed[5]){				
+		if((ui_mode==PLAY) && rotary_switch_b){
+			change_scale_mode=0;
+			just_switched_to_change_scale_mode=0;
+			// APPLY / CLEAR SINGLE FREQ BLOCKS
+			if(!(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5])){				
+				for (i=0; i<NUM_CHANNELS; i++){
+					if (lock_pressed[i]){
+						//disable lock state change
+						already_handled_lock_release[i]=1;					
+	
+						// freq-block frequency if freq-unblocked, and less than 15 freq have been locked
+						if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<13)) {
+							freqblock |= (1 << note[i]); 
+							num_freq_blocked += 1; 
+						// freq-unblock frequency if freq-blocked
+						}else{  
+							freqblock &= ~(1 << note[i]);  
+							num_freq_blocked -= 1; 
+						}
+					}
+				}
+				
+			}else{
+	
+			// CLEAR ALL FREQBLOCKS
+			// if all lock buttons pressed, and rotary switched
+			// clear all freq-blocks
+			// 	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
+			// 		if(ROTARY_SW){
+			freqblock &= 0b00000000000000000000;
+			num_freq_blocked = 0;
+			already_handled_lock_release[0]=1;	
+			already_handled_lock_release[1]=1;	
+			already_handled_lock_release[2]=1;	
+			already_handled_lock_release[3]=1;	
+			already_handled_lock_release[4]=1;	
+			already_handled_lock_release[5]=1;	
+			}
+		}
+	}	
 }
 
 void process_lock_jacks(void){
@@ -1024,7 +1030,7 @@ void process_lock_jacks(void){
 
 
 void process_rotary_button(void){
-	static uint8_t just_switched_to_change_scale_mode=0;
+	//static uint8_t just_switched_to_change_scale_mode=0;
 	uint8_t i;
 
 		if (ROTARY_SW){
@@ -1035,13 +1041,11 @@ void process_rotary_button(void){
 			//Handle long hold press:
 			if (rotary_button_hold_ctr!=0) rotary_button_hold_ctr++; //when set to 0, we have disabled counting
 
-			if(!lock_pressed[0] && !lock_pressed[1] && !lock_pressed[2] && !lock_pressed[3] && !lock_pressed[4] && !lock_pressed[5]){
-				if (ui_mode==PLAY && rotary_button_hold_ctr>150000){
-					rotary_button_hold_ctr=0;
+			if (ui_mode==PLAY && rotary_button_hold_ctr>150000){
+				rotary_button_hold_ctr=0;
 
-					change_scale_mode=0;
-					ui_mode=PRE_SELECT_PARAMS;
-				}
+				change_scale_mode=0;
+				ui_mode=PRE_SELECT_PARAMS;
 			}
 			
 			if (ui_mode==SELECT_PARAMS && rotary_button_hold_ctr>150000){
@@ -1062,24 +1066,18 @@ void process_rotary_button(void){
 				exit_edit_scale(1);
 			}
 
-			if(!lock_pressed[0] && !lock_pressed[1] && !lock_pressed[2] && !lock_pressed[3] && !lock_pressed[4] && !lock_pressed[5]){
-				if (rotsw_down>5){rotsw_down=0;
-
-					//Handle button press
-					if ((ui_mode==PLAY || ui_mode==EDIT_SCALES) && change_scale_mode==0) {
-
-						change_scale_mode=1;
-						just_switched_to_change_scale_mode=1;
-
-					} else if (change_scale_mode==1) {
-
-						just_switched_to_change_scale_mode=0;
-					}
-
-					user_turned_rotary=0;
-
+			if (rotsw_down>5){rotsw_down=0;
+				//Handle button press
+				rotary_switch_b =1;
+				if ((ui_mode==PLAY || ui_mode==EDIT_SCALES) && change_scale_mode==0) {
+					change_scale_mode=1;
+					just_switched_to_change_scale_mode=1;
+				} else if (change_scale_mode==1) {
+					just_switched_to_change_scale_mode=0;
 				}
-			}
+					user_turned_rotary=0;
+			} else {rotary_switch_b =0;}
+		
 
 		} else {
 			rotsw_down=1;rotary_button_hold_ctr=1;
@@ -1104,12 +1102,10 @@ void process_rotary_button(void){
 					enter_edit_color_mode();
 				}
 					
-				if(!lock_pressed[0] && !lock_pressed[1] && !lock_pressed[2] && !lock_pressed[3] && !lock_pressed[4] && !lock_pressed[5]){				
-					if (ui_mode==PLAY){
-						for (i=0;i<NUM_CHANNELS;i++) {
-							if (lock[i]!=1) {
-								scale_bank[i]=hover_scale_bank; //Set all unlocked scale_banks to the same value
-							}
+				if (ui_mode==PLAY){
+					for (i=0;i<NUM_CHANNELS;i++) {
+						if (lock[i]!=1) {
+							scale_bank[i]=hover_scale_bank; //Set all unlocked scale_banks to the same value
 						}
 					}
 				}
