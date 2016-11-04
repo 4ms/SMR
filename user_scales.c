@@ -225,11 +225,11 @@ void handle_edit_tracking(void){
 		track_adc=potadc_buffer[4+SLIDER_ADC_BASE];
 
 		if (track_adc>2047){
-			if (env_track_mode!=ENV_SLOW) trackcomp[0] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
-			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1] = exp_1voct[(track_adc-2048) >> 6]; //2048..4095 => exp_1voct[0..15] or 1.0 to ~1.05
+			if (env_track_mode!=ENV_SLOW) trackcomp[0] 									= exp_1voct[(uint32_t)((track_adc-2048)/35.0)]; //2048..4095 => exp_1voct[0..58] or 1.0 to ~1.1
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1]	= exp_1voct[(uint32_t)((track_adc-2048)/35.0)];
 		}else{
-			if (env_track_mode!=ENV_SLOW) trackcomp[0] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
-			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1] = 1.0 / exp_1voct[(2047-track_adc) >> 6]; //0..2047 => 1/exp_1voct[0..15] or 1.0 to ~0.95
+			if (env_track_mode!=ENV_SLOW) trackcomp[0] 									= 1.0 / exp_1voct[(uint32_t)((2047-track_adc)/35.0)]; //0..2047 => 1.0/exp_1voct[0..58] or 1.0 to 0.91
+			if (env_track_mode!=ENV_FAST  && env_track_mode!=ENV_VOLTOCT) trackcomp[1] 	= 1.0 / exp_1voct[(uint32_t)((2047-track_adc)/35.0)];
 		}
 
 		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check!

@@ -191,14 +191,20 @@ void param_read_freq(void){
 	int odds[3] ={0, 2, 4}; // ch 1, 3, 5
 	int evens[3]={1, 3, 5}; // ch 2, 4, 6
 	int32_t freq_jack_cv;
+	static float odds_freq_jack_cv_lpf = 0.0;
+	static float evens_freq_jack_cv_lpf = 0.0;
+
 	
 	// FREQ SHIFT
 		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
 		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
-		if (filter_type==MAXQ){
+
+		if (filter_type==MAXQ)
+		{
 			// Read buffer knob and normalize input: 0-1
 				t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
 				t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
+
 			// after turning on the module
 			// keep freq nudge knobs output at 0 as long as knobs are within sleep range
 				if (!sleep_range_saved){
@@ -221,23 +227,29 @@ void param_read_freq(void){
 			// is odds cv input Low-passed and adjusted for 1V/Oct
 				if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
 
-				freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0]) * trackcomp[0];
+				freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0] + BASE_TRACKOFFSET) * trackcomp[0];
 				if (freq_jack_cv<0) freq_jack_cv=0;
 				if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-				f_shift_odds *= FREQCV_LPF; 
-				f_shift_odds += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]) ;
+				odds_freq_jack_cv_lpf *= FREQCV_LPF;
+				odds_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+
+				f_shift_odds = exp_1voct[(uint32_t)odds_freq_jack_cv_lpf];
+
 
 			// Freq shift evens
 			// is odds cv input Low-passed and adjusted for 1V/Oct
 				if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
 
-				freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1]) * trackcomp[1];
+				freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1] + BASE_TRACKOFFSET) * trackcomp[1];
 				if (freq_jack_cv<0) freq_jack_cv=0;
 				if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-				f_shift_evens *= FREQCV_LPF;
-				f_shift_evens += (1.0f-FREQCV_LPF)*(float)(exp_1voct[freq_jack_cv]);
+				evens_freq_jack_cv_lpf *= FREQCV_LPF;
+				evens_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+
+				f_shift_evens = exp_1voct[(uint32_t)evens_freq_jack_cv_lpf];
+
  
 		}else{
 
@@ -1019,27 +1031,27 @@ void process_rotary_button(void){
 		//Handle long hold press:
 		if (rotary_button_hold_ctr!=0) rotary_button_hold_ctr++; //when set to 0, we have disabled counting
 
-		if (ui_mode==PLAY && rotary_button_hold_ctr>150000){
+		if (ui_mode==PLAY && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
 			rotary_button_hold_ctr=0;
 
 			change_scale_mode=0;
 			ui_mode=PRE_SELECT_PARAMS;
 		}
 
-		if (ui_mode==SELECT_PARAMS && rotary_button_hold_ctr>150000){
+		if (ui_mode==SELECT_PARAMS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
 			rotary_button_hold_ctr=0;
 
 			ui_mode=PRE_EDIT_COLORS;
 		}
 
-		if (ui_mode==EDIT_COLORS && rotary_button_hold_ctr>150000){
+		if (ui_mode==EDIT_COLORS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
 			rotary_button_hold_ctr=0;
 
 			exit_system_mode(1); //restore lock[] so that we can save them
 			save_param_bank(cur_param_bank);
 		}
 
-		if (ui_mode==EDIT_SCALES && rotary_button_hold_ctr>150000){
+		if (ui_mode==EDIT_SCALES && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
 			rotary_button_hold_ctr=0;
 			exit_edit_scale(1);
 		}
