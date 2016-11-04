@@ -773,13 +773,19 @@ void param_read_switches(void){
 	}
 
 	//float ga = exp(-1.0f/(SampleRate*AttackTimeInSecond));
-	if (ENVSPEEDFAST) {
-		env_track_mode=ENV_VOLTOCT;
-		//env_track_mode=ENV_FAST;
-		//envspeed_attack=0.0;
-		//envspeed_decay=0.0;
-		envspeed_attack=0.9990;
-		envspeed_decay=0.9991;
+
+	if (ENVSPEEDFAST)
+	{
+		if (env_track_mode != ENV_VOLTOCT && env_track_mode!=ENV_FAST) //changed state
+		{
+			if (ROTARY_SW)
+				env_track_mode=ENV_VOLTOCT;
+			else
+				env_track_mode=ENV_FAST;
+
+			envspeed_attack=0.9990;
+			envspeed_decay=0.9991;
+		}
 	} else {
 		if (ENVSPEEDSLOW){
 			env_track_mode=ENV_SLOW;
