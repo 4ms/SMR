@@ -76,6 +76,8 @@ extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
  
 // ROTARY BUTTON
+uint16_t rotary_mon;
+uint16_t rotary_toggle;
 uint16_t rotsw_up, rotsw_down;
 uint32_t rotary_button_hold_ctr;
 uint8_t user_turned_rotary=0;
@@ -87,9 +89,10 @@ uint8_t lock_up[NUM_CHANNELS];  		// MOMENTARY 1 while button pressed. 0 otherwi
 uint32_t lock_down[NUM_CHANNELS];		// COUNTER starts at 1 and goes up while button's pressed
 uint8_t num_clear_coarse_staged = 0; 	// number of coarse tunings staged to be cleared
 uint8_t already_handled_lock_release[NUM_CHANNELS];
-
+	
 //ENV OUTS
 uint32_t env_prepost_mode;
+
 // BINARY CONVENTION USED
 // left-most bit is the sign of the coarse adjustment (+/-  X semitone, 1 is going down semitones) rest is LED ON=1 OFF=0 is display order
 int saved_envled_state[NUM_CHANNELS]={0b0001100,0b0001100,0b0001100,0b0001100,0b0001100,0b0001100};
@@ -100,6 +103,11 @@ float envspeed_attack, envspeed_decay;
 
 //ROTATE SCALE
 uint16_t rotate_to_next_scale;
+
+//FREQ BLOCKS
+uint32_t freqblock = 0b00000000000000000000; // 20 freq positions
+int num_freq_blocked=0;
+int rotary_switch_b = 0;
 
 //CHANNEL LEVELS/SLEW
 float channel_level[NUM_CHANNELS]={0,0,0,0,0,0};
@@ -137,6 +145,7 @@ uint8_t scale_cv[NUM_CHANNELS];
 //Scale bank
 uint8_t hover_scale_bank=0;
 int16_t change_scale_mode=0;
+uint8_t just_switched_to_change_scale_mode=0;
 
 extern uint8_t cur_param_bank;
 extern uint8_t cur_colsch;
@@ -977,6 +986,59 @@ void process_lock_buttons(){
 		}
 	}
 }
+
+void process_freq_blocks(){
+	int i;
+	
+	if(lock_pressed[0] || lock_pressed[1] || lock_pressed[2] || lock_pressed[3] || lock_pressed[4] || lock_pressed[5]){				
+		
+		if((ui_mode==PLAY) && rotary_switch_b){
+			change_scale_mode=0;
+			just_switched_to_change_scale_mode=0;
+			
+			// APPLY / CLEAR SINGLE FREQ BLOCKS
+			if(!(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5])){				
+				
+				for (i=0; i<NUM_CHANNELS; i++){
+				
+					if (lock_pressed[i]){
+				
+						//disable lock state change
+						already_handled_lock_release[i]=1;					
+	
+						// freq-block frequency if freq-unblocked, and less than 15 freq have been locked
+						if ((!(freqblock & (1<<note[i]))) && (num_freq_blocked<14)) {
+							freqblock |= (1 << note[i]); 
+							num_freq_blocked += 1; 
+				
+						// freq-unblock frequency if freq-blocked
+						}else if (freqblock & (1<<note[i])){  
+							freqblock &= ~(1 << note[i]);  
+							num_freq_blocked -= 1; 
+						}
+					}
+				}
+				
+			}else{
+	
+			// CLEAR ALL FREQBLOCKS
+			// if all lock buttons pressed, and rotary switched
+			// clear all freq-blocks
+			// 	if(lock_pressed[0] && lock_pressed[1] && lock_pressed[2] && lock_pressed[3] && lock_pressed[4] && lock_pressed[5]){				
+			// 		if(ROTARY_SW){
+			freqblock &= 0b00000000000000000000;
+			num_freq_blocked = 0;
+			already_handled_lock_release[0]=1;	
+			already_handled_lock_release[1]=1;	
+			already_handled_lock_release[2]=1;	
+			already_handled_lock_release[3]=1;	
+			already_handled_lock_release[4]=1;	
+			already_handled_lock_release[5]=1;	
+			}
+		}
+	}	
+}
+
 void process_lock_jacks(void){
 
 	if (do_LOCK135){
@@ -1021,104 +1083,97 @@ void process_lock_jacks(void){
 
 
 void process_rotary_button(void){
-	static uint8_t just_switched_to_change_scale_mode=0;
+	//static uint8_t just_switched_to_change_scale_mode=0;
 	uint8_t i;
 
+		if (ROTARY_SW){
+			rotsw_up=1;
 
-	if (ROTARY_SW){
-		rotsw_up=1;
+			if (rotsw_down!=0) rotsw_down++;
 
-		if (rotsw_down!=0) rotsw_down++;
+			//Handle long hold press:
+			if (rotary_button_hold_ctr!=0) rotary_button_hold_ctr++; //when set to 0, we have disabled counting
 
-		//Handle long hold press:
-		if (rotary_button_hold_ctr!=0) rotary_button_hold_ctr++; //when set to 0, we have disabled counting
+			if (ui_mode==PLAY && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
+				rotary_button_hold_ctr=0;
 
-		if (ui_mode==PLAY && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
-			rotary_button_hold_ctr=0;
+				change_scale_mode=0;
+				ui_mode=PRE_SELECT_PARAMS;
+			}
+			
+			if (ui_mode==SELECT_PARAMS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
+				rotary_button_hold_ctr=0;
 
-			change_scale_mode=0;
-			ui_mode=PRE_SELECT_PARAMS;
-		}
-
-		if (ui_mode==SELECT_PARAMS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
-			rotary_button_hold_ctr=0;
-
-			ui_mode=PRE_EDIT_COLORS;
-		}
-
-		if (ui_mode==EDIT_COLORS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
-			rotary_button_hold_ctr=0;
-
-			exit_system_mode(1); //restore lock[] so that we can save them
-			save_param_bank(cur_param_bank);
-		}
-
-		if (ui_mode==EDIT_SCALES && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
-			rotary_button_hold_ctr=0;
-			exit_edit_scale(1);
-		}
-
-
-		if (rotsw_down>5){rotsw_down=0;
-
-			//Handle button press
-			if ((ui_mode==PLAY || ui_mode==EDIT_SCALES) && change_scale_mode==0) {
-
-				change_scale_mode=1;
-				just_switched_to_change_scale_mode=1;
-
-			} else if (change_scale_mode==1) {
-
-				just_switched_to_change_scale_mode=0;
+				ui_mode=PRE_EDIT_COLORS;
 			}
 
-			user_turned_rotary=0;
+			if (ui_mode==EDIT_COLORS && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
+				rotary_button_hold_ctr=0;
 
-		}
-
-	} else {
-		rotsw_down=1;rotary_button_hold_ctr=1;
-		if (rotsw_up!=0) rotsw_up++;
-		if (rotsw_up>5){ rotsw_up=0;
-
-			//Handle button release
-			if (ui_mode==SELECT_PARAMS){
-				exit_select_colors_mode();
-				exit_system_mode(1); //restore lock[] and return to PLAY mode
+				exit_system_mode(1); //restore lock[] so that we can save them
+				save_param_bank(cur_param_bank);
 			}
 
-			if (ui_mode==PRE_SELECT_PARAMS){
-				enter_system_mode();
+			if (ui_mode==EDIT_SCALES && rotary_button_hold_ctr>ROTARY_BUTTON_HOLD){
+				rotary_button_hold_ctr=0;
+				exit_edit_scale(1);
 			}
 
-			if (ui_mode==EDIT_COLORS){
-				exit_system_mode(1); //restore lock[] and return to PLAY mode
-			}
+			if (rotsw_down>5){rotsw_down=0;
+				//Handle button press
+				rotary_switch_b =1;
+				if ((ui_mode==PLAY || ui_mode==EDIT_SCALES) && change_scale_mode==0) {
+					change_scale_mode=1;
+					just_switched_to_change_scale_mode=1;
+				} else if (change_scale_mode==1) {
+					just_switched_to_change_scale_mode=0;
+				}
+					user_turned_rotary=0;
+			} else {rotary_switch_b =0;}
+		
 
-			if (ui_mode==PRE_EDIT_COLORS){
-				enter_edit_color_mode();
-			}
+		} else {
+			rotsw_down=1;rotary_button_hold_ctr=1;
+			if (rotsw_up!=0) rotsw_up++;
+			if (rotsw_up>5){ rotsw_up=0;
 
-			if (ui_mode==PLAY){
-				for (i=0;i<NUM_CHANNELS;i++) {
-					if (lock[i]!=1) {
-						scale_bank[i]=hover_scale_bank; //Set all unlocked scale_banks to the same value
+				//Handle button release
+				if (ui_mode==SELECT_PARAMS){
+					exit_select_colors_mode();
+					exit_system_mode(1); //restore lock[] and return to PLAY mode
+				}
+
+				if (ui_mode==PRE_SELECT_PARAMS){
+					enter_system_mode();
+				}
+
+				if (ui_mode==EDIT_COLORS){
+					exit_system_mode(1); //restore lock[] and return to PLAY mode
+				}
+
+				if (ui_mode==PRE_EDIT_COLORS){
+					enter_edit_color_mode();
+				}
+					
+				if (ui_mode==PLAY){
+					for (i=0;i<NUM_CHANNELS;i++) {
+						if (lock[i]!=1) {
+							scale_bank[i]=hover_scale_bank; //Set all unlocked scale_banks to the same value
+						}
 					}
 				}
-			}
 
-			if (change_scale_mode && !just_switched_to_change_scale_mode && !user_turned_rotary) {
-				change_scale_mode=0;
-				just_switched_to_change_scale_mode=0;
-			} else if (change_scale_mode && just_switched_to_change_scale_mode && user_turned_rotary) {
-				change_scale_mode=0;
-				just_switched_to_change_scale_mode=0;
+				if (change_scale_mode && !just_switched_to_change_scale_mode && !user_turned_rotary) {
+					change_scale_mode=0;
+					just_switched_to_change_scale_mode=0;
+				} else if (change_scale_mode && just_switched_to_change_scale_mode && user_turned_rotary) {
+					change_scale_mode=0;
+					just_switched_to_change_scale_mode=0;
+				}
 			}
 		}
 	}
 
-
-}
 
 void process_rotary_rotation(void){
 	rotary_state=read_rotary();

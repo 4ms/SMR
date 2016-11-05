@@ -153,6 +153,8 @@ void main(void)
 
 		process_lock_buttons();
 
+		process_freq_blocks();
+
 		process_rotary_button();
 
 		process_rotary_rotation();
