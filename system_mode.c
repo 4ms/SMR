@@ -117,11 +117,11 @@ extern float user_scalebank[231];
 #define FLASH_OFFSET_filter_type	(FLASH_OFFSET_qval				+ 24)		/* +55 		 */
 #define FLASH_OFFSET_cur_colsch		(FLASH_OFFSET_filter_type		+ 1)		/* +56 		 */
 #define FLASH_OFFSET_freq_nudge		(FLASH_OFFSET_cur_colsch		+ 1)		/* +57..+80  */
-#define FLASH_OFFSET_future_params	(FLASH_OFFSET_freq_nudge		+ 24)		/* +81..+152 */
-#define FLASH_OFFSET_filter_mode	(FLASH_OFFSET_future_params		+ 72)		/* +153	 	 */
-#define FLASH_OFFSET_freqblock		(FLASH_OFFSET_filter_mode		+ 1)		/* +154	 	 */
+#define FLASH_OFFSET_filter_mode	(FLASH_OFFSET_freq_nudge		+ 24)		/* 	81 	 */
+#define FLASH_OFFSET_freqblock		(FLASH_OFFSET_filter_mode		+ 1)		/* 	82 .. 85	 */
+#define FLASH_OFFSET_future_params	(FLASH_OFFSET_freqblock			+ 4)		/*  86 ... */
 
-#define SZ_FP 79
+#define SZ_FP 74
 
 #define FLASH_SIZE_parambank	(FLASH_OFFSET_future_params		+ SZ_FP)		/* size of each param bank: 160 */
 #define FLASH_NUM_parambanks 6													/* size of all param banks: 960 */
@@ -157,7 +157,7 @@ uint32_t 	flash_qval[FLASH_NUM_parambanks][NUM_CHANNELS];
 float 		flash_freq_nudge[FLASH_NUM_parambanks][NUM_CHANNELS];
 uint8_t 	flash_filter_type[FLASH_NUM_parambanks];
 uint8_t 	flash_filter_mode[FLASH_NUM_parambanks];
-int 		flash_freqblock[FLASH_NUM_parambanks];
+uint32_t 	flash_freqblock[FLASH_NUM_parambanks];
 uint8_t 	flash_cur_colsch[FLASH_NUM_parambanks];
 float 		flash_COLOR_CH[16][6][3];
 float 		flash_user_scalebank[231];
@@ -236,6 +236,10 @@ void load_params_from_sram(uint8_t bank_num){
 		if (freqblock & (1<<j))
 		num_freq_blocked+=1;
 	}	
+	if (num_freq_blocked > 14){
+	 freqblock = 0; //invalid
+	 num_freq_blocked=0;
+	 }
 	
 	for (i=0;i<NUM_CHANNELS;i++){
 		note[i]			= flash_note[bank_num][i];
@@ -412,9 +416,9 @@ void read_all_params_from_FLASH(void){ //~200uS
 		flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 		flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
 		flash_cur_colsch[bank_i]  = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch  + (FLASH_SIZE_parambank * bank_i));
+		flash_freqblock[bank_i]   = flash_read_word(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i));
 
 		flash_read_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
-		flash_read_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
 	}
 
@@ -436,8 +440,8 @@ void read_one_bank_params_from_FLASH(uint8_t bank_i){
 	flash_read_array((uint8_t  *)flash_q_locked[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_q_locked + (FLASH_SIZE_parambank * bank_i), 6);
 	flash_read_array((uint8_t  *)flash_qval[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_qval + (FLASH_SIZE_parambank * bank_i), 24);
 	flash_read_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
-	flash_read_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
+	flash_freqblock[bank_i]   = flash_read_word(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock + (FLASH_SIZE_parambank * bank_i));
 	flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 	flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
 
@@ -474,9 +478,10 @@ void write_all_params_to_FLASH(void){
 		flash_open_program_byte(flash_filter_type[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 		flash_open_program_byte(flash_filter_mode[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
 		flash_open_program_byte(flash_cur_colsch[bank_i],  FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch  + (FLASH_SIZE_parambank * bank_i));
+		
+		flash_open_program_word(flash_freqblock[bank_i],  FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i));
 
 		flash_open_program_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
-		flash_open_program_array((uint32_t *)flash_freqblock[bank_i] , FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock  + (FLASH_SIZE_parambank * bank_i), 3);
 
 	}
 
