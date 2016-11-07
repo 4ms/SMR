@@ -95,22 +95,10 @@ extern enum UI_Modes ui_mode;
 
 extern enum Env_Out_Modes env_track_mode;
 
-///
-	//CHANNEL LEVELS/SLEW
-	extern float CHANNEL_LEVEL_LPF;
-	extern uint16_t potadc_buffer[NUM_ADC3S];
-	extern uint16_t adc_buffer[NUM_ADCS];
-///
-
-	///
-	///param_read_q():
-//	extern uint16_t old_adc_buffer[NUM_ADCS];
-//	extern uint32_t qvalcv, qvalpot;
-//	extern uint8_t lock_pressed[NUM_CHANNELS]; 	// MOMENTARY 1 while button pressed. 0 otherwise
-//	extern uint8_t q_locked[NUM_CHANNELS];
-//	extern uint8_t user_turned_Q_pot;
-	///
-
+//CHANNEL LEVELS/SLEW
+extern float CHANNEL_LEVEL_LPF;
+extern uint16_t potadc_buffer[NUM_ADC3S];
+extern uint16_t adc_buffer[NUM_ADCS];
 	
 float *c_hiq[6];
 float *c_loq[6];
@@ -163,15 +151,13 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float tmp, fir, iir, iir_a;
 	float c0,c0_a,c1,c2,c2_a;
 	float a0,a1,a2;
+	
 
-///
-// 	uint16_t t;
 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 	float level_lpf;
 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	static float level_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-///
 
 	uint8_t filter_num,channel_num;
 	uint8_t scale_num;
@@ -188,15 +174,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
  	static int q_update_count 			= 0;
 
  	static float level_inc[NUM_CHANNELS] = {0,0,0,0,0,0};
-
- 	//from param_read_q()
-//	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-//	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-//	static float qpot_lpf=0;
-//	static float old_qpot_lpf=0xFFFF;
-//	int16_t num_locked;
-//	static uint32_t q_poll_ctr=0;
-
 
  	static float t_morph = 0.0;
 
@@ -245,46 +222,58 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					*(ff+j+1)=0;
 					*(ff+j+2)=0;
 				}
+				
+				
+				// Equal temperament
+ 				if (scale_bank[i] 		== 0){
+ 					c_hiq[i]=(float *)(filter_maxq_coefs_Major); 				// Major scale/chords 
+				} else if (scale_bank[i]== 1){
+					c_hiq[i]=(float *)(filter_maxq_coefs_Minor); 				// Minor scale/chords
+				} else if (scale_bank[i]== 2){
+					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+				} else if (scale_bank[i]== 3){
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);				// Diatonic scale
+				} else if (scale_bank[i]== 4){
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);				
+								
+				// Just intonation
+				} else if (scale_bank[i]== 5){
+					c_hiq[i]=(float *)(filter_maxq_coefs_western); 				// Western Intervals
+				} else if (scale_bank[i]== 6){
+					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval); 	// Western triads (pairs of intervals) 
 
-				if (scale_bank[i]==0){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western);
-				} else if (scale_bank[i]==1){
-					c_hiq[i]=(float *)(filter_maxq_coefs_indian);
-				} else if (scale_bank[i]==2){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
-				} else if (scale_bank[i]==3){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
-				} else if (scale_bank[i]==4){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
-				} else if (scale_bank[i]==5){
-					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
-				} else if (scale_bank[i]==6){
-					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
-				} else if (scale_bank[i]==7){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
-				} else if (scale_bank[i]==8){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
-				} else if (scale_bank[i]==9){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
-				} else if (scale_bank[i]==10){
-					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
-				} else if (scale_bank[i]==11){
-					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
-				} else if (scale_bank[i]==12){
-					c_hiq[i]=(float *)(filter_maxq_coefs_B296);
-				} else if (scale_bank[i]==13){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
-				} else if (scale_bank[i]==14){
-					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
- 				} else if (scale_bank[i]==15){
- 					c_hiq[i]=(float *)(filter_maxq_coefs_Major);
-				} else if (scale_bank[i]==16){
-					c_hiq[i]=(float *)(filter_maxq_coefs_Minor);
+				// World/Civilisation Tunings
+				} else if (scale_bank[i]== 7){
+					c_hiq[i]=(float *)(filter_maxq_coefs_indian);				// Indian pentatonic
+				} else if (scale_bank[i]== 9){
+					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);				// Indian Shrutis
+				} else if (scale_bank[i]== 8){
+					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);			// Mesopotamian
+				} else if (scale_bank[i]== 10){
+					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);				// Gamelan Pelog
+				
+				// Exotic tunings				
+				} else if (scale_bank[i]== 11){
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);		// W.C.'s Alpha scale - selected notes A
+				} else if (scale_bank[i]== 12){
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);		// W.C.'s Alpha scale - selected notes B
+				} else if (scale_bank[i]== 13){
+					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);			// W.C.'s Alpha scale - selected notes
+				} else if (scale_bank[i]== 14){
+					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
+				} else if (scale_bank[i]== 15){
+					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
+				
+				// E.Q.
+				} else if (scale_bank[i]== 16){
+					c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// EQ
+					
+				// User	Scales
 				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
 					c_hiq[i]=(float *)(user_scalebank);
 				}
+				
 			}
-
 		}
 
 
@@ -463,110 +452,119 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				}
 
 				if (filter_type==MAXQ){
-					if (scale_bank[i]==0){
-						c_hiq[i]=(float *)(filter_maxq_coefs_western);
-					} else if (scale_bank[i]==1){
-						c_hiq[i]=(float *)(filter_maxq_coefs_indian);
-					} else if (scale_bank[i]==2){
-						c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);
-					} else if (scale_bank[i]==3){
-						c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);
-					} else if (scale_bank[i]==4){
-						c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);
-					} else if (scale_bank[i]==5){
-						c_hiq[i]=(float *)(filter_maxq_coefs_17ET);
-					} else if (scale_bank[i]==6){
-						c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);
-					} else if (scale_bank[i]==7){
-						c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);
-					} else if (scale_bank[i]==8){
-						c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);
-					} else if (scale_bank[i]==9){
-						c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval);
-					} else if (scale_bank[i]==10){
-						c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);
-					} else if (scale_bank[i]==11){
-						c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);
-					} else if (scale_bank[i]==12){
-						c_hiq[i]=(float *)(filter_maxq_coefs_B296);
-					} else if (scale_bank[i]==13){
-						c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);
-					} else if (scale_bank[i]==14){
-						c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);
+					// Equal temperament
+					if (scale_bank[i] 		== 0){
+						c_hiq[i]=(float *)(filter_maxq_coefs_Major); 				// Major scale/chords 
+					} else if (scale_bank[i]== 1){
+						c_hiq[i]=(float *)(filter_maxq_coefs_Minor); 				// Minor scale/chords
+					} else if (scale_bank[i]== 2){
+						c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+					} else if (scale_bank[i]== 3){
+						c_hiq[i]=(float *)(filter_maxq_coefs_diatonic);				// Diatonic scale
+					} else if (scale_bank[i]== 4){
+						c_hiq[i]=(float *)(filter_maxq_coefs_diatonic2);				
+								
+					// Just intonation
+					} else if (scale_bank[i]== 5){
+						c_hiq[i]=(float *)(filter_maxq_coefs_western); 				// Western Intervals
+					} else if (scale_bank[i]== 6){
+						c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval); 	// Western triads (pairs of intervals) 
 
+					// World/Civilisation Tunings
+					} else if (scale_bank[i]== 7){
+						c_hiq[i]=(float *)(filter_maxq_coefs_indian);				// Indian pentatonic
+					} else if (scale_bank[i]== 9){
+						c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);				// Indian Shrutis
+					} else if (scale_bank[i]== 8){
+						c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);			// Mesopotamian
+					} else if (scale_bank[i]== 10){
+						c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);				// Gamelan Pelog
+				
+					// Exotic tunings				
+					} else if (scale_bank[i]== 11){
+						c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);		// W.C.'s Alpha scale - selected notes A
+					} else if (scale_bank[i]== 12){
+						c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);		// W.C.'s Alpha scale - selected notes B
+					} else if (scale_bank[i]== 13){
+						c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);			// W.C.'s Alpha scale - selected notes
+					} else if (scale_bank[i]== 14){
+						c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
+					} else if (scale_bank[i]== 15){
+						c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
+				
+					// E.Q.
+					} else if (scale_bank[i]== 16){
+						c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// EQ
+					
+					// User	Scales
 					} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
 						c_hiq[i]=(float *)(user_scalebank);
 					}
 
-
 				} else if (filter_type==BPRE){
 
-					if (scale_bank[i]==0){
-						c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
+					// Equal temperament
+					if (scale_bank[i] 		== 0){
+						c_hiq[i]=(float *)(filter_bpre_coefs_Major_800Q); 				// Major scale/chords 
+						c_hiq[i]=(float *)(filter_bpre_coefs_Major_2Q); 				// Major scale/chords 
+					} else if (scale_bank[i]== 1){
+						c_hiq[i]=(float *)(filter_bpre_coefs_Minor_800Q); 				// Minor scale/chords
+						c_hiq[i]=(float *)(filter_bpre_coefs_Minor_2Q); 				// Minor scale/chords
+					} else if (scale_bank[i]== 2){
+						c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+						c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+					} else if (scale_bank[i]== 3){
+						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_800Q);				// Diatonic scale
+						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_2Q);				// Diatonic scale
+					} else if (scale_bank[i]== 4){
+						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_800Q);				
+						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_2Q);				
+								
+					// Just intonation
+					} else if (scale_bank[i]== 5){
+						c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q); 			// Western Intervals
+						c_hiq[i]=(float *)(filter_bpre_coefs_western_2Q); 				// Western Intervals
+					} else if (scale_bank[i]== 6){
+						c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q); // Western triads (pairs of intervals) 
+						c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q); 	// Western triads (pairs of intervals) 
 
-					} else if (scale_bank[i]==1){
-						c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_indian_2Q);
-
-					} else if (scale_bank[i]==2){
-						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);
-
-					} else if (scale_bank[i]==3){
-						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);
-
-					} else if (scale_bank[i]==4){
-						c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);
-
-					} else if (scale_bank[i]==5){
-						c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_17ET_2Q);
-
-					} else if (scale_bank[i]==6){
-						c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);
-
-					} else if (scale_bank[i]==7){
-						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_diatonic_2Q);
-
-					} else if (scale_bank[i]==8){
-						c_hiq[i]=(float *)(filter_bpre_coefs_diatonic2_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_diatonic2_2Q);
-
-					} else if (scale_bank[i]==9){
-						c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q);
-
-					} else if (scale_bank[i]==10){
-						c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_mesopotamian_2Q);
-
-					} else if (scale_bank[i]==11){
-						c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_shrutis_2Q);
-
-					} else if (scale_bank[i]==12){
-						c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_B296_2Q);
-
-					} else if (scale_bank[i]==13){
-						c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_gamelan_2Q);
-
-					} else if (scale_bank[i]==14){
-						c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);
-
-					} else {
-						scale_bank[i]=0;
-						c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q);
-						c_loq[i]=(float *)(filter_bpre_coefs_western_2Q);
-
+					// World/Civilisation Tunings
+					} else if (scale_bank[i]== 7){
+						c_hiq[i]=(float *)(filter_bpre_coefs_indian_800Q);				// Indian pentatonic
+						c_hiq[i]=(float *)(filter_bpre_coefs_indian_2Q);				// Indian pentatonic
+					} else if (scale_bank[i]== 9){
+						c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_800Q);				// Indian Shrutis
+						c_hiq[i]=(float *)(filter_bpre_coefs_shrutis_2Q);				// Indian Shrutis
+					} else if (scale_bank[i]== 8){
+						c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_800Q);			// Mesopotamian
+						c_hiq[i]=(float *)(filter_bpre_coefs_mesopotamian_2Q);			// Mesopotamian
+					} else if (scale_bank[i]== 10){
+						c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_800Q);				// Gamelan Pelog
+						c_hiq[i]=(float *)(filter_bpre_coefs_gamelan_2Q);				// Gamelan Pelog
+				
+					// Exotic tunings				
+					} else if (scale_bank[i]== 11){
+						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_800Q);		// W.C.'s Alpha scale - selected notes A
+						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread2_2Q);			// W.C.'s Alpha scale - selected notes A
+					} else if (scale_bank[i]== 12){
+						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_800Q);		// W.C.'s Alpha scale - selected notes B
+						c_hiq[i]=(float *)(filter_bpre_coefs_alpha_spread1_2Q);			// W.C.'s Alpha scale - selected notes B
+					} else if (scale_bank[i]== 13){
+						c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_800Q);		// W.C.'s Alpha scale - selected notes
+						c_hiq[i]=(float *)(filter_bpre_coefs_gammaspread1_2Q);			// W.C.'s Alpha scale - selected notes
+					} else if (scale_bank[i]== 14){
+						c_hiq[i]=(float *)(filter_bpre_coefs_17ET_800Q);				// 17 notes/oct
+						c_hiq[i]=(float *)(filter_bpre_coefs_17ET_2Q);					// 17 notes/oct
+					} else if (scale_bank[i]== 15){
+						c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);		// Bohlen Pierce
+						c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);			// Bohlen Pierce
+				
+					// E.Q.
+					} else if (scale_bank[i]== 16){
+						c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);				// EQ
+						c_hiq[i]=(float *)(filter_bpre_coefs_B296_2Q);					// EQ
 					}
+
 				}
 			} 	// new scale bank or filter type changed
 		}		// channels
