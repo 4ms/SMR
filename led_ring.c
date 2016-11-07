@@ -109,7 +109,7 @@ const float DEFAULT_COLOR_CH[16][6][3]={
 };
 
 
-const float SCALE_BANK_COLOR[30][3]={
+const float SCALE_BANK_COLOR[36][3]={
 
   // New colors (ordered)
 
@@ -151,7 +151,15 @@ const float SCALE_BANK_COLOR[30][3]={
 	{ 941 	, 35 	, 60	},
 	{ 954 	, 1		, 40 	},
 	{ 904 	, 1	 	, 20	},
-	{ 800 	, 1	 	, 0	    }
+	{ 800 	, 1	 	, 0	    },
+
+	// Shades of white
+	{ 100  	, 100	, 100	},
+	{ 200 	, 200	, 200	},
+	{ 400 	, 400 	, 400	},
+	{ 600 	, 600	, 600 	},
+	{ 800 	, 800	, 800	},
+	{ 1000 	, 1000	, 1000	}
 };
 
 const float USER_SCALE_BANK[3] = {50,50,50};
@@ -196,11 +204,12 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 // 		bank_group_num     = (int)(hover_scale_bank/6);
 
 		// SET DISPLAY VARIABLES
-		if ((hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))		{bank_group_num=0; bank_group_max = 4; 					bank_group_offset=0;}
-		if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																						{bank_group_num=1; bank_group_max = 1; 					bank_group_offset=5;}
-		if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)								{bank_group_num=2; bank_group_max = 3; 					bank_group_offset=7;}
-		if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15))	{bank_group_num=3; bank_group_max = 4; 					bank_group_offset=11;}
-		if (hover_scale_bank > 15)																														{bank_group_num=4; bank_group_max = NUMSCALEBANKS-16; 		bank_group_offset=15;}
+		if (	 (hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))		{bank_group_num=0; bank_group_max = 4; 					bank_group_offset=0;}
+		else if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																						{bank_group_num=1; bank_group_max = 1; 					bank_group_offset=5;}
+		else if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)							{bank_group_num=2; bank_group_max = 3; 					bank_group_offset=7;}
+		else if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15))	{bank_group_num=3; bank_group_max = 4; 					bank_group_offset=11;}
+		else if (hover_scale_bank == 16) 																													{bank_group_num=4; bank_group_max = 0; 					bank_group_offset=16;}		
+		else if (hover_scale_bank > 15)																														{bank_group_num=5; bank_group_max = NUMSCALEBANKS-16; 	bank_group_offset=17;}
 
   	  	// and calculate bank position in group (0-5) 		
 		scale_num_in_group = hover_scale_bank - bank_group_offset ;
@@ -586,11 +595,12 @@ void display_scale(void){
 	// --Show the scale bank settings
 	for (i=0;i<NUM_CHANNELS;i++){
 		// SET DISPLAY VARIABLES
-		if ((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))		{bank_group_num_b=0; bank_group_max_b = 4; 					bank_group_offset_b=0;}
-		if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																				{bank_group_num_b=1; bank_group_max_b = 1; 					bank_group_offset_b=5;}
-		if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)							{bank_group_num_b=2; bank_group_max_b = 3; 					bank_group_offset_b=7;}
-		if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15))	{bank_group_num_b=3; bank_group_max_b = 4; 					bank_group_offset_b=11;}
-		if (scale_bank[i] > 15)																											{bank_group_num_b=4; bank_group_max_b = NUMSCALEBANKS-16; 		bank_group_offset_b=15;}
+		if ((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))				{bank_group_num_b=0; bank_group_max_b = 4; 					bank_group_offset_b=0;}
+		else if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																				{bank_group_num_b=1; bank_group_max_b = 1; 					bank_group_offset_b=5;}
+		else if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)							{bank_group_num_b=2; bank_group_max_b = 3; 					bank_group_offset_b=7;}
+		else if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15))		{bank_group_num_b=3; bank_group_max_b = 4; 					bank_group_offset_b=11;}
+		else if (scale_bank[i] == 16) 																											{bank_group_num_b=4; bank_group_max_b = 0; 					bank_group_offset_b=16;}
+		else if (scale_bank[i] > 16)																											{bank_group_num_b=5; bank_group_max_b = NUMSCALEBANKS-17; 	bank_group_offset_b=17;}
 
 		j=13-i; //13, 12, 11, 10, 9, 8
 
