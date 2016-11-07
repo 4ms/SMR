@@ -263,10 +263,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
 				} else if (scale_bank[i]== 15){
 					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
-				
-				// E.Q.
 				} else if (scale_bank[i]== 16){
-					c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// EQ
+					c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// Buchla 296 EQ
 					
 				// User	Scales
 				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
@@ -491,10 +489,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
 					} else if (scale_bank[i]== 15){
 						c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
-				
-					// E.Q.
 					} else if (scale_bank[i]== 16){
-						c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// EQ
+						c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// Buchla 296 EQ
 					
 					// User	Scales
 					} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
@@ -558,11 +554,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					} else if (scale_bank[i]== 15){
 						c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_800Q);		// Bohlen Pierce
 						c_hiq[i]=(float *)(filter_bpre_coefs_bohlen_pierce_2Q);			// Bohlen Pierce
-				
-					// E.Q.
 					} else if (scale_bank[i]== 16){
-						c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);				// EQ
-						c_hiq[i]=(float *)(filter_bpre_coefs_B296_2Q);					// EQ
+						c_hiq[i]=(float *)(filter_bpre_coefs_B296_800Q);				// Buhcla 296 EQ
+						c_hiq[i]=(float *)(filter_bpre_coefs_B296_2Q);					// Buhcla 296 EQ
 					}
 
 				}

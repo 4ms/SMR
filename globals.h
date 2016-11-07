@@ -37,7 +37,7 @@
 #define NUM_FILTS 20
 #define NUM_CHANNELS 6
 #define NUMSCALES 11
-#define NUMSCALEBANKS 23
+#define NUMSCALEBANKS 18
 #define NUM_COLORSCHEMES 16
 
 //Parameter values
