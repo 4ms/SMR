@@ -200,7 +200,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																						{bank_group_num=1; bank_group_max = 1; 					bank_group_offset=5;}
 		if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)								{bank_group_num=2; bank_group_max = 3; 					bank_group_offset=7;}
 		if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15))	{bank_group_num=3; bank_group_max = 4; 					bank_group_offset=11;}
-		if (hover_scale_bank > 15)																														{bank_group_num=4; bank_group_max = NUMSCALES-16; 		bank_group_offset=15;}
+		if (hover_scale_bank > 15)																														{bank_group_num=4; bank_group_max = NUMSCALEBANKS-16; 		bank_group_offset=15;}
 
   	  	// and calculate bank position in group (0-5) 		
 		scale_num_in_group = hover_scale_bank - bank_group_offset ;
@@ -534,9 +534,9 @@ void display_scale(void){
 	static uint8_t elacs_ctr[NUMSCALES]={0,0,0,0,0,0,0,0,0,0,0};
 
 	// SCALE BANK DISPLAY
-	int bank_group_num_b[NUM_CHANNELS];
-	int bank_group_max_b[NUM_CHANNELS];
-	int bank_group_offset_b[NUM_CHANNELS];  	
+	int bank_group_num_b;
+	int bank_group_max_b;
+	int bank_group_offset_b;  	
 
 
 	if (flash++>3) flash=0;
@@ -586,11 +586,11 @@ void display_scale(void){
 	// --Show the scale bank settings
 	for (i=0;i<NUM_CHANNELS;i++){
 		// SET DISPLAY VARIABLES
-		if ((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))		{bank_group_num_b[i]=0; bank_group_max_b[i] = 4; 					bank_group_offset_b[i]=0;}
-		if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																				{bank_group_num_b[i]=1; bank_group_max_b[i] = 1; 					bank_group_offset_b[i]=5;}
-		if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)							{bank_group_num_b[i]=2; bank_group_max_b[i] = 3; 					bank_group_offset_b[i]=7;}
-		if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15))	{bank_group_num_b[i]=3; bank_group_max_b[i] = 4; 					bank_group_offset_b[i]=11;}
-		if (scale_bank[i] > 15)																											{bank_group_num_b[i]=4; bank_group_max_b[i] = NUMSCALES-16; 		bank_group_offset_b[i]=15;}
+		if ((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))		{bank_group_num_b=0; bank_group_max_b = 4; 					bank_group_offset_b=0;}
+		if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																				{bank_group_num_b=1; bank_group_max_b = 1; 					bank_group_offset_b=5;}
+		if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)							{bank_group_num_b=2; bank_group_max_b = 3; 					bank_group_offset_b=7;}
+		if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15))	{bank_group_num_b=3; bank_group_max_b = 4; 					bank_group_offset_b=11;}
+		if (scale_bank[i] > 15)																											{bank_group_num_b=4; bank_group_max_b = NUMSCALEBANKS-16; 		bank_group_offset_b=15;}
 
 		j=13-i; //13, 12, 11, 10, 9, 8
 
@@ -611,12 +611,12 @@ void display_scale(void){
 		}
 		else {
 
-			ring[j][0]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset + (bank_group_num * 6)][0];
-			ring[j][1]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset + (bank_group_num * 6)][1];
-			ring[j][2]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset + (bank_group_num * 6)][2];
+			ring[j][0]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][0];
+			ring[j][1]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][1];
+			ring[j][2]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][2];
 		}
 	}
-
+	
 	// --Blank out three spots to separate scale and bank
 	//6
 	ring[NUMSCALES/2+1][0]=0;
