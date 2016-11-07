@@ -65,8 +65,14 @@ extern uint8_t lock[NUM_CHANNELS];
 
 // freq block
 extern uint32_t freqblock;
-//
 
+// SCALE BANK DISPLAY
+int bank_group_num;
+int bank_group_max;
+int bank_group_offset;  	
+int scale_num_in_group;
+//
+	
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
 extern enum UI_Modes ui_mode;
 
@@ -103,7 +109,7 @@ const float DEFAULT_COLOR_CH[16][6][3]={
 };
 
 
-const float SCALE_BANK_COLOR[24][3]={
+const float SCALE_BANK_COLOR[30][3]={
 
   // New colors (ordered)
 
@@ -116,7 +122,6 @@ const float SCALE_BANK_COLOR[24][3]={
 	{ 1		, 1		, 186	},
 					
 	// Shades of Pink
-	//{ 954  	, 928 	, 954 	},
 	{ 941  	, 366	, 954	},
 	{ 935 	, 116	, 928	},
 	{ 941 	, 35 	, 947	},
@@ -138,8 +143,23 @@ const float SCALE_BANK_COLOR[24][3]={
 	{  83	, 949	, 1		},
 	{  1	, 239	, 1		},
 	{  1	, 101	, 9		},
-	{  1	, 25	, 4		}
+	{  1	, 25	, 4		},
+// 
+// 	// Shades of Red
+// 	{ 941  	, 366	, 100	},
+// 	{ 935 	, 116	, 80	},
+// 	{ 941 	, 35 	, 60	},
+// 	{ 954 	, 1		, 40 	},
+// 	{ 904 	, 1	 	, 20	},
+// 	{ 800 	, 1	 	, 0	    },
 
+	// Shades of white
+	{ 100  	, 100	, 100	},
+	{ 200 	, 200	, 200	},
+	{ 400 	, 400 	, 400	},
+	{ 600 	, 600	, 600 	},
+	{ 800 	, 800	, 800	},
+	{ 1000 	, 1000	, 1000	}
 };
 
 const float USER_SCALE_BANK[3] = {50,50,50};
@@ -170,9 +190,6 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	float avg_r, avg_g, avg_b;
 	float dimamt;
 
- 	int bank_group_num;
-  	int scale_num_in_group;
-
 	// SCALE BANK SELECTION
 	// display group color on env led(s)
 	// display bank position within group by flashing corresponding LED
@@ -182,20 +199,31 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		
 		// Change flashing state
 		flash = 1-flash;
-		
-  	  	// calculate group number for hover bank
-		bank_group_num     = (int)(hover_scale_bank/6);
+
+		// SET DISPLAY VARIABLES
+		if (	 (hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))									{bank_group_num=0; bank_group_max = 4; 	bank_group_offset=0;}
+		else if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																													{bank_group_num=1; bank_group_max = 1; 	bank_group_offset=5;}
+		else if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)														{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=7;}
+		else if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15) || (hover_scale_bank == 16))	{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=11;}
+		else if  (hover_scale_bank == 17)																																					{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=17;}
 
   	  	// and calculate bank position in group (0-5) 		
-		scale_num_in_group = hover_scale_bank - (bank_group_num *6) ;
-  
+		scale_num_in_group = hover_scale_bank - bank_group_offset ;
+		 
   		// apply hover-bank's group color to env LEDs
-		for (i=0;i<6;i++){
+		for (i=0;i<bank_group_max+1;i++){
 			env_out_leds[i][0] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][0];
 			env_out_leds[i][1] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][1];
 			env_out_leds[i][2] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][2];
 		}
-		
+
+  		// turn off unused env LEDs
+		for (i=bank_group_max+1;i<6;i++){
+			env_out_leds[i][0] = 0.0;
+			env_out_leds[i][1] = 0.0;
+			env_out_leds[i][2] = 0.0;
+		}
+				
 		// flash env led corresponding to current scale
 			env_out_leds[scale_num_in_group][0] *= flash;
 			env_out_leds[scale_num_in_group][1] *= flash;
@@ -510,6 +538,12 @@ void display_scale(void){
 	uint8_t elacs_num[NUMSCALES];
 	static uint8_t elacs_ctr[NUMSCALES]={0,0,0,0,0,0,0,0,0,0,0};
 
+	// SCALE BANK DISPLAY
+	int bank_group_num_b;
+	int bank_group_max_b;
+	int bank_group_offset_b;  	
+
+
 	if (flash++>3) flash=0;
 
 	//Destination of fade:
@@ -556,6 +590,13 @@ void display_scale(void){
 
 	// --Show the scale bank settings
 	for (i=0;i<NUM_CHANNELS;i++){
+		// SET DISPLAY VARIABLES
+		if 		((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))								{bank_group_num_b=0; bank_group_max_b = 4; 	bank_group_offset_b=0;}
+		else if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																										{bank_group_num_b=1; bank_group_max_b = 1; 	bank_group_offset_b=5;}
+		else if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)													{bank_group_num_b=2; bank_group_max_b = 3; 	bank_group_offset_b=7;}
+		else if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15) || (scale_bank[i] == 16))		{bank_group_num_b=3; bank_group_max_b = 5; 	bank_group_offset_b=11;}
+		else if  (scale_bank[i] == 17)																																	{bank_group_num_b=4; bank_group_max_b = 0; 	bank_group_offset_b=17;}
+
 		j=13-i; //13, 12, 11, 10, 9, 8
 
 		if (ui_mode==EDIT_SCALES){
@@ -564,9 +605,9 @@ void display_scale(void){
 			ring[j][2]=USER_SCALE_BANK[2];
 		} else 
 		if (lock[i]!=1) {
-			ring[j][0]=SCALE_BANK_COLOR[hover_scale_bank][0];
-			ring[j][1]=SCALE_BANK_COLOR[hover_scale_bank][1];
-			ring[j][2]=SCALE_BANK_COLOR[hover_scale_bank][2];
+			ring[j][0]=SCALE_BANK_COLOR[scale_num_in_group + (bank_group_num * 6)][0];
+			ring[j][1]=SCALE_BANK_COLOR[scale_num_in_group + (bank_group_num * 6)][1];
+			ring[j][2]=SCALE_BANK_COLOR[scale_num_in_group + (bank_group_num * 6)][2];
 		} else
 		if (scale_bank[i]==0xFF ) {
 			ring[j][0]=USER_SCALE_BANK[0];
@@ -574,12 +615,13 @@ void display_scale(void){
 			ring[j][2]=USER_SCALE_BANK[2];
 		}
 		else {
-			ring[j][0]=SCALE_BANK_COLOR[scale_bank[i]][0];
-			ring[j][1]=SCALE_BANK_COLOR[scale_bank[i]][1];
-			ring[j][2]=SCALE_BANK_COLOR[scale_bank[i]][2];
+
+			ring[j][0]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][0];
+			ring[j][1]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][1];
+			ring[j][2]=SCALE_BANK_COLOR[scale_bank[i] - bank_group_offset_b + (bank_group_num_b * 6)][2];
 		}
 	}
-
+	
 	// --Blank out three spots to separate scale and bank
 	//6
 	ring[NUMSCALES/2+1][0]=0;
