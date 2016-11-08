@@ -2,7 +2,7 @@
  * system_mode.c - System Mode for saving parameters into slots
  * --also handles editting color schemes and other global system parameters
  *
- * Author: Dan Green (danngreen1@gmail.com)
+ * Author: Dan Green (danngreen1@gmail.com), Hugo Paris (hugoplho@gmail.com)
  * 2015
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy

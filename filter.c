@@ -1,7 +1,7 @@
 /*
  * filter.c - DSP bandpass resonant filter
  *
- * Author: Dan Green (danngreen1@gmail.com)
+ * Author: Dan Green (danngreen1@gmail.com), Hugo Paris (hugoplho@gmail.com)
  * Algorithm based on work by Max Matthews and Julius O. Smith III, "Methods for Synthesizing Very High Q Parametrically Well Behaved Two Pole Filters", as published here: https://ccrma.stanford.edu/~jos/smac03maxjos/smac03maxjos.pdf
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
