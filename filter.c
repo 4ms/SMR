@@ -608,10 +608,12 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c0 = 1.0 - exp_4096[(uint32_t)(qval[channel_num]/1.4)+200]/10.0; //exp[200...3125]
 
 				//FREQ: c1 = 2 * pi * freq / samplerate
-					c1 = *(c_hiq[channel_num] + (scale_num*21) + nudge_filter_num)*var_f + *(c_hiq[channel_num] + (scale_num*21) + filter_num)*inv_var_f;
+					// FREQ: c1 = 2 * pi * freq / samplerate
+					c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
 					c1 *= freq_nudge[channel_num];
 					c1 *= freq_shift[channel_num];
 					if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
+
 
 				//AMPLITUDE: Boost high freqs and boost low resonance
 					c2= (0.003 * c1) - (0.1*c0) + 0.102;
