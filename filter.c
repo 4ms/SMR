@@ -71,6 +71,7 @@ extern const uint32_t slider_led[6];
 
 // Filter parameters
 extern uint32_t qval[NUM_CHANNELS];					
+float var_q, inv_var_q, var_f, inv_var_f;
 
 // 2-pass Crossfade
 float pos_in_cf; 		 // % of Qknob position within crossfade region
@@ -147,7 +148,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float max_val, threshold, thresh_compiled, thresh_val;
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
-	float var_q, inv_var_q, var_f, inv_var_f;
 	float tmp, fir, iir, iir_a;
 	float c0,c0_a,c1,c2,c2_a;
 	float a0,a1,a2;
@@ -656,7 +656,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						filter_num=motion_fadeto_note[channel_num];
 						scale_num=motion_fadeto_scale[channel_num];
 					}
-
 
 					//Q vector
 					var_f=freq_nudge[channel_num];
