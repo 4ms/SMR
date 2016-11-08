@@ -1,7 +1,7 @@
 /*
  * led_ring.c - handles interfacing the RGB LED ring
  *
- * Author: Dan Green (danngreen1@gmail.com)
+ * Author: Dan Green (danngreen1@gmail.com), Hugo Paris (hugoplho@gmail.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -199,8 +199,9 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		
 		// Change flashing state
 		flash = 1-flash;
-
-		// SET DISPLAY VARIABLES
+		
+		// SET DISPLAY VARIABLES	
+		// (this could be done in a smarter way)
 		if (	 (hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))									{bank_group_num=0; bank_group_max = 4; 	bank_group_offset=0;}
 		else if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																													{bank_group_num=1; bank_group_max = 1; 	bank_group_offset=5;}
 		else if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)														{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=7;}
@@ -591,6 +592,7 @@ void display_scale(void){
 	// --Show the scale bank settings
 	for (i=0;i<NUM_CHANNELS;i++){
 		// SET DISPLAY VARIABLES
+		// (this could be done in a smarter way)
 		if 		((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))								{bank_group_num_b=0; bank_group_max_b = 4; 	bank_group_offset_b=0;}
 		else if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																										{bank_group_num_b=1; bank_group_max_b = 1; 	bank_group_offset_b=5;}
 		else if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)													{bank_group_num_b=2; bank_group_max_b = 3; 	bank_group_offset_b=7;}

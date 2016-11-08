@@ -1,7 +1,7 @@
 /*
  * params.c - Parameters
  *
- * Author: Dan Green (danngreen1@gmail.com)
+ * Author: Dan Green (danngreen1@gmail.com), Hugo Paris (hugoplho@gmail.com)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -71,6 +71,9 @@ uint16_t mod_mode_135;
 uint16_t mod_mode_246;
 
 uint8_t fine_timer[2]={1,1}; 			// flag for fine tune display soft release 1: soft release. 0: immediate release
+
+float t_fo, t_fe;						// buffers for freq nudge knob readouts 
+float f_nudge_odds=1, f_nudge_evens=1;
 
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
@@ -183,14 +186,12 @@ void set_default_param_values(void){
 
 void param_read_freq(void){
 	uint8_t i,j,k;
-	float t_fo, t_fe;														// freq nudge knob readouts 
 	static uint8_t sleep_range_saved =0, first_run[2]={1,1};
 	static uint8_t old_switch_state[2];										// previous 135/246 switch state
 	static uint8_t fknob_lock[2]={0,0};										// true disables nudge knob for odds/evens
 	static uint8_t coarse_lock[NUM_CHANNELS]={1,1,1,1,1,1}; 				// same as fknoblock, for the coarse tuning
 	static float sleep_range=800; 											// number of counts that won't wake up nudge knob after module is turned on
 	static float wakeup_evens[2], wakeup_odds[2]; 							// value at which f_nudge knob wakes up after module turns on
-	float f_nudge_odds=1, f_nudge_evens=1;
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1; 					// keeps track of freq knob rotation
 	static float f_nudge_odds_buf, f_nudge_evens_buf;
 	static float f_nudge_buf[2];
@@ -205,73 +206,61 @@ void param_read_freq(void){
 
 	
 	// FREQ SHIFT
-		//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
-		//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
+	//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
+	//With the BpRe filter, the Freq Nudge pot plus CV jack adjusts the "nudge", and there is no 1V/oct shift
 
-		if (filter_type==MAXQ)
-		{
-			// Read buffer knob and normalize input: 0-1
-				t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
-				t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
+	if (filter_type==MAXQ)
+	{
+		// Read buffer knob and normalize input: 0-1
+			t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
+			t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
 
-			// after turning on the module
-			// keep freq nudge knobs output at 0 as long as knobs are within sleep range
-				if (!sleep_range_saved){
-					wakeup_odds[0] =t_fo - sleep_range;
-					wakeup_odds[1] =t_fo + sleep_range;
-					wakeup_evens[0]=t_fe - sleep_range;
-					wakeup_evens[1]=t_fe + sleep_range;
-					sleep_range_saved = 1; // ensures this only gets computed once
-				}
-				if (first_run[0]){
-					if ((t_fo > wakeup_odds[0]) && (t_fo < wakeup_odds[1])) {t_fo=0.0;}
-					else{first_run[0]=0;}
-				}
-				if (first_run[1]){
-					if ((t_fe > wakeup_evens[0]) && (t_fe < wakeup_evens[1])) {t_fe=0.0;}
-					else{first_run[1]=0;}
-				}
+		// after turning on the module
+		// keep freq nudge knobs output at 0 as long as knobs are within sleep range
+			if (!sleep_range_saved){
+				wakeup_odds[0] =t_fo - sleep_range;
+				wakeup_odds[1] =t_fo + sleep_range;
+				wakeup_evens[0]=t_fe - sleep_range;
+				wakeup_evens[1]=t_fe + sleep_range;
+				sleep_range_saved = 1; // ensures this only gets computed once
+			}
+			if (first_run[0]){
+				if ((t_fo > wakeup_odds[0]) && (t_fo < wakeup_odds[1])) {t_fo=0.0;}
+				else{first_run[0]=0;}
+			}
+			if (first_run[1]){
+				if ((t_fe > wakeup_evens[0]) && (t_fe < wakeup_evens[1])) {t_fe=0.0;}
+				else{first_run[1]=0;}
+			}
 
-			// Freq shift odds
-			// is odds cv input Low-passed and adjusted for 1V/Oct
-				if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
+		// Freq shift odds
+		// is odds cv input Low-passed and adjusted for 1V/Oct
+			if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
 
-				freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0] + BASE_TRACKOFFSET) * trackcomp[0];
-				if (freq_jack_cv<0) freq_jack_cv=0;
-				if (freq_jack_cv>4095) freq_jack_cv=4095;
+			freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0] + BASE_TRACKOFFSET) * trackcomp[0];
+			if (freq_jack_cv<0) freq_jack_cv=0;
+			if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-				odds_freq_jack_cv_lpf *= FREQCV_LPF;
-				odds_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+			odds_freq_jack_cv_lpf *= FREQCV_LPF;
+			odds_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
 
-				f_shift_odds = exp_1voct[(uint32_t)odds_freq_jack_cv_lpf];
+			f_shift_odds = exp_1voct[(uint32_t)odds_freq_jack_cv_lpf];
 
 
-			// Freq shift evens
-			// is odds cv input Low-passed and adjusted for 1V/Oct
-				if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
+		// Freq shift evens
+		// is odds cv input Low-passed and adjusted for 1V/Oct
+			if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
 
-				freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1] + BASE_TRACKOFFSET) * trackcomp[1];
-				if (freq_jack_cv<0) freq_jack_cv=0;
-				if (freq_jack_cv>4095) freq_jack_cv=4095;
+			freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1] + BASE_TRACKOFFSET) * trackcomp[1];
+			if (freq_jack_cv<0) freq_jack_cv=0;
+			if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-				evens_freq_jack_cv_lpf *= FREQCV_LPF;
-				evens_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+			evens_freq_jack_cv_lpf *= FREQCV_LPF;
+			evens_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
 
-				f_shift_evens = exp_1voct[(uint32_t)evens_freq_jack_cv_lpf];
+			f_shift_evens = exp_1voct[(uint32_t)evens_freq_jack_cv_lpf];
 
- 
-		}else{
 
-			t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FREQCV1_ADC])/4096.0;
-			if (t_fo>1.0) t_fo=1.0;
-
-			t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FREQCV6_ADC])/4096.0;
-			if (t_fe>1.0) t_fe=1.0;
-
-			f_shift_odds=1.0;
-			f_shift_evens=1.0;
-		}
-	
 	// FREQ NUDGE 
 	  // SEMITONE FINE TUNE	
 		f_nudge_odds  = 1 + t_fo/55000.0; // goes beyond semitone 
@@ -279,159 +268,159 @@ void param_read_freq(void){
 
 	  // 12-SEMITONE COARSE TUNE
 		// [freq nudge knob] + [lock button] -> coarse tune
-		
+
 		// ODDS
 		if (fabsf(f_nudge_odds - old_f_nudge_odds) > NUDGEPOT_MIN_CHANGE){ 
-						
+				
 			// inform led_ring_c that fine tuning is ongoing
 			ongoing_fine_tuning[0]=1;
-			
+	
 			// update buffers
 			f_nudge_odds_buf = old_f_nudge_odds;
 			old_f_nudge_odds = f_nudge_odds;
 
 			// enable fine tuning timer for slow display release
 			fine_timer[0] = 1;	
-			
+	
 			// for each odd channel			
 			for (i=0;i<3;i++){
 				j = odds[i];
-				
+		
 				//update fine tuning env led
 				fine_envled = fine_envled | (1<<(5-j));
 
 				// inform led_ring_c that fine tuning is ongoing on odd chan(s)
 				ongoing_fine_tuning[0]	= 1;
 				fine_tuning_timeout[0] 	= 1; 	// stage timeout counter
-					 
+			 
 				// If lock button pressed, disable fine tuning and process coarse tuning				
 				if (lock_pressed[j]){ 
-					
+			
 					// inform led_ring_c that coarse tuning is ongoing
 					ongoing_coarse_tuning[0]=1;
-					
+			
 					// disable fine tuning timer for instantaneous display release
 					fine_timer[0] = 0;
 
 					// coarse tuning superseds fine tuning
 					ongoing_fine_tuning[0] = 0;
-										
+								
 					// disable fine adjustments when setting coarse tuning
 					if (fknob_lock[0]==0){ 
 						f_nudge_buf[0] = f_nudge_odds_buf;
 						fknob_lock[0]  = 1;
 					}	
 				  // Compute and apply coarse tuning	 		
-			 		// - 6 semitones
-			 		if (t_fo < 1.0*4095.0/13.0){coarse_adj[j]=1.0/1.41421356237;cur_envled_state=0b1111111;}
-			 		else if ((t_fo >= 1.0*4095.0/13.0) && (t_fo < 2.0*4095.0/13.0)){coarse_adj[j]=1.0/1.33483985417;cur_envled_state=0b1011111;}
-			 		else if ((t_fo >= 2.0*4095.0/13.0) && (t_fo < 3.0*4095.0/13.0)){coarse_adj[j]=1.0/1.25992104989;cur_envled_state=0b1001111;}
-			 		else if ((t_fo >= 3.0*4095.0/13.0) && (t_fo < 4.0*4095.0/13.0)){coarse_adj[j]=1.0/1.189207115;  cur_envled_state=0b1000111;}
-			 		else if ((t_fo >= 4.0*4095.0/13.0) && (t_fo < 5.0*4095.0/13.0)){coarse_adj[j]=1.0/1.12246204831;cur_envled_state=0b1000011;}
-			 		else if ((t_fo >= 5.0*4095.0/13.0) && (t_fo < 6.0*4095.0/13.0)){coarse_adj[j]=1.0/1.05946309436;cur_envled_state=0b1000001;}
+					// - 6 semitones
+					if (t_fo < 1.0*4095.0/13.0){coarse_adj[j]=1.0/1.41421356237;cur_envled_state=0b1111111;}
+					else if ((t_fo >= 1.0*4095.0/13.0) && (t_fo < 2.0*4095.0/13.0)){coarse_adj[j]=1.0/1.33483985417;cur_envled_state=0b1011111;}
+					else if ((t_fo >= 2.0*4095.0/13.0) && (t_fo < 3.0*4095.0/13.0)){coarse_adj[j]=1.0/1.25992104989;cur_envled_state=0b1001111;}
+					else if ((t_fo >= 3.0*4095.0/13.0) && (t_fo < 4.0*4095.0/13.0)){coarse_adj[j]=1.0/1.189207115;  cur_envled_state=0b1000111;}
+					else if ((t_fo >= 4.0*4095.0/13.0) && (t_fo < 5.0*4095.0/13.0)){coarse_adj[j]=1.0/1.12246204831;cur_envled_state=0b1000011;}
+					else if ((t_fo >= 5.0*4095.0/13.0) && (t_fo < 6.0*4095.0/13.0)){coarse_adj[j]=1.0/1.05946309436;cur_envled_state=0b1000001;}
 
 					//Tuned
-			 		else if ((t_fo >= 6.0*4095.0/13.0) && (t_fo < 7.0*4095.0/13.0)){coarse_adj[j]=1.0;cur_envled_state=0b0001100;}
+					else if ((t_fo >= 6.0*4095.0/13.0) && (t_fo < 7.0*4095.0/13.0)){coarse_adj[j]=1.0;cur_envled_state=0b0001100;}
 
-			 		// + 6 semitones
-			 		else if ((t_fo >= 7.0*4095.0/13.0) && (t_fo < 8.0*4095.0/13.0)){coarse_adj[j]=1.05946309436;	cur_envled_state=0b0100000;}
-			 		else if ((t_fo >= 8.0*4095.0/13.0) && (t_fo < 9.0*4095.0/13.0)){coarse_adj[j]=1.12246204831;	cur_envled_state=0b0110000;}
-			 		else if ((t_fo >= 9.0*4095.0/13.0) && (t_fo < 10.0*4095.0/13.0)){coarse_adj[j]=1.189207115; 	cur_envled_state=0b0111000;}
-			 		else if ((t_fo >= 10.0*4095.0/13.0) && (t_fo < 11.0*4095.0/13.0)){coarse_adj[j]=1.25992104989; 	cur_envled_state=0b0111100;}
-			 		else if ((t_fo >= 11.0*4095.0/13.0) && (t_fo < 12.0*4095.0/13.0)){coarse_adj[j]=1.33483985417;	cur_envled_state=0b0111110;}
-			 		else if ((t_fo >= 12.0*4095.0/13.0) && (t_fo < 13.0*4095.0/13.0)){coarse_adj[j]=1.41421356237;	cur_envled_state=0b0111111;}
-					
-			 		// apply/clear coarse lock and corresponding envled_state as needed
-			 		if ( fabsf(coarse_adj[j] - saved_coarse_adj[j])< 0.001){coarse_lock[j]=0;}	
-			 		if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
-			 		else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
-			 		
-			 		// apply coarse adjustment (in case channel is locked)
-			 		freq_nudge[j] = f_nudge_buf[0] * coarse_adj[j];
+					// + 6 semitones
+					else if ((t_fo >= 7.0*4095.0/13.0) && (t_fo < 8.0*4095.0/13.0)){coarse_adj[j]=1.05946309436;	cur_envled_state=0b0100000;}
+					else if ((t_fo >= 8.0*4095.0/13.0) && (t_fo < 9.0*4095.0/13.0)){coarse_adj[j]=1.12246204831;	cur_envled_state=0b0110000;}
+					else if ((t_fo >= 9.0*4095.0/13.0) && (t_fo < 10.0*4095.0/13.0)){coarse_adj[j]=1.189207115; 	cur_envled_state=0b0111000;}
+					else if ((t_fo >= 10.0*4095.0/13.0) && (t_fo < 11.0*4095.0/13.0)){coarse_adj[j]=1.25992104989; 	cur_envled_state=0b0111100;}
+					else if ((t_fo >= 11.0*4095.0/13.0) && (t_fo < 12.0*4095.0/13.0)){coarse_adj[j]=1.33483985417;	cur_envled_state=0b0111110;}
+					else if ((t_fo >= 12.0*4095.0/13.0) && (t_fo < 13.0*4095.0/13.0)){coarse_adj[j]=1.41421356237;	cur_envled_state=0b0111111;}
+			
+					// apply/clear coarse lock and corresponding envled_state as needed
+					if ( fabsf(coarse_adj[j] - saved_coarse_adj[j])< 0.001){coarse_lock[j]=0;}	
+					if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
+					else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
+			
+					// apply coarse adjustment (in case channel is locked)
+					freq_nudge[j] = f_nudge_buf[0] * coarse_adj[j];
 
 					already_handled_lock_release[j] = 1; //set this flag so that we don't do anything when the button is released
-		 		}else{coarse_lock[j]=1;}
-		 	}
+				}else{coarse_lock[j]=1;}
+			}
 		}
-		
+
 		// EVENS
 		if (fabsf(f_nudge_evens - old_f_nudge_evens) > NUDGEPOT_MIN_CHANGE){ 
-			
+	
 			// inform led_ring_c that fine tuning is ongoing
 			ongoing_fine_tuning[1]=1;
-			
+	
 			// update buffers
 			f_nudge_evens_buf = old_f_nudge_evens;
 			old_f_nudge_evens=f_nudge_evens;
-			
+	
 			// enable fine tuning timer for slow display release
 			fine_timer[1]	= 1;	
-			
+	
 			// for each even channel
 			for (i=0;i<3;i++){
 				j = evens[i];	
-		
+
 				//update fine tuning env led
 				fine_envled = fine_envled | (1<<(5-j));
 
 				// inform led_ring_c that fine tuning is ongoing on even chan(s)
 				ongoing_fine_tuning[1] 	= 1;
 				fine_tuning_timeout[1] 	= 1; 	// stage timeout counter
-				
+		
 				// If lock button pressed, disable fine tuning and process coarse tuning							
 				if (lock_pressed[j]){
-			
+	
 					// inform led_ring_c that coarse tuning is ongoing
 					ongoing_coarse_tuning[1]=1;
-				
+		
 					// coarse tuning superseds fine tuning
 					ongoing_fine_tuning[1] = 0;
-					
+			
 					// disable fine tuning timer for instantaneous display release
 					fine_timer[1] = 0;
-					
+			
 					// disable fine adjustments when setting coarse tuning
 					if (fknob_lock[1]==0){ 
 						f_nudge_buf[1] = f_nudge_evens_buf;
 						fknob_lock[1]  = 1;
 					}	
 				  // Compute and apply coarse tuning	 		
-			 		// - 6 semitones
-			 		if (t_fe < 1.0*4095.0/13.0){coarse_adj[j]=1.0/1.41421356237;cur_envled_state=0b1111111;}
-			 		else if ((t_fe >= 1.0*4095.0/13.0) && (t_fe < 2.0*4095.0/13.0)){coarse_adj[j]=1.0/1.33483985417;cur_envled_state=0b1011111;}
-			 		else if ((t_fe >= 2.0*4095.0/13.0) && (t_fe < 3.0*4095.0/13.0)){coarse_adj[j]=1.0/1.25992104989;cur_envled_state=0b1001111;}
-			 		else if ((t_fe >= 3.0*4095.0/13.0) && (t_fe < 4.0*4095.0/13.0)){coarse_adj[j]=1.0/1.189207115;  cur_envled_state=0b1000111;}
-			 		else if ((t_fe >= 4.0*4095.0/13.0) && (t_fe < 5.0*4095.0/13.0)){coarse_adj[j]=1.0/1.12246204831;cur_envled_state=0b1000011;}
-			 		else if ((t_fe >= 5.0*4095.0/13.0) && (t_fe < 6.0*4095.0/13.0)){coarse_adj[j]=1.0/1.05946309436;cur_envled_state=0b1000001;}
+					// - 6 semitones
+					if (t_fe < 1.0*4095.0/13.0){coarse_adj[j]=1.0/1.41421356237;cur_envled_state=0b1111111;}
+					else if ((t_fe >= 1.0*4095.0/13.0) && (t_fe < 2.0*4095.0/13.0)){coarse_adj[j]=1.0/1.33483985417;cur_envled_state=0b1011111;}
+					else if ((t_fe >= 2.0*4095.0/13.0) && (t_fe < 3.0*4095.0/13.0)){coarse_adj[j]=1.0/1.25992104989;cur_envled_state=0b1001111;}
+					else if ((t_fe >= 3.0*4095.0/13.0) && (t_fe < 4.0*4095.0/13.0)){coarse_adj[j]=1.0/1.189207115;  cur_envled_state=0b1000111;}
+					else if ((t_fe >= 4.0*4095.0/13.0) && (t_fe < 5.0*4095.0/13.0)){coarse_adj[j]=1.0/1.12246204831;cur_envled_state=0b1000011;}
+					else if ((t_fe >= 5.0*4095.0/13.0) && (t_fe < 6.0*4095.0/13.0)){coarse_adj[j]=1.0/1.05946309436;cur_envled_state=0b1000001;}
 
 					//Tuned
-			 		else if ((t_fe >= 6.0*4095.0/13.0) && (t_fe < 7.0*4095.0/13.0)){coarse_adj[j]=1.0;cur_envled_state=0b0001100;}
+					else if ((t_fe >= 6.0*4095.0/13.0) && (t_fe < 7.0*4095.0/13.0)){coarse_adj[j]=1.0;cur_envled_state=0b0001100;}
 
-			 		// + 6 semitones
-			 		else if ((t_fe >= 7.0*4095.0/13.0) && (t_fe < 8.0*4095.0/13.0)){coarse_adj[j]=1.05946309436;	cur_envled_state=0b0100000;}
-			 		else if ((t_fe >= 8.0*4095.0/13.0) && (t_fe < 9.0*4095.0/13.0)){coarse_adj[j]=1.12246204831;	cur_envled_state=0b0110000;}
-			 		else if ((t_fe >= 9.0*4095.0/13.0) && (t_fe < 10.0*4095.0/13.0)){coarse_adj[j]=1.189207115; 	cur_envled_state=0b0111000;}
-			 		else if ((t_fe >= 10.0*4095.0/13.0) && (t_fe < 11.0*4095.0/13.0)){coarse_adj[j]=1.25992104989; 	cur_envled_state=0b0111100;}
-			 		else if ((t_fe >= 11.0*4095.0/13.0) && (t_fe < 12.0*4095.0/13.0)){coarse_adj[j]=1.33483985417;	cur_envled_state=0b0111110;}
-			 		else if ((t_fe >= 12.0*4095.0/13.0) && (t_fe < 13.0*4095.0/13.0)){coarse_adj[j]=1.41421356237;	cur_envled_state=0b0111111;}
+					// + 6 semitones
+					else if ((t_fe >= 7.0*4095.0/13.0) && (t_fe < 8.0*4095.0/13.0)){coarse_adj[j]=1.05946309436;	cur_envled_state=0b0100000;}
+					else if ((t_fe >= 8.0*4095.0/13.0) && (t_fe < 9.0*4095.0/13.0)){coarse_adj[j]=1.12246204831;	cur_envled_state=0b0110000;}
+					else if ((t_fe >= 9.0*4095.0/13.0) && (t_fe < 10.0*4095.0/13.0)){coarse_adj[j]=1.189207115; 	cur_envled_state=0b0111000;}
+					else if ((t_fe >= 10.0*4095.0/13.0) && (t_fe < 11.0*4095.0/13.0)){coarse_adj[j]=1.25992104989; 	cur_envled_state=0b0111100;}
+					else if ((t_fe >= 11.0*4095.0/13.0) && (t_fe < 12.0*4095.0/13.0)){coarse_adj[j]=1.33483985417;	cur_envled_state=0b0111110;}
+					else if ((t_fe >= 12.0*4095.0/13.0) && (t_fe < 13.0*4095.0/13.0)){coarse_adj[j]=1.41421356237;	cur_envled_state=0b0111111;}
 
-			 		// apply/clear coarse lock and corresponding envled_state as needed
-			 		if ( fabsf(coarse_adj[j] - saved_coarse_adj[j])< 0.001){coarse_lock[j]=0;}	
-			 		if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
-			 		else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
-			 		
-			 		// apply coarse adjustment	(in case channel is locked)
-			 		freq_nudge[j] = f_nudge_buf[1] * coarse_adj[j];
+					// apply/clear coarse lock and corresponding envled_state as needed
+					if ( fabsf(coarse_adj[j] - saved_coarse_adj[j])< 0.001){coarse_lock[j]=0;}	
+					if(coarse_lock[j]){coarse_adj[j] = saved_coarse_adj[j];cur_envled_state=saved_envled_state[j];}
+					else{saved_coarse_adj[j]=coarse_adj[j];saved_envled_state[j]=cur_envled_state;}
+			
+					// apply coarse adjustment	(in case channel is locked)
+					freq_nudge[j] = f_nudge_buf[1] * coarse_adj[j];
 
 					already_handled_lock_release[j] = 1; 
-		 		}else{coarse_lock[j]=1;}
-		 	}
+				}else{coarse_lock[j]=1;}
+			}
 		}
-	 	
+
 	 // MORE FINE/COARSE TUNE DISPLAY CASES
-	 	// stop displaying fine tune if fine tune knob is not being adjusted but leave display on for timed duration 	
-	  	// special case: both fine tunes are ajusted at once. Leave more time to facilitate tuning odds/even together	
-	 	else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
+		// stop displaying fine tune if fine tune knob is not being adjusted but leave display on for timed duration 	
+		// special case: both fine tunes are ajusted at once. Leave more time to facilitate tuning odds/even together	
+		else if ((ongoing_fine_tuning[0]==1) && (ongoing_fine_tuning[1]==1)){ 
 			fine_tuning_timeout[0]+=1;
 			fine_tuning_timeout[1]+=1;
 			if((fine_tuning_timeout[0]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[0])) && (fine_tuning_timeout[1]> (DISPLAYTIME_NUDGEBOTHSIDES * fine_timer[1]))  ){
@@ -459,7 +448,7 @@ void param_read_freq(void){
 			}
 		}
 
-	  
+
 		// display fine tune when locked button is held down
 		if (lock_pressed[0] || lock_pressed[2] || lock_pressed[4]) {
 			fine_envled=fine_envled | 0b101010; 
@@ -473,7 +462,7 @@ void param_read_freq(void){
 			fine_tuning_timeout[1]=1;
 			if (!ongoing_coarse_tuning[1]) fine_timer[1] = 1; //enable soft release
 		}
-		
+
 		// display fine tune when lock switch state is changed
 		// switch 135
 		if (mod_mode_135!=old_switch_state[0]){
@@ -492,7 +481,7 @@ void param_read_freq(void){
 			fine_timer[1] = 1; //enable soft release
 		}
 
-	  	// exit coarse tuning display as needed
+		// exit coarse tuning display as needed
 		if(ongoing_coarse_tuning[0]){
 			if (!lock_pressed[0] && !lock_pressed[2] && !lock_pressed[4]){
 				ongoing_coarse_tuning[0]=0;
@@ -503,14 +492,14 @@ void param_read_freq(void){
 				ongoing_coarse_tuning[1]=0;
 			}
 		}		
-		
+
 	// LOCK SWITCHES
 	// nudge and shift always enabled on 1 and 6
 	// ... and enabled on 3,5,2 and 4 based on the lock toggles
 	  // ODDS
 		// enable freq nudge and shift for "135 mode"
 		if (!lock[0]){
-		  	// Prevent fknob from adjusting freq_nudge when it's fknob_lock(ed)
+			// Prevent fknob from adjusting freq_nudge when it's fknob_lock(ed)
 			if (fknob_lock[0]==1){ 																			// if freq knob is locked
 				// during coarse adj
 				if((fabsf(f_nudge_odds - f_nudge_buf[0]) < 0.001)  && !lock_pressed[0]){fknob_lock[0]=0;} 	// unlock odds/evens freq knob if it crosses the value it was locked on and lock button isn't pressed 	
@@ -519,7 +508,7 @@ void param_read_freq(void){
 			if (fknob_lock[0]==0){freq_nudge[0]=f_nudge_odds * coarse_adj[0];};		 						// if freq knob is unlocked, apply coarse adjustment to current f_knob fine tune
 		}
 		freq_shift[0]=f_shift_odds; // apply freq CV in
-		
+
 		if (mod_mode_135==135){
 			if (!lock[2]){
 				if (fknob_lock[0]==1){ 								
@@ -551,7 +540,7 @@ void param_read_freq(void){
 			}
 			freq_shift[4]=1.0;
 		}
-		
+
 	  //EVENS
 		if (!lock[5]){
 			if (fknob_lock[1]==1){ 													
@@ -561,7 +550,7 @@ void param_read_freq(void){
 			if (fknob_lock[1]==0){freq_nudge[5]=f_nudge_evens * coarse_adj[5];}; 
 		}
 		freq_shift[5]=f_shift_evens; 
-		
+
 		if (mod_mode_246==246){
 			if (!lock[1]){
 				if (fknob_lock[1]==1){ 								
@@ -593,16 +582,16 @@ void param_read_freq(void){
 			}
 			freq_shift[1]=1.0;
 		}
-		
+
 	// CLEAR COARSE TUNING AT BUTTON RELEASE AFTER 6 BUTTON PRESS (~3s)
 		// if locked buttons have all been pressed for +3s
 		if (lock_down[0] > 36000 && 
- 			lock_down[1] > 36000 &&  
- 			lock_down[2] > 36000 && 
- 			lock_down[3] > 36000 && 
- 			lock_down[4] > 36000 && 
- 			lock_down[5] > 36000 ){
-		 	clear_coarse_staged[0] = 1; 			
+			lock_down[1] > 36000 &&  
+			lock_down[2] > 36000 && 
+			lock_down[3] > 36000 && 
+			lock_down[4] > 36000 && 
+			lock_down[5] > 36000 ){
+			clear_coarse_staged[0] = 1; 			
 			clear_coarse_staged[1] = 1;  
 			clear_coarse_staged[2] = 1; 
 			clear_coarse_staged[3] = 1; 
@@ -634,7 +623,7 @@ void param_read_freq(void){
 
 						// inform led.c that this coarse tuning was cleared
 						coarse_adj_led[k] = coarse_adj[k];						
-						
+				
 						// unstage coarse adjustment
 						clear_coarse_staged[k]=0;
 						// remove channel from list of adjustments to be cleared
@@ -646,6 +635,77 @@ void param_read_freq(void){
 			}	
 		}
 
+	}else{
+
+		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]+adc_buffer[FREQCV1_ADC])/4096.0;
+		if (t_fo>1.0) t_fo=1.0;
+
+		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]+adc_buffer[FREQCV6_ADC])/4096.0;
+		if (t_fe>1.0) t_fe=1.0;
+
+		f_shift_odds=1.0;
+		f_shift_evens=1.0;
+		
+		f_nudge_odds *= FREQNUDGE_LPF;
+		f_nudge_odds += (1.0f-FREQNUDGE_LPF)*t_fo;
+
+		f_nudge_evens *= FREQNUDGE_LPF;
+		f_nudge_evens += (1.0f-FREQNUDGE_LPF)*t_fe;
+
+		if (!lock[0]){
+			freq_nudge[0]=f_nudge_odds;
+		}
+		freq_shift[0]=f_shift_odds;
+
+		if (mod_mode_135==135){
+			if (!lock[2]){
+				freq_nudge[2]=f_nudge_odds;
+			}
+			freq_shift[2]=f_shift_odds;
+
+			if (!lock[4]){
+				freq_nudge[4]=f_nudge_odds;
+			}
+			freq_shift[4]=f_shift_odds;
+		} else {
+			if (!lock[2]){
+				freq_nudge[2]=0.0;
+			}
+			freq_shift[2]=1.0;
+
+			if (!lock[4]){
+				freq_nudge[4]=0.0;
+			}
+			freq_shift[4]=1.0;
+		}
+
+		if (!lock[5]){
+			freq_nudge[5]=f_nudge_evens;
+		}
+		freq_shift[5]=f_shift_evens;
+
+		if (mod_mode_246==246){
+			if (!lock[1]){
+				freq_nudge[1]=f_nudge_evens;
+			}
+			freq_shift[1]=f_shift_evens;
+
+			if (!lock[3]){
+				freq_nudge[3]=f_nudge_evens;
+			}
+			freq_shift[3]=f_shift_evens;
+		} else {
+			if (!lock[1]){
+				freq_nudge[1]=0.0;
+			}
+			freq_shift[1]=1.0;
+
+			if (!lock[3]){
+				freq_nudge[3]=0.0;
+			}
+			freq_shift[3]=1.0;
+		}
+	}	
 }
 
 

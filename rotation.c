@@ -1,7 +1,7 @@
 /*
  * rotation.c - Calculate position of each filter in the scale, based on rotation, spread, rotation CV, and scale CV
  *
- * Author: Dan Green (danngreen1@gmail.com)
+ * Author: Dan Green (danngreen1@gmail.com), Hugo Paris (hugoplho@gmail.com)
  * 2015
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
