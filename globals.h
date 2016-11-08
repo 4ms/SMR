@@ -47,8 +47,8 @@
 #define INPUT_LED_CLIP_LEVEL 0x58000000
 
 enum Filter_Modes {
-	TWOPASS,
-	ONEPASS
+	TWOPASS = 2,
+	ONEPASS = 3
 };
 
 enum Filter_Types {
