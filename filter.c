@@ -266,7 +266,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(user_scalebank);
 				}
 
-			} else if (filter_mode == TWOPASS && filter_type==BPRE){
+			} else if (filter_mode != TWOPASS && filter_type==BPRE){
 
 				// Equal temperament
 				if (scale_bank[i] 		== 0){
@@ -277,7 +277,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_loq[i]=(float *)(filter_bpre_coefs_Minor_2Q); 				// Minor scale/chords
 				} else if (scale_bank[i]== 2){
 					c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_800Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
-					c_hiq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+					c_loq[i]=(float *)(filter_bpre_coefs_twelvetone_2Q);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
 				} else if (scale_bank[i]== 3){
 					c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_eq_800Q);				// Diatonic scale
 					c_loq[i]=(float *)(filter_bpre_coefs_diatonic_eq_2Q);				// Diatonic scale
@@ -285,7 +285,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				// Just intonation
 				} else if (scale_bank[i]== 4){
 					c_hiq[i]=(float *)(filter_bpre_coefs_western_800Q); 			// Western Intervals
-					c_hiq[i]=(float *)(filter_bpre_coefs_western_2Q); 				// Western Intervals
+					c_loq[i]=(float *)(filter_bpre_coefs_western_2Q); 				// Western Intervals
 				} else if (scale_bank[i]== 5){
 					c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q); // Western triads (pairs of intervals)
 					c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q); 	// Western triads (pairs of intervals)
