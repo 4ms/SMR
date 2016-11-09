@@ -31,7 +31,7 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
-#define FW_VERSION 0x04
+#define FW_VERSION 0x05
 
 //Number of components
 #define NUM_FILTS 20
