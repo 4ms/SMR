@@ -71,6 +71,9 @@ int bank_group_num;
 int bank_group_max;
 int bank_group_offset;  	
 int scale_num_in_group;
+uint32_t scale_display_timer;
+extern int rotary_switch_b;
+extern uint8_t user_turned_rotary;
 //
 	
 extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
@@ -189,17 +192,25 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	float finetune_bright[NUM_CHANNELS];
 	float avg_r, avg_g, avg_b;
 	float dimamt;
-
-	// SCALE BANK SELECTION
+	
+  // SCALE BANK SELECTION
 	// display group color on env led(s)
 	// display bank position within group by flashing corresponding LED
 	// 	each group contains 6x banks (one for each env led)
   	// 	each bank contains 11x scales
-	if ((ui_mode==PLAY) && (ROTARY_SW)) {
+
+	// handle scale display timer
+	if (!ROTARY_SW){scale_display_timer=0;}
+	else if (ROTARY_SW){scale_display_timer+=1;}	
+	
+	// Apply scale display en ENV out 
+	// when rotary button was pressed for long enough
+	// or user turned rotary
+	if ((ui_mode==PLAY) && ((scale_display_timer>3) || user_turned_rotary)) {
 		
 		// Change flashing state
 		flash = 1-flash;
-		
+	
 		// SET DISPLAY VARIABLES	
 		// (this could be done in a smarter way)
 		if (	 (hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))									{bank_group_num=0; bank_group_max = 4; 	bank_group_offset=0;}
@@ -208,23 +219,23 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		else if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15) || (hover_scale_bank == 16))	{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=11;}
 		else if  (hover_scale_bank == 17)																																					{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=17;}
 
-  	  	// and calculate bank position in group (0-5) 		
+		// and calculate bank position in group (0-5) 		
 		scale_num_in_group = hover_scale_bank - bank_group_offset ;
-		 
-  		// apply hover-bank's group color to env LEDs
+	 
+		// apply hover-bank's group color to env LEDs
 		for (i=0;i<bank_group_max+1;i++){
 			env_out_leds[i][0] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][0];
 			env_out_leds[i][1] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][1];
 			env_out_leds[i][2] = SCALE_BANK_COLOR[(bank_group_num * 6) + i][2];
 		}
 
-  		// turn off unused env LEDs
+		// turn off unused env LEDs
 		for (i=bank_group_max+1;i<6;i++){
 			env_out_leds[i][0] = 0.0;
 			env_out_leds[i][1] = 0.0;
 			env_out_leds[i][2] = 0.0;
 		}
-				
+			
 		// flash env led corresponding to current scale
 			env_out_leds[scale_num_in_group][0] *= flash;
 			env_out_leds[scale_num_in_group][1] *= flash;

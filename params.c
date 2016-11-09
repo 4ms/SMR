@@ -1188,7 +1188,7 @@ void process_rotary_button(void){
 				} else if (change_scale_mode==1) {
 					just_switched_to_change_scale_mode=0;
 				}
-					user_turned_rotary=0;
+				user_turned_rotary=0;
 			} else {rotary_switch_b =0;}
 		
 
@@ -1230,6 +1230,7 @@ void process_rotary_button(void){
 					change_scale_mode=0;
 					just_switched_to_change_scale_mode=0;
 				}
+				user_turned_rotary =0; 
 			}
 		}
 	}
