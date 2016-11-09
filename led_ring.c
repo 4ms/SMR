@@ -212,12 +212,14 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		flash = 1-flash;
 	
 		// SET DISPLAY VARIABLES	
-		// (this could be done in a smarter way)
-		if (	 (hover_scale_bank == 0)  || (hover_scale_bank == 1)  || (hover_scale_bank == 2) || (hover_scale_bank == 3) || (hover_scale_bank == 4))									{bank_group_num=0; bank_group_max = 4; 	bank_group_offset=0;}
-		else if ((hover_scale_bank == 5)  || (hover_scale_bank == 6)) 																													{bank_group_num=1; bank_group_max = 1; 	bank_group_offset=5;}
-		else if ((hover_scale_bank == 7)  || (hover_scale_bank == 8)  || (hover_scale_bank == 9) || (hover_scale_bank == 10)	)														{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=7;}
-		else if ((hover_scale_bank == 11) || (hover_scale_bank == 12) ||(hover_scale_bank == 13) || (hover_scale_bank == 14) || (hover_scale_bank == 15) || (hover_scale_bank == 16))	{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=11;}
-		else if  (hover_scale_bank == 17)																																					{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=17;}
+		if 		(hover_scale_bank <= 3)				{bank_group_num=0; bank_group_max = 3; 	bank_group_offset=0;}
+		else if (hover_scale_bank <= 6) 			{bank_group_num=1; bank_group_max = 2; 	bank_group_offset=4;}
+		else if (hover_scale_bank <= 10)			{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=7;}
+		else if (hover_scale_bank <= 16)			{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=11;}
+		else if (hover_scale_bank == 17)			{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=17;}
+
+		else										{bank_group_num=0; bank_group_max = 3; 	bank_group_offset=0;} //Fail-safe This would be an error!
+
 
 		// and calculate bank position in group (0-5) 		
 		scale_num_in_group = hover_scale_bank - bank_group_offset ;
