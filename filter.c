@@ -340,88 +340,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	//############################### 2-PASS  ###################################
 	
 	if (filter_mode == TWOPASS){
-		
-		/*
-	  // FILTER COEFFICIENTS
-		//Determine the coef tables we're using for the active filters for each channel
-		//Also clear the buf[] history if we changed scales or banks, so we don't get artifacts
-
-		for (i=0;i<NUM_CHANNELS;i++){ //This loop takes 1.51us when not changing scales
-
-
-			//Range check scale_bank and scale
-			if (scale_bank[i]<0) scale_bank[i]=0;
-			if (scale_bank[i]>=NUMSCALEBANKS && scale_bank[i]!=0xFF) scale_bank[i]=NUMSCALEBANKS-1;
-			if (scale[i]<0) scale[i]=0;
-			if (scale[i]>=NUMSCALES) scale[i]=NUMSCALES-1;
-
-			if (scale_bank[i]!=old_scale_bank[i] || filter_type_changed){
-
-				old_scale_bank[i]=scale_bank[i];
-
-				ff=(float *)buf[i];
-				for (j=0;j<(NUMSCALES*NUM_FILTS);j++) {
-					*(ff+j)=0;
-					*(ff+j+1)=0;
-					*(ff+j+2)=0;
-				}
-				
-				
-				// Equal temperament
- 				if (scale_bank[i] 		== 0){
- 					c_hiq[i]=(float *)(filter_maxq_coefs_Major); 				// Major scale/chords 
-				} else if (scale_bank[i]== 1){
-					c_hiq[i]=(float *)(filter_maxq_coefs_Minor); 				// Minor scale/chords
-				} else if (scale_bank[i]== 2){
-					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
-				} else if (scale_bank[i]== 3){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_eq);			// Diatonic scale Equal
-
-				// Just intonation
-				} else if (scale_bank[i]== 4){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western); 				// Western Intervals
-				} else if (scale_bank[i]== 5){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval); 	// Western triads (pairs of intervals)
-				} else if (scale_bank[i]== 6){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_just); 		// Diatonic scale Just
-
-
-				// Non-Western Tunings
-				} else if (scale_bank[i]== 7){
-					c_hiq[i]=(float *)(filter_maxq_coefs_indian);				// Indian pentatonic
-				} else if (scale_bank[i]== 8){
-					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);				// Indian Shrutis
-				} else if (scale_bank[i]== 9){
-					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);			// Mesopotamian
-				} else if (scale_bank[i]== 10){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);				// Gamelan Pelog
-				
-				// Modern tunings				
-				} else if (scale_bank[i]== 11){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);		// W.C.'s Alpha scale - selected notes A
-				} else if (scale_bank[i]== 12){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);		// W.C.'s Alpha scale - selected notes B
-				} else if (scale_bank[i]== 13){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);			// W.C.'s Gamma scale - selected notes
-				} else if (scale_bank[i]== 14){
-					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
-				} else if (scale_bank[i]== 15){
-					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
-				} else if (scale_bank[i]== 16){
-					c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// Buchla 296 EQ
-					
-				// User	Scales
-				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
-					c_hiq[i]=(float *)(user_scalebank);
-				}
-				
-			}
-		}
-*/
 
 	 // UPDATE QVAL
 		param_read_q();
-
 
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
@@ -569,7 +490,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		
 		// UPDATE QVAL
 		param_read_q();
-
 
 		//Calculate filter_out[]
 		//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. filter_out[6-11] are the morph destination values
