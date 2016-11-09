@@ -470,8 +470,15 @@ void read_one_bank_params_from_FLASH(uint8_t bank_i){
 	flash_read_array((uint8_t  *)flash_freq_nudge[bank_i], FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freq_nudge + (FLASH_SIZE_parambank * bank_i), 24);
 
 	flash_freqblock[bank_i]   = flash_read_word(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_freqblock + (FLASH_SIZE_parambank * bank_i));
+
 	flash_filter_type[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_type + (FLASH_SIZE_parambank * bank_i));
 	flash_filter_mode[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_filter_mode + (FLASH_SIZE_parambank * bank_i));
+
+	//Force ONEPASS if we read a legacy slot as BPRE
+	if (flash_filter_type[bank_i] == BPRE) flash_filter_mode[bank_i] = ONEPASS;
+
+	//Force TWOPASS for legacy banks
+	if (flash_filter_mode[bank_i] != ONEPASS) flash_filter_mode[bank_i] = TWOPASS;
 
 	flash_cur_colsch[bank_i] = flash_read_byte(FLASH_ADDR_START_PARAMBANKS + FLASH_OFFSET_cur_colsch + (FLASH_SIZE_parambank * bank_i));
 

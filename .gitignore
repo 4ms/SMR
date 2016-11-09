@@ -1,5 +1,8 @@
-build/
+firmwares
+firmwares/
+firmwares/*
 build
+build/
 build/*
 Makefile-old
 .DS_Store
