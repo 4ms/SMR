@@ -50,6 +50,7 @@ extern uint8_t scale_bank[NUM_CHANNELS];
 extern uint8_t hover_scale_bank;
 extern int16_t change_scale_mode;
 
+extern enum Filter_Types filter_type;
 
 // coarse tuning
 extern int cur_envled_state;
@@ -246,7 +247,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	
 	// COARSE TUNING
 	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 	
-	else if ((ui_mode==PLAY) && (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1])){
+	else if ((ui_mode==PLAY) && (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]) && (filter_type !=BPRE)){
 
 	 	// When no coarse adjustment is applied
 		if (cur_envled_state == 12){
@@ -299,6 +300,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	
 	// FINE TUNING 
 	else if ((ui_mode==PLAY) && 
+			(filter_type !=BPRE) &&
 			(ongoing_fine_tuning[0] || ongoing_fine_tuning[1] 
 			|| fine_tuning_timeout[0] || fine_tuning_timeout[1])){ // not mandatory but prevents unnecessary for-loop runs
 
