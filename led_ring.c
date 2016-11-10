@@ -246,7 +246,7 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 	}
 	
 	// COARSE TUNING
-	// env led turn red based or orange depending on whether coarse tuning is going down (red) or up (orange) 	
+	// env led turn red or blue depending on whether coarse tuning is going down semitones (red), or up semitones (blue) 	
 	else if ((ui_mode==PLAY) && (ongoing_coarse_tuning[0] || ongoing_coarse_tuning[1]) && (filter_type !=BPRE)){
 
 	 	// When no coarse adjustment is applied
