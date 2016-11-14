@@ -900,7 +900,7 @@ void param_read_switches(void){
 		if (lag_val){ //CVLAG switch is flipped on, latch the current Morph adc value and use that to calculate LPF coefficients
 
 			//Read from morph pot, and scale to 137..4095
-			lag_val = adc_buffer[MORPH_ADC] + 137;
+			lag_val = (adc_buffer[MORPH_ADC]/2) + 137;
 			if (lag_val>4095) lag_val=4095;
 
 
@@ -915,7 +915,7 @@ void param_read_switches(void){
 			//if (t_LEVEL_LPF_ATTACK<0 || t_LEVEL_LPF_ATTACK>=1)	LEVEL_LPF_ATTACK=LAG_ATTACK_MIN_LPF;
 			//else LEVEL_LPF_ATTACK = t_LEVEL_LPF_ATTACK;
 
-		//	if (t_LEVEL_LPF_DECAY<0 || t_LEVEL_LPF_DECAY>=1)	LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
+			//if (t_LEVEL_LPF_DECAY<0 || t_LEVEL_LPF_DECAY>=1)	LEVEL_LPF_DECAY=LAG_DECAY_MIN_LPF;
 			//else LEVEL_LPF_DECAY = t_LEVEL_LPF_DECAY;
 
 
