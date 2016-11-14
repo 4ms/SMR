@@ -750,7 +750,9 @@ void param_read_q(void){
 						q_locked[i]=1;
 						user_turned_Q_pot=1;
 
+						prev_qval[i]=qval_goal[i];
 						qval_goal[i]=qpot_lpf;
+						
 						num_locked++;
 					}
 				}
@@ -769,9 +771,18 @@ void param_read_q(void){
 
 		}
  	}
+ 	
  	// SMOOTH OUT DATA BETWEEN ADC READS
 	 for (i=0;i<NUM_CHANNELS;i++){
+	 	
+	 	// smooth output of channels that are not q-locked
+	 	if (!q_locked[i]){
 		 	qval[i] = (uint32_t)(prev_qval[i] + (poll_ctr * (qval_goal[i]-prev_qval[i])/15.0));
+		
+		// use locked qval for q-locked channels
+		}else{
+			qval[i] = qval_goal[i];
+		}
  	}
 }
 
