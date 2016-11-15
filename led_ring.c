@@ -213,11 +213,11 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 		flash = 1-flash;
 	
 		// SET DISPLAY VARIABLES	
-		if 		(hover_scale_bank <= 3)				{bank_group_num=0; bank_group_max = 3; 	bank_group_offset=0;}
-		else if (hover_scale_bank <= 6) 			{bank_group_num=1; bank_group_max = 2; 	bank_group_offset=4;}
-		else if (hover_scale_bank <= 10)			{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=7;}
-		else if (hover_scale_bank <= 16)			{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=11;}
-		else if (hover_scale_bank == 17)			{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=17;}
+		if 		(hover_scale_bank <= 5)				{bank_group_num=0; bank_group_max = 5; 	bank_group_offset=0;}
+		else if (hover_scale_bank <= 8) 			{bank_group_num=1; bank_group_max = 2; 	bank_group_offset=6;}
+		else if (hover_scale_bank <= 12)			{bank_group_num=2; bank_group_max = 3; 	bank_group_offset=9;}
+		else if (hover_scale_bank <= 18)			{bank_group_num=3; bank_group_max = 5; 	bank_group_offset=13;}
+		else if (hover_scale_bank == 19)			{bank_group_num=4; bank_group_max = 0; 	bank_group_offset=19;}
 
 		else										{bank_group_num=0; bank_group_max = 3; 	bank_group_offset=0;} //Fail-safe This would be an error!
 
@@ -608,11 +608,11 @@ void display_scale(void){
 	for (i=0;i<NUM_CHANNELS;i++){
 		// SET DISPLAY VARIABLES
 		// (this could be done in a smarter way)
-		if 		((scale_bank[i] == 0)  || (scale_bank[i] == 1)  || (scale_bank[i] == 2) || (scale_bank[i] == 3) || (scale_bank[i] == 4))								{bank_group_num_b=0; bank_group_max_b = 4; 	bank_group_offset_b=0;}
-		else if ((scale_bank[i] == 5)  || (scale_bank[i] == 6)) 																										{bank_group_num_b=1; bank_group_max_b = 1; 	bank_group_offset_b=5;}
-		else if ((scale_bank[i] == 7)  || (scale_bank[i] == 8)  || (scale_bank[i] == 9) || (scale_bank[i] == 10)	)													{bank_group_num_b=2; bank_group_max_b = 3; 	bank_group_offset_b=7;}
-		else if ((scale_bank[i] == 11) || (scale_bank[i] == 12) ||(scale_bank[i] == 13) || (scale_bank[i] == 14) || (scale_bank[i] == 15) || (scale_bank[i] == 16))		{bank_group_num_b=3; bank_group_max_b = 5; 	bank_group_offset_b=11;}
-		else if  (scale_bank[i] == 17)																																	{bank_group_num_b=4; bank_group_max_b = 0; 	bank_group_offset_b=17;}
+		if 		 (scale_bank[i] <= 6) 	{bank_group_num_b=0; bank_group_max_b = 5; 	bank_group_offset_b=0;}
+		else if  (scale_bank[i] <= 8)  	{bank_group_num_b=1; bank_group_max_b = 2; 	bank_group_offset_b=6;}
+		else if  (scale_bank[i] <= 12)	{bank_group_num_b=2; bank_group_max_b = 3; 	bank_group_offset_b=9;}
+		else if  (scale_bank[i] <= 18)	{bank_group_num_b=3; bank_group_max_b = 5; 	bank_group_offset_b=13;}
+		else if  (scale_bank[i] == 19)	{bank_group_num_b=4; bank_group_max_b = 0; 	bank_group_offset_b=19;}
 
 		j=13-i; //13, 12, 11, 10, 9, 8
 
