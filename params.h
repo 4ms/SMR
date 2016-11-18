@@ -67,6 +67,7 @@
 
 #define SPREAD_ADC_HYSTERESIS 75
 
+#define SCALECV_LPF 0.99
 
 void param_read_freq(void);
 void param_read_channel_level(void);

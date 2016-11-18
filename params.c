@@ -1371,22 +1371,18 @@ void process_rotateCV(void){
 }
 
 void process_scaleCV(void){
-	int32_t t;
-	static uint16_t old_scalecv_adc=0;
 	static int32_t t_scalecv=0;
 	static int32_t t_old_scalecv=0;
+	static float lpf_buf;
 
-	t=(int16_t)adc_buffer[SCALE_ADC] - (int16_t)old_scalecv_adc;
-	if (t<(-100) || t>100){
+	// apply LPF to scale CV ADC readout	
+	lpf_buf *= SCALECV_LPF;
+	lpf_buf += (1 - SCALECV_LPF) * adc_buffer[SCALE_ADC];
 
-		old_scalecv_adc = adc_buffer[SCALE_ADC];
-
-		t_scalecv = adc_buffer[SCALE_ADC]/409; //0..10
-
-		jump_scale_with_cv(t_scalecv - t_old_scalecv);
-
-		t_old_scalecv = t_scalecv;
-	}
+	// switch scales according to CV in
+	t_scalecv = lpf_buf/409; //0..10
+	jump_scale_with_cv(t_scalecv - t_old_scalecv);
+	t_old_scalecv = t_scalecv;
 }
 
 void init_freq_update_timer(void)
