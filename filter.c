@@ -39,9 +39,7 @@
 #include "system_mode.h"
 #include "params.h"
 #include <stdio.h>
-#include "limiter.h"
 #include "twopass_calibration.h"
-//#include "compressor.h"
 
 extern float user_scalebank[231];
 
@@ -65,7 +63,6 @@ extern uint8_t note[NUM_CHANNELS];
 extern uint8_t scale[NUM_CHANNELS];
 extern uint8_t scale_bank[NUM_CHANNELS];
 
-
 extern float ENVOUT_preload[NUM_CHANNELS];
 
 extern const uint32_t slider_led[6];
@@ -73,6 +70,11 @@ extern const uint32_t slider_led[6];
 // Filter parameters
 extern uint32_t qval[NUM_CHANNELS];					
 float var_q, inv_var_q, var_f, inv_var_f;
+
+// Q adjustments 
+static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
 
 // 2-pass Crossfade
 float pos_in_cf; 		 // % of Qknob position within crossfade region
@@ -101,11 +103,6 @@ extern enum Env_Out_Modes env_track_mode;
 extern float CHANNEL_LEVEL_LPF;
 extern uint16_t potadc_buffer[NUM_ADC3S];
 extern uint16_t adc_buffer[NUM_ADCS];
-
-// Q adjustments 
-static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
 
 // **** two pass calibration variables ******
 	// static float qval_b[NUM_CHANNELS]   = {1000,1000,1000,1000,1000,1000};	
@@ -157,10 +154,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float adc_lag[NUM_CHANNELS];
 	float filter_out_a[NUM_FILTS][MONO_BUFSZ]; 			// first filter out for two-pass
 	float filter_out_b[NUM_FILTS][MONO_BUFSZ]; 			// second filter out for two-pass
-	float cross_point; 									// crossfade point between one and two pass filter
-	float crossfade_a, crossfade_b;
 		
-	float max_val, threshold, thresh_compiled, thresh_val;
 	static uint8_t old_scale[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	static uint8_t old_scale_bank[NUM_CHANNELS]={-1,-1,-1,-1,-1,-1};
 	float tmp, fir, iir, iir_a;
@@ -168,7 +162,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float a0,a1,a2;
 	
 
-	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
+// 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 	float level_lpf;
 	static uint32_t poll_ctr[NUM_CHANNELS]= {0,0,0,0,0,0};
 	static float prev_level[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
@@ -179,8 +173,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	uint8_t nudge_filter_num;
 
 	int32_t *ptmp_i32;
-
-
 
  	static float level_inc[NUM_CHANNELS] = {0,0,0,0,0,0};
 
@@ -199,8 +191,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	audio_convert_2x16_to_stereo24(DMA_xfer_BUFF_LEN, src, left_buffer, right_buffer);
 
 	if (filter_type_changed) filter_type=new_filter_type;
-
-
 
 
 	//Determine the coef tables we're using for the active filters (Lo-Q and Hi-Q) for each channel
@@ -360,8 +350,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	
 	if (filter_mode == TWOPASS){
 
+
 	 // UPDATE QVAL
 		param_read_q();
+
 
 	  // CALCULATE FILTER OUTPUTS		
 	  	//filter_out[0-5] are the note[]/scale[]/scale_bank[] filters. 
@@ -380,6 +372,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			inv_var_f=1.0-var_f;
 
 			qc[channel_num]   	=  qval[channel_num];
+
 
 		// QVAL ADJUSTMENTS
 
@@ -429,8 +422,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
 			}
  			ratio_b = (1.0f - ratio_a);
-// 			ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
-// 			ratio_b = 0.5;	
 			ratio_b *= 365012864 / ( 50 * twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]);
 
 		    // AMPLITUDE: Boost high freqs and boost low resonance
@@ -459,7 +450,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
 
   				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (6 * filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
-//					filter_out[j][i] = filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
 			
 			// *********************** Two-pass calibration pt 2/2 *********************
 				// 				if (filter_out[j][i]> max_filter_out_buf){
@@ -516,7 +506,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 
-					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
+  					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (6 * filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
 
 				}
 
