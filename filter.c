@@ -40,6 +40,7 @@
 #include "params.h"
 #include <stdio.h>
 #include "limiter.h"
+#include "twopass_calibration.h"
 //#include "compressor.h"
 
 extern float user_scalebank[231];
@@ -100,7 +101,21 @@ extern enum Env_Out_Modes env_track_mode;
 extern float CHANNEL_LEVEL_LPF;
 extern uint16_t potadc_buffer[NUM_ADC3S];
 extern uint16_t adc_buffer[NUM_ADCS];
-	
+
+// Q adjustments 
+static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
+
+// **** two pass calibration variables ******
+	// static float qval_b[NUM_CHANNELS]   = {1000,1000,1000,1000,1000,1000};	
+	// float max_filter_out[NUM_FILTS];
+	// float max_filter_out_buf;
+	// float mean_filter_out[NUM_FILTS];
+	// float mean_filter_out_buf;
+	// int kk;
+// ************************************	
+
 float *c_hiq[6];
 float *c_loq[6];
 float buf_a[NUM_CHANNELS][NUMSCALES][NUM_FILTS][3]; // buffer for first filter of two-pass
@@ -165,13 +180,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 	int32_t *ptmp_i32;
 
-	// Q adjustments 
-	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-	static float qsum[NUM_CHANNELS] 	= {0,0,0,0,0,0};
-	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
-	static int firstrunq 		 		= 1;
- 	static int q_update_count 			= 0;
+
 
  	static float level_inc[NUM_CHANNELS] = {0,0,0,0,0,0};
 
@@ -381,7 +390,27 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			// limit q knob range on second filter
 			if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
 			else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;} //1000 to 3925
-
+			
+			
+			// ************* Two-pass calibration PT 1/2 *************
+				// 			if (qval_b[channel_num]<3910){ 			
+				// 				kk += 1;
+				// 				// update qval_b and max_filt_out every 100 samples
+				// 				if (kk> 1000){
+				// 					qval_b[channel_num]+=1;
+				//  					max_filter_out[channel_num] = max_filter_out_buf;
+				//  					if (mean_filter_out_buf < mean_filter_out[channel_num]){
+				// 						mean_filter_out_buf = mean_filter_out[channel_num] + 100;					
+				//  					}
+				//  					mean_filter_out[channel_num] = mean_filter_out_buf; 					
+				// 					max_filter_out_buf=0;
+				// 					mean_filter_out_buf=0;
+				// 					kk=0;
+				// 				}	
+				// 			}
+			// *******************************************************
+			
+	
 			// Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
 			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
 			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
@@ -392,7 +421,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			c1 *= freq_shift[channel_num];
 			if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 
-
 			// CROSSFADE between the two filters
 			if 		(qc[channel_num] < CF_MIN) 	{ratio_a=1.0f;}
 			else if (qc[channel_num] > CF_MAX) 	{ratio_a=0.0f;}
@@ -400,8 +428,10 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
 				ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
 			}
-			ratio_b = (1.0f - ratio_a);
-			ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
+ 			ratio_b = (1.0f - ratio_a);
+// 			ratio_b *= 0.5/(2.4*qval_b[channel_num]/1000.0);
+// 			ratio_b = 0.5;	
+			ratio_b *= 365012864 / ( 50 * twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]);
 
 		    // AMPLITUDE: Boost high freqs and boost low resonance
 			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
@@ -426,15 +456,23 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
 
 				buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
+				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
 
-				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
-
+  				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (6 * filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
+//					filter_out[j][i] = filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
+			
+			// *********************** Two-pass calibration pt 2/2 *********************
+				// 				if (filter_out[j][i]> max_filter_out_buf){
+				// 					max_filter_out_buf = filter_out[j][i];
+				// 				}
+				// 				mean_filter_out_buf *= (1-1/900);
+				// 				mean_filter_out_buf += fabsf(filter_out[j][i]) * 1/900;
+			// **************************************************************************
+			
 			}
 
 			// VOCT output
 			if (env_track_mode==ENV_VOLTOCT) ENVOUT_preload[channel_num]=c1;
-
 
 
 			// Calculate the morph destination filter:
