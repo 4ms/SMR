@@ -370,7 +370,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			if 		(qval_a[channel_num] > 4095	){qval_a[channel_num]=4095;	}
 
 			// limit q knob range on second filter
-			if 		(qc[channel_num] < 3900	){qval_b[channel_num]=1000;}
+			if 		(qc[channel_num] <  3900){qval_b[channel_num]=1000;}
 			else if (qc[channel_num] >= 3900){qval_b[channel_num]=1000 + (qc[channel_num] - 3900)*15 ;} //1000 to 3925
 			
 			

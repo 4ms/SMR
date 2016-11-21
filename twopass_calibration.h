@@ -32,7 +32,7 @@ calibration was performed with ratio_b = 0.01 (instead of 0.5) to avoid any satu
 only filter_b was monitored, crossfade was disabled
 */
 
-float twopass_calibration[3380]={
+uint32_t twopass_calibration[3380]={
 25277790,
 35852536,
 35852636,
