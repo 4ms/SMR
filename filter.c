@@ -67,19 +67,7 @@ extern float ENVOUT_preload[NUM_CHANNELS];
 
 extern const uint32_t slider_led[6];
 
-// Filter parameters
-extern uint32_t qval[NUM_CHANNELS];					
-float var_q, inv_var_q, var_f, inv_var_f;
-
-// Q adjustments 
-static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
-static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
-
 // 2-pass Crossfade
-float pos_in_cf; 		 // % of Qknob position within crossfade region
-float ratio_a, ratio_b;  // two-pass filter crossfade ratios
-
 extern enum Filter_Types filter_type;
 extern enum Filter_Modes filter_mode;
 
@@ -161,6 +149,14 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 	float c0,c0_a,c1,c2,c2_a;
 	float a0,a1,a2;
 	
+	// Filter parameters
+	static float qval_b[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+	static float qval_a[NUM_CHANNELS]   = {0,0,0,0,0,0};	
+	static float qc[NUM_CHANNELS]   	= {0,0,0,0,0,0};
+	extern uint32_t qval[NUM_CHANNELS];					
+	float var_q, inv_var_q, var_f, inv_var_f;
+	float pos_in_cf; 		 // % of Qknob position within crossfade region
+	float ratio_a, ratio_b;  // two-pass filter crossfade ratios
 
 // 	static float t_lpf[NUM_CHANNELS]={0.0,0.0,0.0,0.0,0.0,0.0};
 	float level_lpf;
@@ -218,54 +214,54 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			if (filter_type == MAXQ){
 				// Equal temperament
 				if (scale_bank[i] 		== 0){
-					c_hiq[i]=(float *)(filter_maxq_coefs_Major); 				// Major scale/chords
+					c_hiq[i]=(float *)(filter_maxq_coefs_Major); 					// Major scale/chords
 				} else if (scale_bank[i]== 1){
-					c_hiq[i]=(float *)(filter_maxq_coefs_Minor); 				// Minor scale/chords
+					c_hiq[i]=(float *)(filter_maxq_coefs_Minor); 					// Minor scale/chords
 				} else if (scale_bank[i]== 2){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western_eq);			// Western intervals
+					c_hiq[i]=(float *)(filter_maxq_coefs_western_eq);				// Western intervals
 				} else if (scale_bank[i]== 3){
 					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval_eq);	// Western triads
 				} else if (scale_bank[i]== 4){
-					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);			// Chromatic scale - each of the 12 western semitones spread on multiple octaves
+					c_hiq[i]=(float *)(filter_maxq_coefs_twelvetone);				// Chromatic scale - each of the 12 western semitones spread on multiple octaves
 				} else if (scale_bank[i]== 5){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_eq);			// Diatonic scale Equal
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_eq);				// Diatonic scale Equal
 
 				// Just intonation
 				} else if (scale_bank[i]== 6){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western); 				// Western Intervals
+					c_hiq[i]=(float *)(filter_maxq_coefs_western); 					// Western Intervals
 				} else if (scale_bank[i]== 7){
-					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval); 	// Western triads (pairs of intervals)
+					c_hiq[i]=(float *)(filter_maxq_coefs_western_twointerval); 		// Western triads (pairs of intervals)
 				} else if (scale_bank[i]== 8){
-					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_just);		// Diatonic scale Just
+					c_hiq[i]=(float *)(filter_maxq_coefs_diatonic_just);			// Diatonic scale Just
 
 
 				// Non-Western Tunings
 				} else if (scale_bank[i]== 9){
-					c_hiq[i]=(float *)(filter_maxq_coefs_indian);				// Indian pentatonic
+					c_hiq[i]=(float *)(filter_maxq_coefs_indian);					// Indian pentatonic
 				} else if (scale_bank[i]== 10){
-					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);				// Indian Shrutis
+					c_hiq[i]=(float *)(filter_maxq_coefs_shrutis);					// Indian Shrutis
 				} else if (scale_bank[i]== 11){
-					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);			// Mesopotamian
+					c_hiq[i]=(float *)(filter_maxq_coefs_mesopotamian);				// Mesopotamian
 				} else if (scale_bank[i]== 12){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);				// Gamelan Pelog
+					c_hiq[i]=(float *)(filter_maxq_coefs_gamelan);					// Gamelan Pelog
 
 
 				// Modern tunings
 				} else if (scale_bank[i]== 13){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);		// W.C.'s Alpha scale - selected notes A
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread2);			// W.C.'s Alpha scale - selected notes A
 				} else if (scale_bank[i]== 14){
-					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);		// W.C.'s Alpha scale - selected notes B
+					c_hiq[i]=(float *)(filter_maxq_coefs_alpha_spread1);			// W.C.'s Alpha scale - selected notes B
 				} else if (scale_bank[i]== 15){
-					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);			// W.C.'s Gamma scale - selected notes
+					c_hiq[i]=(float *)(filter_maxq_coefs_gammaspread1);				// W.C.'s Gamma scale - selected notes
 				} else if (scale_bank[i]== 16){
-					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);					// 17 notes/oct
+					c_hiq[i]=(float *)(filter_maxq_coefs_17ET);						// 17 notes/oct
 				} else if (scale_bank[i]== 17){
-					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);		// Bohlen Pierce
+					c_hiq[i]=(float *)(filter_maxq_coefs_bohlen_pierce);			// Bohlen Pierce
 				} else if (scale_bank[i]== 18){
-					c_hiq[i]=(float *)(filter_maxq_coefs_B296);					// Buchla 296 EQ
+					c_hiq[i]=(float *)(filter_maxq_coefs_B296);						// Buchla 296 EQ
 
 				// User	Scales
-				} else if (scale_bank[i]==NUMSCALEBANKS-1){ //user scalebank is the last scalebank
+				} else if (scale_bank[i]==NUMSCALEBANKS-1){ 						//user scalebank is the last scalebank
 					c_hiq[i]=(float *)(user_scalebank);
 				}
 
@@ -299,8 +295,8 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					c_hiq[i]=(float *)(filter_bpre_coefs_western_twointerval_800Q); // Western triads (pairs of intervals)
 					c_loq[i]=(float *)(filter_bpre_coefs_western_twointerval_2Q); 	// Western triads (pairs of intervals)
 				} else if (scale_bank[i]== 8){
-					c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_just_800Q);				// Diatonic scale
-					c_loq[i]=(float *)(filter_bpre_coefs_diatonic_just_2Q);				// Diatonic scale
+					c_hiq[i]=(float *)(filter_bpre_coefs_diatonic_just_800Q);		// Diatonic scale
+					c_loq[i]=(float *)(filter_bpre_coefs_diatonic_just_2Q);			// Diatonic scale
 
 
 				// Non-western Tunings
@@ -365,14 +361,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			filter_num=note[channel_num];
 			scale_num=scale[channel_num];
 
-		  //Freq nudge vector
-			var_f=freq_nudge[channel_num];
-			if (var_f<0.002) var_f=0.0;
-			if (var_f>0.998) var_f=1.0;
-			inv_var_f=1.0-var_f;
-
 			qc[channel_num]   	=  qval[channel_num];
-
 
 		// QVAL ADJUSTMENTS
 
@@ -405,28 +394,27 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			
 	
 			// Q/RESONANCE: c0 = 1 - 2/(decay * samplerate), where decay is around 0.01 to 4.0
-			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num]  /1.4)+200]/10.0; //exp[200...3125]
-			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num]/1.4)+200]/10.0; //exp[200...3125]
+			c0_a = 1.0 - exp_4096[(uint32_t)(qval_a[channel_num] /1.4)+200]/10.0; //exp[200...3125]
+			c0   = 1.0 - exp_4096[(uint32_t)(qval_b[channel_num] /1.4)+200]/10.0; //exp[200...3125]
 
 			// FREQ: c1 = 2 * pi * freq / samplerate
 			c1 = *(c_hiq[channel_num] + (scale_num*21) + filter_num);
-			c1 *= freq_nudge[channel_num];
-			c1 *= freq_shift[channel_num];
+			c1 *= freq_nudge[channel_num] * freq_shift[channel_num];
 			if (c1>1.30899581) c1=1.30899581; //hard limit at 20k
 
 			// CROSSFADE between the two filters
 			if 		(qc[channel_num] < CF_MIN) 	{ratio_a=1.0f;}
 			else if (qc[channel_num] > CF_MAX) 	{ratio_a=0.0f;}
 			else {
-				pos_in_cf = ((qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH) * 4095.0f;
-				ratio_a  	= 1.0f-(pos_in_cf/4095.0f);
+				pos_in_cf 	= (qc[channel_num]-CF_MIN) / CROSSFADE_WIDTH;
+				ratio_a  	= 1.0f - pos_in_cf;
 			}
  			ratio_b = (1.0f - ratio_a);
-			ratio_b *= 365012864 / ( 50 * twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]);
+			ratio_b *= 43801543.68f / twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
 
 		    // AMPLITUDE: Boost high freqs and boost low resonance
 			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
-			c2    = (0.003 * c1) - (0.1*c0) + 0.102;
+			c2    = (0.003 * c1) - (0.1*c0)   + 0.102;
 			c2 *= ratio_b;
 
 			if (channel_num & 1) ptmp_i32=right_buffer;
@@ -449,7 +437,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 				filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
 
-  				filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (6 * filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
+  				filter_out[j][i] = (ratio_a * filter_out_a[j][i]) - filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
 			
 			// *********************** Two-pass calibration pt 2/2 *********************
 				// 				if (filter_out[j][i]> max_filter_out_buf){
@@ -506,8 +494,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
 					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
 
-  					filter_out[j][i] = ((ratio_a * filter_out_a[j][i]) - (6 * filter_out_b[j][i])); // output of filter two needs to be inverted to avoid phase cancellation
-
+  					filter_out[j][i] = (ratio_a * filter_out_a[j][i]) - filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
 				}
 
 				// VOCT output with glissando
@@ -552,13 +539,6 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 						filter_num=motion_fadeto_note[channel_num];
 						scale_num=motion_fadeto_scale[channel_num];
 					}
-
-
-					//Freq nudge vector
-					var_f=freq_nudge[channel_num];
-					if (var_f<0.002) var_f=0.0;
-					if (var_f>0.998) var_f=1.0;
-					inv_var_f=1.0-var_f;
 
 					nudge_filter_num = filter_num + 1;
 					if (nudge_filter_num>NUM_FILTS) nudge_filter_num=NUM_FILTS;
