@@ -410,8 +410,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 				ratio_a  	= 1.0f - pos_in_cf;
 			}
  			ratio_b = (1.0f - ratio_a);
-			ratio_b *= 43801543.68f / twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
-
+//  			ratio_b = 0.2;
+   			ratio_b *= 43801543.68f / twopass_calibration[(uint32_t)(qval_b[channel_num]-900)]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
+//  			ratio_b *= 43801543.68 / twopass_calibration[500]; // FIXME: 43801543.68f gain could be directly printed into calibration vector
+// 			ratio_b *= 0.5;
+			
 		    // AMPLITUDE: Boost high freqs and boost low resonance
 			c2_a  = (0.003 * c1) - (0.1*c0_a) + 0.102;
 			c2    = (0.003 * c1) - (0.1*c0)   + 0.102;
@@ -492,7 +495,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 					buf[channel_num][scale_num][filter_num][0] = buf[channel_num][scale_num][filter_num][0] - (c1 * buf[channel_num][scale_num][filter_num][2]);
 
 					buf[channel_num][scale_num][filter_num][1] = buf[channel_num][scale_num][filter_num][2];
-					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1]*1.25;
+					filter_out_b[j][i] = buf[channel_num][scale_num][filter_num][1];
 
   					filter_out[j][i] = (ratio_a * filter_out_a[j][i]) - filter_out_b[j][i]; // output of filter two needs to be inverted to avoid phase cancellation
 				}
