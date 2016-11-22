@@ -99,7 +99,7 @@ extern uint16_t adc_buffer[NUM_ADCS];
 	// float mean_filter_out[NUM_FILTS];
 	// float mean_filter_out_buf;
 	// int kk;
-// ************************************	
+// ******************************************	
 
 float *c_hiq[6];
 float *c_loq[6];

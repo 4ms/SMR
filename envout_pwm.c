@@ -186,6 +186,7 @@ void update_ENVOUT_PWM(void){
 											//it turns out integer comparisons are faster than float comparisons, and we do a lot of them in FreqCoef_to_PWMval()
 
 			ENVOUT_PWM[j] = (uint32_t)(voltoct_pwm_tracking * (float)(FreqCoef_to_PWMval(k,ENVOUT_preload[j])));
+ 			ENVOUT_PWM[j] -=165.895; // {3/12th of a volt ((4095/10) * (3/12))} + {0.16 v adjustment = 65.52cnts}
 		}
 	}
 	else if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST)
@@ -460,7 +461,7 @@ uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 	else return(4095);
 
 	result = ( ((t-v)/(t-b))*bval + ((v-b)/(t-b))*tval );
-
+	
 	asm("usat %[dst], #12, %[src]" : [dst] "=r" (result) : [src] "r" (result));
 
 	return(result);
