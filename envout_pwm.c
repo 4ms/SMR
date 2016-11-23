@@ -186,9 +186,17 @@ void update_ENVOUT_PWM(void){
 											//it turns out integer comparisons are faster than float comparisons, and we do a lot of them in FreqCoef_to_PWMval()
 
 			ENVOUT_PWM[j] = (uint32_t)(voltoct_pwm_tracking * (float)(FreqCoef_to_PWMval(k,ENVOUT_preload[j])));
- 			ENVOUT_PWM[j] -= 201.845; 	// Adjusts PWM out so C2 = 1V, instead of A1 before
- 										// plus minor tuning adjustments so output voltage of C(s) is closer to integer values 
- 										// {3/12th of a volt ((4095/10) * (3/12))} + {0.26v adjustment = 65.52cnts + 33.95}
+
+ 			if (ENVOUT_PWM[j]<127.96875)
+ 				ENVOUT_PWM[j]=0;
+ 			else
+ 				ENVOUT_PWM[j] -= 127.96875; 	// Adjusts PWM out so C2 = 1V, instead of A1 without this adjustment
+												// A1->C2 = {3 semitones/12 semitones = 3/12 of a volt
+ 												// 0-->0V and 4095-->8V so we have ((4095/8) * (3/12))} = 127.96875
+ 												//
+ 												// There is a residual 0.012V on the PWM output jacks, so an ENVOUT_PWM[] value of 0 means C1 = 0.012V
+ 												// And one octave about that is C2 = 1.012V
+
 		}
 	}
 	else if (env_track_mode==ENV_SLOW || env_track_mode==ENV_FAST)
