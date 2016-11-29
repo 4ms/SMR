@@ -843,9 +843,9 @@ void param_read_switches(void){
 
 	//PRE|POST switch
 	if (ENV_MODE){
-		env_prepost_mode=POST;
-	} else {
 		env_prepost_mode=PRE;
+	} else {
+		env_prepost_mode=POST;
 	}
 
 
