@@ -167,6 +167,7 @@ void ENV_update_IRQHandler(void)
 //update_ENVOUT_PWM() smooths this out with a LPF for attack and decay times
 //and converts it to a 12-bit value for feeding into the PWM outputs
 
+float stored_trigger_level[NUM_CHANNELS] = {0,0,0,0,0,0};
 
 void update_ENVOUT_PWM(void){
 	uint8_t j;
@@ -226,7 +227,19 @@ void update_ENVOUT_PWM(void){
 		for (j=0;j<NUM_CHANNELS;j++){
 
 			//Pre-CV (input) or Post-CV (output)
-			if (env_prepost_mode!=PRE) ENVOUT_preload[j]=ENVOUT_preload[j]*channel_level[j];
+			if (env_prepost_mode == PRE)
+			{
+				if (stored_trigger_level[j]<0.002)
+					ENVOUT_preload[j] *= 0.5;
+				else
+					ENVOUT_preload[j] *= stored_trigger_level[j];
+			}
+			else
+			{
+				ENVOUT_preload[j] *= channel_level[j];
+				stored_trigger_level[j] = channel_level[j];
+			}
+
 
 			if (env_trigout[j]){ //keep the trigger high for about 100ms, ignoring the input signal
 				env_trigout[j]--;
@@ -234,11 +247,11 @@ void update_ENVOUT_PWM(void){
 			} else {
 				if (((uint32_t)ENVOUT_preload[j])>0x02000000) { //about 12.5% of max, or 1V envelope output
 					env_low_ctr[j]=0;
-					env_trigout[j]=2000; //about 100ms
+					env_trigout[j]=285; //about 100ms
 					ENVOUT_PWM[j]=4090;
 
 				} else {
-					if (++env_low_ctr[j]>=2000) //only set the output low if the input signal has stayed low for a bit
+					if (++env_low_ctr[j]>=285) //only set the output low if the input signal has stayed low for about 100ms
 						ENVOUT_PWM[j]=0;
 				}
 
