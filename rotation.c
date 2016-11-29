@@ -180,6 +180,7 @@ void update_spread(int8_t t_spread){
 	float spread_out;
 	int32_t i, test_spot, offset, test_scale, base_note;
 	uint8_t j;
+	uint8_t k;
 	uint8_t is_distinct;
 
 	int32_t test_motion[6]={0,0,0,0,0,0};
@@ -221,7 +222,8 @@ void update_spread(int8_t t_spread){
 
 			//Now check to see if test_spot is open
 			is_distinct=0;
-			while (!is_distinct){
+			k=0;
+			while ((!is_distinct) && (k < NUM_FILTS+1)){
 
 				test_spot += motion_spread_dir[i];
 
@@ -238,6 +240,7 @@ void update_spread(int8_t t_spread){
 					if ((i!=j && ((test_spot==test_motion[j] && j<i) || (test_spot==motion_fadeto_note[j] && (lock[j]==1 || j==2)))) || ( freqblock & (1<<test_spot)))
 						is_distinct=0;
 				}
+				k += 1;
 			}
 
 			test_motion[i] = test_spot;
