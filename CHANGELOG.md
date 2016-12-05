@@ -2,8 +2,10 @@
 
  1. Tap the ROTATE button 10 times
 
- 2. Look at the color of the Channel 1 Env Out LED.
+ 2. Look at the color of the Channel 1 Env Out LED:
 
+     * If it's Pink, then you have Version 5
+     
      * If it's Blue (and all the other Env Out LEDs are off), then you have Version 4
 
      * If it's Yellow, then you have Version 3
@@ -11,6 +13,56 @@
      * If it's Green, you have Version 2
 
      * If it's blue or any color and all the Env Out lights are on, then you have Version 1.
+
+## Version 5:
+ * **New Features:**
+   * Two-Pass filter algorithm (default)
+   
+   * One-Pass filter selectable in System Mode (default in earlier versions)
+   
+   * Fine Tuning is now exponential (number of cents can be set, and stays consistant even if rotated or new bank/scale selected)
+      * Fine Tuning amount is updated at zero-crossing of the Freq Nudge knob, and value-crossing afterwards
+      * Fine Tune display on Env Out LEDs: white/blue mean +0 to +1 semitone
+         * Display timer hides the display after a bit
+
+   * Transposition: Hold down Lock button and turn Freq Nudge
+      * +/- 6 semitones
+      * Applied to each channel individually, up to 6 channels at once
+      * Gets updated at value crossing
+      * Transposition is shown with red/blue on Env Out LEDs
+      * Clear transposition with 6x Lock button hold 3 seconds:
+         * Unless locked, channels cleared at button release
+         * Locked channels stay transposed until unlocked
+         * Channels staged for transposition clearing at lock button release, blink
+
+
+   * Forbidden Notes
+      * Hold Lock button + press ROTATE, forbids the current note
+      * Removes ability to rotate/spread onto that note
+      * Saved in flash memory and recalled on power-up
+      * Clear all forbidden notes by holding all six locks and tapping ROTATE
+      * Forbidden notes are displayed in dim white on LED ring
+      
+   * New Scales/Banks:
+      * Minor and Major scale/chord banks added
+      * Equal Temperament versions of some Just Intonation scales added
+      * Color groups for Banks/Scales, and current bank in group is shown on Env Out LEDs
+
+ 
+*  **Improvements/Fixes**	
+   * Noise reduced on level sliders, Q knob, and Morph
+   * Filter type/mode changing in System Mode changed: One/Two Pass selected with odds Freq Nudge knob, and One-Pass/BpRe selected with Evens Freq Nudge knob. Each one toggles with 1x full turn, not 5x
+   * Fixed wrong notes in Diatonic scales
+   * Gamelan scales re-ordered
+
+* **Other changes**
+   * 1V/octave input tracking (freq jack) changed: In Custom Scale mode, press channel Lock button 5 to adjust input tracking. Press channel Lock button 6 to adjust output tracking.
+
+ 
+   
+*  **Shipping history:**
+   *  Version 5, Rev 0 shipped Dec 12, 2016
+
 
 ## Version 4:
  * **New Features:**
