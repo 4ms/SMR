@@ -7,9 +7,6 @@ build/*
 Makefile-old
 .DS_Store
 DS_Store/
-.cproject
-.project
-.settings/
 *.csv
 *.ods
 *.jdebug
