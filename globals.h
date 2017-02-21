@@ -30,6 +30,7 @@
 
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
+#include "stm32f4xx.h"
 
 #define FW_VERSION 0x05
 
@@ -64,6 +65,7 @@ enum Filter_Types {
 
 //#define SAMPLERATE 24000 /*Use only for debugging*/
 #define SAMPLERATE 96000
+
 
 
 #endif /* GLOBALS_H_ */

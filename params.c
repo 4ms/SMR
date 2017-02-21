@@ -33,7 +33,10 @@
 #include "exp_1voct.h"
 #include "system_mode.h"
 #include "rotary.h"
+#include "rotation.h"
 #include "math.h"
+#include "leds.h"
+#include "user_scales.h"
 
 extern float exp_4096[4096];
 
@@ -153,6 +156,11 @@ uint8_t just_switched_to_change_scale_mode=0;
 extern uint8_t cur_param_bank;
 extern uint8_t cur_colsch;
 
+
+uint32_t diff(uint32_t a, uint32_t b)
+{
+	return (a>b)?(a-b):(b-a);
+}
 
 void set_default_param_values(void){
 	uint8_t i;
@@ -833,7 +841,8 @@ void param_read_one_q(int16_t i){
 }
 
 
-void param_read_switches(void){
+void param_read_switches(void)
+{
 	static uint32_t old_cvlag=0xFFFF;
 	uint32_t lag_val;
 	float t_LEVEL_LPF_DECAY, t_LEVEL_LPF_ATTACK;
@@ -931,7 +940,7 @@ void param_read_switches(void){
 
 }
 
-inline uint8_t num_locks_pressed(void){
+uint8_t num_locks_pressed(void){
 	uint8_t i,j;
 	for (i=0,j=0;i<NUM_CHANNELS;i++){
 		if (lock_pressed[i]) j++;
@@ -941,7 +950,8 @@ inline uint8_t num_locks_pressed(void){
 
 
 
-void process_lock_buttons(){
+void process_lock_buttons(void)
+{
 	uint8_t i;
 	for (i=0;i<6;i++){
 		if (LOCKBUTTON(i)){

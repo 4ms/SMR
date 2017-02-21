@@ -44,26 +44,33 @@ enum UI_Modes {
 	EDIT_SCALES
 };
 
+
+void factory_reset(void);
+void load_params_from_sram(uint8_t bank_num);
+void store_params_into_sram(uint8_t bank_num);
+void load_global_params(void);
+void store_globals_into_sram(void);
+uint8_t load_startup_params(void);
+void read_all_params_from_FLASH(void);
+void read_one_bank_params_from_FLASH(uint8_t bank_i);
+void write_all_params_to_FLASH(void);
+void save_param_bank(uint8_t bank_num);
+void load_param_bank(uint8_t bank_num);
+uint8_t is_bank_filled(uint8_t bank_num);
+
 void exit_select_colors_mode(void);
+
 void enter_system_mode(void);
 void exit_system_mode(uint8_t reset_locks);
-//void exit_assign_colors_mode(void);
 
+void enter_edit_color_mode(void);
 void handle_edit_colors(void);
 
+void handle_lock_switch(void);
 void handle_freqpot_changing_filtermode(void);
 void handle_freqpot_changing_filtermode_mode(void);
 void handle_slider_changing_clipmode(void);
 
-void read_all_params_from_FLASH(void);
-void write_all_params_to_FLASH(void);
-uint8_t is_bank_filled(uint8_t bank_num);
-
-void load_param_bank(uint8_t bank_num);
-void save_param_bank(uint8_t bank_num);
-uint8_t load_startupbank(void);
-
-void store_params_into_sram(uint8_t bank_num);
 
 #endif /* SYSTEM_MODE_H_ */
 //SELECT_COLORS

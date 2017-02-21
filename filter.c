@@ -39,6 +39,7 @@
 #include "system_mode.h"
 #include "params.h"
 #include <stdio.h>
+#include "rotation.h"
 #include "twopass_calibration.h"
 
 extern float user_scalebank[231];

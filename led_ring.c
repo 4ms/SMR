@@ -691,7 +691,7 @@ void display_spectral_readout(void){
 }
 */
 
-inline void update_LED_ring(void){
+void update_LED_ring(void){
 
 	static uint32_t led_ring_update_ctr=0;
 

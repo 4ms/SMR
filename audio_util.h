@@ -39,6 +39,7 @@ void audio_stereoize_justleft(int16_t sz, int16_t *dst, int16_t *lsrc);
 
 void audio_split_justleft(uint16_t sz, int16_t *src, uint16_t *dst);
 void audio_convert_2x16_to_stereo24(uint16_t sz, int16_t *src, int32_t *ldst, int32_t *rdst);
+void audio_convert_stereo24_to_2x16(uint16_t sz, int32_t *lsrc, int32_t *rsrc, int16_t *dst);
 
 
 #endif

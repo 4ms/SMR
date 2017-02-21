@@ -50,7 +50,8 @@ const uint32_t slider_led[6]={LED_SLIDER1, LED_SLIDER2, LED_SLIDER3, LED_SLIDER4
 
 #define NITERIDER_SPEED 1000
 
-void update_slider_LEDs(void){
+void update_slider_LEDs(void)
+{
 	static float f_slider_pwm=0;
 	static uint16_t flash=0;
 	static uint8_t ready_to_go_on[NUM_CHANNELS];
@@ -139,7 +140,7 @@ void update_slider_LEDs(void){
 	}
 }
 
-inline void update_lock_leds(void){
+void update_lock_leds(void){
 	uint8_t i;
 	static uint32_t flash1=0;
 	static uint32_t flash2=0;

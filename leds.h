@@ -33,7 +33,7 @@
 #include <stm32f4xx.h>
 
 void update_slider_LEDs(void);
-inline void update_lock_leds(void);
+void update_lock_leds(void);
 
 
 #endif /* LEDS_H_ */

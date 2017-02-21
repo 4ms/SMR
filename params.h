@@ -69,16 +69,26 @@
 
 #define SCALECV_LPF 0.99
 
+
+uint32_t diff(uint32_t a, uint32_t b);
+void set_default_param_values(void);
 void param_read_freq(void);
-void param_read_channel_level(void);
-// void param_read_one_channel_level(uint8_t i);
-void param_poll_switches(void);
 void param_read_q(void);
 void param_read_one_q(int16_t i);
-inline void update_lock_leds(void);
-inline uint8_t num_locks_pressed(void);
-void param_read_lock_buttons(void);
+void param_read_switches(void);
+uint8_t num_locks_pressed(void);
+void process_lock_buttons(void);
+void process_freq_blocks(void);
+void process_lock_jacks(void);
+void process_rotary_button(void);
+void process_rotary_rotation(void);
+int8_t read_spread(void);
+void process_rotateCV(void);
+void process_scaleCV(void);
 void init_freq_update_timer(void);
+
+
+
 
 enum Env_Out_Modes{
 ENV_SLOW,

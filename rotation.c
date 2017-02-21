@@ -94,7 +94,8 @@ void change_scale_down(void){
 	}
 }
 
-void jump_rotate_with_cv(int8_t shift_amt){
+void jump_rotate_with_cv(int8_t shift_amt)
+{
 
 	motion_notejump+=shift_amt;
 
@@ -133,7 +134,7 @@ void jump_scale_with_cv(int8_t shift_amt){
 	}
 }
 
-inline void rotate_down(void){
+void rotate_down(void){
 
 	//if we were rotating down, reverse direction. Otherwise add to current direction
 	if (motion_rotate>=0) motion_rotate=-1;
@@ -141,7 +142,7 @@ inline void rotate_down(void){
 
 }
 
-inline void rotate_up(void){
+void rotate_up(void){
 
 	if (motion_rotate<=0) motion_rotate=1;
 	else motion_rotate++;
@@ -149,7 +150,7 @@ inline void rotate_up(void){
 
 }
 
-inline uint8_t is_spreading(void){
+uint8_t is_spreading(void){
 	if (motion_spread_dir[0]==0
 			&& motion_spread_dir[1]==0
 			&& motion_spread_dir[2]==0
@@ -160,7 +161,7 @@ inline uint8_t is_spreading(void){
 	else return(1);
 }
 
-inline uint8_t is_morphing(void){
+uint8_t is_morphing(void){
 	if (motion_morphpos[0]==0.0
 			&& motion_morphpos[1]==0.0
 			&& motion_morphpos[2]==0.0
@@ -257,7 +258,7 @@ void update_spread(int8_t t_spread){
 
 }
 
-inline void update_morph(void)
+void update_morph(void)
 {
 	uint16_t chan;
 
@@ -277,7 +278,7 @@ inline void update_morph(void)
 }
 
 
-inline void update_motion(void){
+void update_motion(void){
 	uint16_t chan;
 	uint16_t test_chan;
 	int16_t i;
