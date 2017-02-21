@@ -95,11 +95,6 @@ void main(void)
 	for (i=0;i<26;i++)	LEDDriver_setRGBLED(i,0);
 	LED_OFF(LED_RING_OE); //actually turns the LED ring on
 
-	while (1){
-		LED_ON(LED_RING_OE); //actually turns the LED ring off
-		LED_OFF(LED_RING_OE); //actually turns the LED ring on
-	}
-
 	flag_update_LED_ring=1;
 
 
