@@ -230,7 +230,7 @@ void factory_reset(void)
 
 	store_params_into_sram(0);
 
-//	write_all_params_to_FLASH();
+	write_all_params_to_FLASH();
 
 }
 

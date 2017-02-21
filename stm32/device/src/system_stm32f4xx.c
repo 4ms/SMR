@@ -156,8 +156,7 @@
 /* PLL_VCO = (HSE_VALUE or HSI_VALUE / PLL_M) * PLL_N */
 #define PLL_M      8
 //#define PLL_N      360
-//#define PLL_N      336
-#define PLL_N      256
+#define PLL_N      336
 
 /* SYSCLK = PLL_VCO / PLL_P */
 #define PLL_P      2
@@ -238,10 +237,6 @@ void SystemInit(void)
   RCC->CR &= (uint32_t)0xFEF6FFFF;
 
   /* Reset PLLCFGR register */
-  //RCC->PLLCFGR = 0x24003010;
-//RCC->PLLCFGR = (1<<29) | (1<<26) | (1<<13) | (1<<12) | (1<<4); 
-//PLLR = 2, PLLQ = 0100 = 4, PLLP = 0 PLLN = 011000000 = 192, PLLM = 010000 = 16
-
   RCC->PLLCFGR = 0x24003010;
 
   /* Reset HSEBYP bit */
@@ -249,10 +244,6 @@ void SystemInit(void)
 
   /* Disable all interrupts */
   RCC->CIR = 0x00000000;
-
-//RCC_AHB2RSTR JPEGRST
-//RCC_AHB3RSTR QSPIRST
-
 
 #ifdef DATA_IN_ExtSRAM
   SystemInit_ExtMemCtl(); 
@@ -404,11 +395,8 @@ static void SetSysClock(void)
     RCC->CFGR |= RCC_CFGR_PPRE1_DIV4;
 
     /* Configure the main PLL */
-    // RCC->PLLCFGR = PLL_M | (PLL_N << 6) | (((PLL_P >> 1) -1) << 16) |
-    //                (RCC_PLLCFGR_PLLSRC_HSE) | (PLL_Q << 24);
-
     RCC->PLLCFGR = PLL_M | (PLL_N << 6) | (((PLL_P >> 1) -1) << 16) |
-                   (RCC_PLLCFGR_PLLSRC_HSE) | (PLL_Q << 24) | (1<<29); //added PLL_R (bits 30:28) = 010 = 2
+                   (RCC_PLLCFGR_PLLSRC_HSE) | (PLL_Q << 24);
 
     /* Enable the main PLL */
     RCC->CR |= RCC_CR_PLLON;
