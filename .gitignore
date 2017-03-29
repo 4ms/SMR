@@ -11,3 +11,5 @@ DS_Store/
 *.ods
 *.jdebug
 *.o.dump*
+*sublime-workspace
+*.log
