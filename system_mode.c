@@ -32,6 +32,12 @@
 #include "globals.h"
 #include "system_mode.h"
 #include "dig_inouts.h"
+#include "params.h"
+#include "led_ring.h"
+#include "filter.h"
+#include "flash.h"
+#include "user_scales.h"
+
 
 extern float exp_1voct[4096];
 
@@ -169,7 +175,8 @@ float 		flash_user_scalebank[231];
 float 		flash_voltoct_pwm_tracking;
 
 
-void factory_reset(void){
+void factory_reset(void)
+{
 	uint8_t i,j;
 
 

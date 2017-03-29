@@ -1,0 +1,428 @@
+{
+	"auto_complete":
+	{
+		"selected_items":
+		[
+		]
+	},
+	"buffers":
+	[
+		{
+			"contents": "Searching 205 files for \"ENVOUT_preload\"\n\n/Users/design/4ms/stm32/SMR/envout_pwm.c:\n   34  \n   35  uint32_t ENVOUT_PWM[NUM_CHANNELS];\n   36: float ENVOUT_preload[NUM_CHANNELS];\n   37  \n   38  extern enum Env_Out_Modes env_track_mode;\n   ..\n  164  \n  165  \n  166: //The filter routine sets ENVOUT_preload representing each channel's absolute value output (full-wave rectified)\n  167  //update_ENVOUT_PWM() smooths this out with a LPF for attack and decay times\n  168  //and converts it to a 12-bit value for feeding into the PWM outputs\n  ...\n  184  \t\tfor (j=0;j<NUM_CHANNELS;j++)\n  185  \t\t{\n  186: \t\t\tk=ENVOUT_preload[j] * 8192;\t\t//multiply the preload float value by 8192 so we can do a series of integer comparisons in FreqCoef_to_PWMval()\n  187  \t\t\t\t\t\t\t\t\t\t\t//it turns out integer comparisons are faster than float comparisons, and we do a lot of them in FreqCoef_to_PWMval()\n  188  \n  189: \t\t\tENVOUT_PWM[j] = (uint32_t)(voltoct_pwm_tracking * (float)(FreqCoef_to_PWMval(k,ENVOUT_preload[j])));\n  190  \n  191   \t\t\tif (ENVOUT_PWM[j]<127.96875)\n  ...\n  206  \t\tfor (j=0;j<NUM_CHANNELS;j++){\n  207  \t\t\t//Apply LPF\n  208: \t\t\tif(envelope[j] < ENVOUT_preload[j]) {\n  209  \t\t\t\tenvelope[j] *= envspeed_attack;\n  210: \t\t\t\tenvelope[j] += (1.0f-envspeed_attack)*ENVOUT_preload[j];\n  211  \t\t\t} else {\n  212  \t\t\t\tenvelope[j] *= envspeed_decay;\n  213: \t\t\t\tenvelope[j] += (1.0f-envspeed_decay)*ENVOUT_preload[j];\n  214  \t\t\t}\n  215  \n  ...\n  231  \t\t\t{\n  232  \t\t\t\tif (stored_trigger_level[j]<0.002)\n  233: \t\t\t\t\tENVOUT_preload[j] *= 0.5;\n  234  \t\t\t\telse\n  235: \t\t\t\t\tENVOUT_preload[j] *= stored_trigger_level[j];\n  236  \t\t\t}\n  237  \t\t\telse\n  238  \t\t\t{\n  239: \t\t\t\tENVOUT_preload[j] *= channel_level[j];\n  240  \t\t\t\tstored_trigger_level[j] = channel_level[j];\n  241  \t\t\t}\n  ...\n  246  \n  247  \t\t\t} else {\n  248: \t\t\t\tif (((uint32_t)ENVOUT_preload[j])>0x02000000) { //about 12.5% of max, or 1V envelope output\n  249  \t\t\t\t\tenv_low_ctr[j]=0;\n  250  \t\t\t\t\tenv_trigout[j]=285; //about 100ms\n\n/Users/design/4ms/stm32/SMR/filter.c:\n   64  extern uint8_t scale_bank[NUM_CHANNELS];\n   65  \n   66: extern float ENVOUT_preload[NUM_CHANNELS];\n   67  \n   68  extern const uint32_t slider_led[6];\n   ..\n  454  \n  455  \t\t\t// VOCT output\n  456: \t\t\tif (env_track_mode==ENV_VOLTOCT) ENVOUT_preload[channel_num]=c1;\n  457  \n  458  \n  ...\n  503  \t\t\t\t// VOCT output with glissando\n  504  \t\t\t\tif (env_track_mode==ENV_VOLTOCT && env_prepost_mode==PRE)\n  505: \t\t\t\t\t\tENVOUT_preload[channel_num] = (ENVOUT_preload[channel_num] * (1.0f-motion_morphpos[channel_num])) + (c1 * motion_morphpos[channel_num]);\n  506  \n  507  \t\t\t}\n  ...\n  746  \t\tif (env_track_mode != ENV_VOLTOCT){\n  747  \t\t\tif (f_blended>0)\n  748: \t\t\t\tENVOUT_preload[j]=f_blended;\n  749  \t\t\telse\n  750: \t\t\t\tENVOUT_preload[j]=-1.0*f_blended;\n  751  \t\t}\n  752  \t}\n\n/Users/design/4ms/stm32/SMR/main.map:\n   34  state               0x1               build/rotary.o\n   35  rot_dir             0x18              build/rotation.o\n   36: ENVOUT_preload      0x18              build/envout_pwm.o\n   37  flash_scale         0x24              build/system_mode.o\n   38  rx_buffer           0x100             build/i2s.o\n   ..\n  957   *fill*         0x0000000020010226        0x2 \n  958   COMMON         0x0000000020010228       0x30 build/envout_pwm.o\n  959:                 0x0000000020010228                ENVOUT_preload\n  960                  0x0000000020010240                ENVOUT_PWM\n  961   COMMON         0x0000000020010258     0x3f14 build/filter.o\n\n/Users/design/4ms/stm32/SMR/build/main.map:\n   43  rot_dir             0x18              build/rotation.o\n   44  flash_freqblock     0x18              build/system_mode.o\n   45: ENVOUT_preload      0x18              build/envout_pwm.o\n   46  ongoing_fine_tuning\n   47                      0x2               build/params.o\n   ..\n 1019   *fill*         0x000000002000f8be        0x2 \n 1020   COMMON         0x000000002000f8c0       0x30 build/envout_pwm.o\n 1021:                 0x000000002000f8c0                ENVOUT_preload\n 1022                  0x000000002000f8d8                ENVOUT_PWM\n 1023   COMMON         0x000000002000f8f0     0x8210 build/filter.o\n\n/Users/design/4ms/stm32/SMR/firmwares/v5/main.elf:\n    <binary>\n\n/Users/design/4ms/stm32/SMR/firmwares/v5b1/main-v5b1.elf:\n    <binary>\n\n/Users/design/4ms/stm32/SMR/firmwares/v5b2/main.elf:\n    <binary>\n\n/Users/design/4ms/stm32/SMR/firmwares/v5b3/main.elf:\n    <binary>\n\n/Users/design/4ms/stm32/SMR/firmwares/v5b4/main.elf:\n    <binary>\n\n/Users/design/4ms/stm32/SMR/firmwares/v5b5/main.elf:\n    <binary>\n\n33 matches across 10 files\n",
+			"settings":
+			{
+				"buffer_size": 4558,
+				"line_ending": "Unix",
+				"name": "Find Results",
+				"scratch": true
+			}
+		},
+		{
+			"file": "envout_pwm.c",
+			"settings":
+			{
+				"buffer_size": 25531,
+				"line_ending": "Unix"
+			}
+		},
+		{
+			"file": "params.c",
+			"settings":
+			{
+				"buffer_size": 42526,
+				"line_ending": "Unix"
+			}
+		}
+	],
+	"build_system": "",
+	"build_system_choices":
+	[
+		[
+			[
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					""
+				],
+				[
+					"Packages/C++/C++ Single File.sublime-build",
+					"Run"
+				]
+			],
+			[
+				"Packages/C++/C++ Single File.sublime-build",
+				""
+			]
+		]
+	],
+	"build_varint": "",
+	"command_palette":
+	{
+		"height": 87.0,
+		"last_filter": ":q",
+		"selected_items":
+		[
+			[
+				":q",
+				"Set Syntax: SQL"
+			]
+		],
+		"width": 392.0
+	},
+	"console":
+	{
+		"height": 126.0,
+		"history":
+		[
+		]
+	},
+	"distraction_free":
+	{
+		"menu_visible": true,
+		"show_minimap": true,
+		"show_open_files": false,
+		"show_tabs": false,
+		"side_bar_visible": true,
+		"status_bar_visible": true
+	},
+	"expanded_folders":
+	[
+		"/Users/design/4ms/stm32/SMR"
+	],
+	"file_history":
+	[
+		"/Users/design/4ms/stm32/DTS/src/flash.c",
+		"/Users/design/4ms/stm32/DTS/stm32/periph/include/stm32f4xx_flash.h",
+		"/Users/design/4ms/stm32/DTS/src/buttons.c",
+		"/Users/design/4ms/stm32/DTS/DTS.sublime-project",
+		"/Users/design/4ms/stm32/DTS/src/sampler.c",
+		"/Users/design/4ms/stm32/DTS/inc/sampler.h",
+		"/Users/design/4ms/stm32/DTS/inc/dig_pins.h",
+		"/Users/design/4ms/stm32/DTS/DTS.jdebug",
+		"/Users/design/4ms/stm32/SMR/adc.c",
+		"/Users/design/4ms/stm32/SMR/adc.h",
+		"/Users/design/4ms/stm32/SMR/audio_util.c",
+		"/Users/design/4ms/stm32/SMR/audio_util.h",
+		"/Users/design/4ms/stm32/SMR/Makefile",
+		"/Users/design/4ms/stm32/SMR/main.c"
+	],
+	"find":
+	{
+		"height": 35.0
+	},
+	"find_in_files":
+	{
+		"height": 93.0,
+		"where_history":
+		[
+			""
+		]
+	},
+	"find_state":
+	{
+		"case_sensitive": false,
+		"find_history":
+		[
+			"FREQCV_LPF",
+			"ENVOUT_preload",
+			"ENVOUT",
+			"uint16_t",
+			"potadc_buffer",
+			"address",
+			"uint8_t",
+			"\n}",
+			"DMA_InitStructure",
+			"DMA"
+		],
+		"highlight": true,
+		"in_selection": false,
+		"preserve_case": false,
+		"regex": false,
+		"replace_history":
+		[
+		],
+		"reverse": false,
+		"show_context": true,
+		"use_buffer2": true,
+		"whole_word": false,
+		"wrap": true
+	},
+	"groups":
+	[
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 0,
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 4558,
+						"regions":
+						{
+							"match":
+							{
+								"flags": 112,
+								"regions":
+								[
+									[
+										147,
+										161
+									],
+									[
+										289,
+										303
+									],
+									[
+										603,
+										617
+									],
+									[
+										975,
+										989
+									],
+									[
+										1139,
+										1153
+									],
+									[
+										1252,
+										1266
+									],
+									[
+										1380,
+										1394
+									],
+									[
+										1495,
+										1509
+									],
+									[
+										1549,
+										1563
+									],
+									[
+										1645,
+										1659
+									],
+									[
+										1810,
+										1824
+									],
+									[
+										2078,
+										2092
+									],
+									[
+										2242,
+										2256
+									],
+									[
+										2419,
+										2433
+									],
+									[
+										2450,
+										2464
+									],
+									[
+										2665,
+										2679
+									],
+									[
+										2720,
+										2734
+									],
+									[
+										2943,
+										2957
+									],
+									[
+										3311,
+										3325
+									],
+									[
+										3641,
+										3655
+									],
+									[
+										3974,
+										3988
+									]
+								],
+								"scope": ""
+							}
+						},
+						"selection":
+						[
+							[
+								63,
+								63
+							]
+						],
+						"settings":
+						{
+							"detect_indentation": false,
+							"line_numbers": false,
+							"output_tag": 1,
+							"result_base_dir": "",
+							"result_file_regex": "^([^ \t].*):$",
+							"result_line_regex": "^ +([0-9]+):",
+							"scroll_past_end": true,
+							"syntax": "Packages/Default/Find Results.hidden-tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 2,
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "envout_pwm.c",
+					"semi_transient": false,
+					"settings":
+					{
+						"buffer_size": 25531,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								4603,
+								4624
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 1646.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 0,
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "params.c",
+					"semi_transient": true,
+					"settings":
+					{
+						"buffer_size": 42526,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								8313,
+								8323
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C.sublime-syntax",
+							"translate_tabs_to_spaces": false
+						},
+						"translation.x": 0.0,
+						"translation.y": 2983.0,
+						"zoom_level": 1.0
+					},
+					"stack_index": 1,
+					"type": "text"
+				}
+			]
+		}
+	],
+	"incremental_find":
+	{
+		"height": 23.0
+	},
+	"input":
+	{
+		"height": 0.0
+	},
+	"layout":
+	{
+		"cells":
+		[
+			[
+				0,
+				0,
+				1,
+				1
+			]
+		],
+		"cols":
+		[
+			0.0,
+			1.0
+		],
+		"rows":
+		[
+			0.0,
+			1.0
+		]
+	},
+	"menu_visible": true,
+	"output.exec":
+	{
+		"height": 100.0
+	},
+	"output.find_results":
+	{
+		"height": 0.0
+	},
+	"pinned_build_system": "",
+	"project": "SMR.sublime-project",
+	"replace":
+	{
+		"height": 42.0
+	},
+	"save_all_on_build": true,
+	"select_file":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_project":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"select_symbol":
+	{
+		"height": 0.0,
+		"last_filter": "",
+		"selected_items":
+		[
+		],
+		"width": 0.0
+	},
+	"selected_group": 0,
+	"settings":
+	{
+	},
+	"show_minimap": true,
+	"show_open_files": true,
+	"show_tabs": true,
+	"side_bar_visible": true,
+	"side_bar_width": 245.0,
+	"status_bar_visible": true,
+	"template_settings":
+	{
+	}
+}

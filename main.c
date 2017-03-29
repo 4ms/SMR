@@ -45,6 +45,9 @@
 #include "system_mode.h"
 #include "user_scales.h"
 #include "limiter.h"
+#include "pca9685_driver.h"
+#include "leds.h"
+
 //#include "compressor.h"
 
 
@@ -75,9 +78,6 @@ void check_errors(void){
 
 }
 
-inline uint32_t diff(uint32_t a, uint32_t b){
-	return (a>b)?(a-b):(b-a);
-}
 
 
 void main(void)
@@ -88,6 +88,8 @@ void main(void)
     NVIC_SetVectorTable(NVIC_VectTab_FLASH, 0x8000);
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);	//Set Priority Grouping mode to 2-bits for priority and 2-bits for sub-priority
 
+	init_inouts();
+
 	LED_ON(LED_RING_OE); //actually turns the LED ring off
 	LEDDriver_Init(5);
 	for (i=0;i<26;i++)	LEDDriver_setRGBLED(i,0);
@@ -96,7 +98,6 @@ void main(void)
 	flag_update_LED_ring=1;
 
 
-	init_inouts();
 	init_rotary();
 	init_envout_pwm();
 

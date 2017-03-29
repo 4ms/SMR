@@ -16,7 +16,7 @@
 =-864691128455135232
 */
 
-inline int32_t limiter(int32_t val);
+int32_t limiter(int32_t val);
 
 void init_limiter(uint32_t max_sample_val, float threshold_percent);
 

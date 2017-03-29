@@ -107,6 +107,7 @@ void init_envout_pwm(void){
 	TIM_OC4Init(TIM3, &tim_oc);
 	TIM_OC4PreloadConfig(TIM3, TIM_OCPreload_Enable);
 
+	TIM_CtrlPWMOutputs(TIM3, ENABLE);
 	TIM_Cmd(TIM3, ENABLE);
 
 	TIM_OC1Init(TIM1, &tim_oc);

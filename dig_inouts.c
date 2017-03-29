@@ -38,21 +38,21 @@ uint8_t do_ROTA;
 uint8_t do_ROTB;
 
 const int LED_LOCK[6]={LED_LOCK1, LED_LOCK2, LED_LOCK3, LED_LOCK4, LED_LOCK5, LED_LOCK6};
-inline void LOCKLED_ON(int led){
+void LOCKLED_ON(int led){
 	LED_GPIO->BSRRL = LED_LOCK[led];
 }
-inline void LOCKLED_OFF(int led){
+void LOCKLED_OFF(int led){
 	LED_GPIO->BSRRH = LED_LOCK[led];
 }
-inline void LOCKLED_ALLON(void){
+void LOCKLED_ALLON(void){
 	LED_GPIO->BSRRL = LED_LOCK1 | LED_LOCK2 | LED_LOCK3 | LED_LOCK4 | LED_LOCK5 | LED_LOCK6;
 }
-inline void LOCKLED_ALLOFF(void){
+void LOCKLED_ALLOFF(void){
 	LED_GPIO->BSRRH = LED_LOCK1 | LED_LOCK2 | LED_LOCK3 | LED_LOCK4 | LED_LOCK5 | LED_LOCK6;
 }
 
 const int _lockbutton[6]={LOCK1_pin, LOCK2_pin, LOCK3_pin, LOCK4_pin, LOCK5_pin, LOCK6_pin};
-inline uint8_t LOCKBUTTON(uint8_t x){
+uint8_t LOCKBUTTON(uint8_t x){
 	if (x!=5) return (!(LOCKBUT_GPIO->IDR & _lockbutton[x]));
 	else return (!(LOCKBUT6_GPIO->IDR & _lockbutton[5]));
 }

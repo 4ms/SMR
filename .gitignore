@@ -12,3 +12,4 @@ DS_Store/
 *.jdebug
 *.o.dump*
 *.sublime-workspace
+*.log

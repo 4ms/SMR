@@ -196,12 +196,12 @@
 
 void init_inouts(void);
 void init_inputread_timer(void);
-inline void LOCKLED_ON(int led);
-inline void LOCKLED_OFF(int led);
-inline void LOCKLED_ALLON(void);
-inline void LOCKLED_ALLOFF(void);
+void LOCKLED_ON(int led);
+void LOCKLED_OFF(int led);
+void LOCKLED_ALLON(void);
+void LOCKLED_ALLOFF(void);
 
 
-inline uint8_t LOCKBUTTON(uint8_t x);
+uint8_t LOCKBUTTON(uint8_t x);
 
 #endif /* INOUTS_H_ */

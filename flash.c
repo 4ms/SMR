@@ -29,6 +29,7 @@
 #include <stm32f4xx.h>
 #include "globals.h"
 #include "dig_inouts.h"
+#include "flash.h"
 
 
 static uint32_t kSectorBaseAddress[] = {
