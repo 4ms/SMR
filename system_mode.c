@@ -307,7 +307,6 @@ void store_params_into_sram(uint8_t bank_num){
 
 //load SRAM globals into active params
 void load_global_params(void){
-	uint8_t i;
 	uint32_t sz;
 	uint8_t *src;
 	uint8_t *dst;
@@ -745,10 +744,11 @@ void handle_freqpot_changing_filtermode_mode(void){
 
 		if (filter_mode==TWOPASS)
 			filter_mode=ONEPASS;
-		else
+		else 
 			filter_mode=TWOPASS;
-			change_filter_type(MAXQ);
-
+		
+		change_filter_type(MAXQ);
+		
 		state=0;
 		ctr=0;
 	}
