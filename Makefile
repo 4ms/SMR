@@ -41,11 +41,20 @@ CFLAGS +=  -I. -DARM_MATH_CM4 -D'__FPU_PRESENT=1'  $(INCLUDES)  -DUSE_STDPERIPH_
 CFLAGS += -mcpu=cortex-m4 -mfloat-abi=hard
 CFLAGS +=  -mfpu=fpv4-sp-d16 -fsingle-precision-constant -Wdouble-promotion
 
+C0FLAGS  = -O0 -g -Wall
+C0FLAGS += -mlittle-endian -mthumb 
+C0FLAGS +=  -I. -DARM_MATH_CM4 -D'__FPU_PRESENT=1'  $(INCLUDES)  -DUSE_STDPERIPH_DRIVER
+C0FLAGS += -mcpu=cortex-m4 -mfloat-abi=hard
+C0FLAGS +=  -mfpu=fpv4-sp-d16 -fsingle-precision-constant -Wdouble-promotion 
+
+
 AFLAGS  = -mlittle-endian -mthumb -mcpu=cortex-m4 
 
 LDSCRIPT = $(DEVICE)/$(LOADFILE).ld
 LFLAGS  = -Map $(BUILDDIR)/$(BINARYNAME).map -nostartfiles  -T $(LDSCRIPT)
 #LFLAGS  = -nostartfiles  -T $(LDSCRIPT)  -lc -lm -lgcc
+
+# build/system_mode.o: CFLAGS = $(C0FLAGS)
 
 
 all: Makefile $(BIN) $(HEX)

@@ -121,6 +121,7 @@ float CHANNEL_LEVEL_LPF=0;
 
 //Q POT AND CV
 uint32_t qval[NUM_CHANNELS];
+float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 uint32_t qvalcv, qvalpot;
 uint8_t q_locked[NUM_CHANNELS]={0,0,0,0,0,0};
 uint8_t user_turned_Q_pot=0;
@@ -724,7 +725,6 @@ void param_read_q(void){
 	static float old_qpot_lpf=0xFFFF;
 	static uint32_t poll_ctr=0;
 	static float prev_qval[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
-	static float qval_goal[NUM_CHANNELS] = {0.0,0.0,0.0,0.0,0.0,0.0};
 	
 
  	if (poll_ctr++>15){ // UPDATE RATE

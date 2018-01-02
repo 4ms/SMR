@@ -1,6 +1,7 @@
 firmwares
 firmwares/
 firmwares/*
+local/
 build
 build/
 build/*

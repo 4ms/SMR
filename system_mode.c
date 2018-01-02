@@ -60,6 +60,7 @@ extern float COLOR_CH[16][6][3];
 extern uint8_t lock[NUM_CHANNELS];
 extern uint8_t q_locked[NUM_CHANNELS];
 extern uint32_t qval[NUM_CHANNELS];
+extern float qval_goal[NUM_CHANNELS];
 extern float freq_nudge[NUM_CHANNELS];
 
 extern uint8_t note[NUM_CHANNELS];
@@ -262,6 +263,7 @@ void load_params_from_sram(uint8_t bank_num){
 		lock[i]			= flash_lock[bank_num][i];
 		q_locked[i]		= flash_q_locked[bank_num][i];
 		qval[i]			= flash_qval[bank_num][i];
+		qval_goal[i] 	= qval[i];
 		freq_nudge[i]	= flash_freq_nudge[bank_num][i];
 
 		rot_dir[i]				= 0;
