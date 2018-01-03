@@ -133,6 +133,7 @@ void main(void)
 
 	//update_spread(1);
 
+	init_freq_lpf();
 	init_freq_update_timer();
 	init_ENV_update_timer();
 

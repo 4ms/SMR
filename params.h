@@ -86,6 +86,7 @@ int8_t read_spread(void);
 void process_rotateCV(void);
 void process_scaleCV(void);
 void init_freq_update_timer(void);
+void init_freq_lpf(void);
 
 
 

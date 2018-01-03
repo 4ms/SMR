@@ -37,6 +37,7 @@
 #include "math.h"
 #include "leds.h"
 #include "user_scales.h"
+#include "lpf.h"
 
 extern float exp_4096[4096];
 
@@ -77,6 +78,8 @@ uint8_t fine_timer[2]={1,1}; 			// flag for fine tune display soft release 1: so
 
 float t_fo, t_fe;						// buffers for freq nudge knob readouts 
 float f_nudge_odds=1, f_nudge_evens=1;
+
+o_analog freq_jack_conditioning[2];			//LPF and bracketing for freq jacks
 
 extern uint8_t do_LOCK135;
 extern uint8_t do_LOCK246;
@@ -197,10 +200,10 @@ void param_read_freq(void){
 	uint8_t i,j,k;
 	static uint8_t sleep_range_saved =0, first_run[2]={1,1};
 	static uint8_t old_switch_state[2];										// previous 135/246 switch state
-	static uint8_t fknob_lock[2]={0,0};										// true disables nudge knob for odds/evens
+	static uint8_t fknob_lock[2]={0,0};										// ==1 disables nudge knob for odds/evens
 	static uint8_t coarse_lock[NUM_CHANNELS]={1,1,1,1,1,1}; 				// same as fknoblock, for the coarse tuning
 	static float sleep_range=800; 											// number of counts that won't wake up nudge knob after module is turned on
-	static float wakeup_evens[2], wakeup_odds[2]; 							// value at which f_nudge knob wakes up after module turns on
+	static float wakeup_evens[2], wakeup_odds[2]; 							// range at which f_nudge knob wakes up after module turns on: low end of range is [0], high end is [1]. 
 	static float old_f_nudge_odds=1, old_f_nudge_evens=1; 					// keeps track of freq knob rotation
 	static float f_nudge_odds_buf, f_nudge_evens_buf;
 	static float f_nudge_buf[2];
@@ -210,9 +213,6 @@ void param_read_freq(void){
 	int odds[3] ={0, 2, 4}; // ch 1, 3, 5
 	int evens[3]={1, 3, 5}; // ch 2, 4, 6
 	int32_t freq_jack_cv;
-	static float odds_freq_jack_cv_lpf = 0.0;
-	static float evens_freq_jack_cv_lpf = 0.0;
-
 	
 	// FREQ SHIFT
 	//With the Maxq filter, the Freq Nudge pot alone adjusts the "nudge", and the CV jack is 1V/oct shift
@@ -221,53 +221,55 @@ void param_read_freq(void){
 	if (filter_type==MAXQ)
 	{
 		// Read buffer knob and normalize input: 0-1
-			t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
-			t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
+		t_fo=(float)(adc_buffer[FREQNUDGE1_ADC]);
+		t_fe=(float)(adc_buffer[FREQNUDGE6_ADC]);
 
 		// after turning on the module
 		// keep freq nudge knobs output at 0 as long as knobs are within sleep range
-			if (!sleep_range_saved){
-				wakeup_odds[0] =t_fo - sleep_range;
-				wakeup_odds[1] =t_fo + sleep_range;
-				wakeup_evens[0]=t_fe - sleep_range;
-				wakeup_evens[1]=t_fe + sleep_range;
-				sleep_range_saved = 1; // ensures this only gets computed once
-			}
-			if (first_run[0]){
-				if ((t_fo > wakeup_odds[0]) && (t_fo < wakeup_odds[1])) {t_fo=0.0;}
-				else{first_run[0]=0;}
-			}
-			if (first_run[1]){
-				if ((t_fe > wakeup_evens[0]) && (t_fe < wakeup_evens[1])) {t_fe=0.0;}
-				else{first_run[1]=0;}
-			}
+		if (!sleep_range_saved){
+			wakeup_odds[0] =t_fo - sleep_range;
+			wakeup_odds[1] =t_fo + sleep_range;
+			wakeup_evens[0]=t_fe - sleep_range;
+			wakeup_evens[1]=t_fe + sleep_range;
+			sleep_range_saved = 1; // ensures this only gets computed once
+		}
+		if (first_run[0]){
+			if ((t_fo > wakeup_odds[0]) && (t_fo < wakeup_odds[1])) {t_fo=0.0;}
+			else{first_run[0]=0;}
+		}
+		if (first_run[1]){
+			if ((t_fe > wakeup_evens[0]) && (t_fe < wakeup_evens[1])) {t_fe=0.0;}
+			else{first_run[1]=0;}
+		}
 
 		// Freq shift odds
 		// is odds cv input Low-passed and adjusted for 1V/Oct
-			if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
+		if (trackcomp[0]<0.5 || trackcomp[0]>2.0) trackcomp[0]=1.0; //sanity check
 
-			freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0] + BASE_TRACKOFFSET) * trackcomp[0];
-			if (freq_jack_cv<0) freq_jack_cv=0;
-			if (freq_jack_cv>4095) freq_jack_cv=4095;
+		freq_jack_cv = (adc_buffer[FREQCV1_ADC] + trackoffset[0] + BASE_TRACKOFFSET) * trackcomp[0];
+		if (freq_jack_cv<0) freq_jack_cv=0;
+		if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-			odds_freq_jack_cv_lpf *= FREQCV_LPF;
-			odds_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+		freq_jack_conditioning[0].raw_val = freq_jack_cv;
+		apply_fir_lpf(&(freq_jack_conditioning[0]));
+		apply_bracket(&(freq_jack_conditioning[0]));
 
-			f_shift_odds = exp_1voct[(uint32_t)odds_freq_jack_cv_lpf];
+		f_shift_odds = exp_1voct[(uint32_t)freq_jack_conditioning[0].bracketed_val];
 
 
 		// Freq shift evens
 		// is odds cv input Low-passed and adjusted for 1V/Oct
-			if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
+		if (trackcomp[1]<0.5 || trackcomp[1]>2.0) trackcomp[1]=1.0; //sanity check
 
-			freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1] + BASE_TRACKOFFSET) * trackcomp[1];
-			if (freq_jack_cv<0) freq_jack_cv=0;
-			if (freq_jack_cv>4095) freq_jack_cv=4095;
+		freq_jack_cv = (adc_buffer[FREQCV6_ADC] + trackoffset[1] + BASE_TRACKOFFSET) * trackcomp[1];
+		if (freq_jack_cv<0) freq_jack_cv=0;
+		if (freq_jack_cv>4095) freq_jack_cv=4095;
 
-			evens_freq_jack_cv_lpf *= FREQCV_LPF;
-			evens_freq_jack_cv_lpf += freq_jack_cv * (1.0f-FREQCV_LPF);
+		freq_jack_conditioning[1].raw_val = freq_jack_cv;
+		apply_fir_lpf(&(freq_jack_conditioning[1]));
+		apply_bracket(&(freq_jack_conditioning[1]));
 
-			f_shift_evens = exp_1voct[(uint32_t)evens_freq_jack_cv_lpf];
+		f_shift_evens = exp_1voct[(uint32_t)freq_jack_conditioning[1].bracketed_val];
 
 
 	// FREQ NUDGE 
@@ -1393,6 +1395,23 @@ void process_scaleCV(void){
 	t_scalecv = lpf_buf/409; //0..10
 	jump_scale_with_cv(t_scalecv - t_old_scalecv);
 	t_old_scalecv = t_scalecv;
+}
+
+void init_freq_lpf(void)
+{
+	freq_jack_conditioning[0].polarity 		= AP_UNIPOLAR;
+	freq_jack_conditioning[0].fir_lpf_size 	= 40;
+	freq_jack_conditioning[0].iir_lpf_size	= 0;
+	freq_jack_conditioning[0].bracket_size 	= 2;
+
+	freq_jack_conditioning[1].polarity 		= AP_UNIPOLAR;
+	freq_jack_conditioning[1].fir_lpf_size 	= 40;
+	freq_jack_conditioning[1].iir_lpf_size	= 0;
+	freq_jack_conditioning[1].bracket_size 	= 2;
+
+	setup_fir_filter(&freq_jack_conditioning[0]);
+	setup_fir_filter(&freq_jack_conditioning[1]);
+
 }
 
 void init_freq_update_timer(void)
