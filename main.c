@@ -47,6 +47,7 @@
 #include "limiter.h"
 #include "pca9685_driver.h"
 #include "leds.h"
+#include "contemplation.h"
 
 //#include "compressor.h"
 
@@ -136,6 +137,9 @@ void main(void)
 	init_freq_lpf();
 	init_freq_update_timer();
 	init_ENV_update_timer();
+
+	// Setup contemplation mode
+	init_contemplation();
 
 	while(1){
 

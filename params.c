@@ -894,7 +894,14 @@ void param_read_switches(void)
 		}
 	} else {
 		if (ENVSPEEDSLOW){
-			env_track_mode=ENV_SLOW;
+			if (env_track_mode != ENV_CONTEMPLATION && env_track_mode != ENV_SLOW) {
+				// Changed state
+				if(ROTARY_SW) {
+					env_track_mode = ENV_CONTEMPLATION;
+				} else {
+					env_track_mode = ENV_SLOW;
+				}
+			}
 			envspeed_attack=0.9995;
 			envspeed_decay=0.9999;
 		} else { //trigger

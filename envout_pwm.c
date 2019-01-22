@@ -31,6 +31,7 @@
 #include "globals.h"
 #include "dig_inouts.h"
 #include "envout_pwm.h"
+#include "contemplation.h"
 
 uint32_t ENVOUT_PWM[NUM_CHANNELS];
 float ENVOUT_preload[NUM_CHANNELS];
@@ -169,6 +170,7 @@ void ENV_update_IRQHandler(void)
 //and converts it to a 12-bit value for feeding into the PWM outputs
 
 float stored_trigger_level[NUM_CHANNELS] = {0,0,0,0,0,0};
+uint8_t contemplation_ctr = 0;
 
 void update_ENVOUT_PWM(void){
 	uint8_t j;
@@ -221,7 +223,16 @@ void update_ENVOUT_PWM(void){
 			else
 				ENVOUT_PWM[j]=(uint32_t)(envelope[j]*channel_level[j])>>16;
 		}
+	}
+	else if (env_track_mode == ENV_CONTEMPLATION) {
+		contemplation_ctr++;
 
+		if(contemplation_ctr > 100) {
+			contemplation_ctr = 0;
+			// contemplate contains the core logic of contemplation mode. It will set
+			// ENVOUT_PWM accordingly, which will affect the output of sound in the filter.
+			contemplate();
+		}
 	}
 	else
 	{ //trigger mode

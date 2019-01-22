@@ -93,6 +93,8 @@ extern float CHANNEL_LEVEL_LPF;
 extern uint16_t potadc_buffer[NUM_ADC3S];
 extern uint16_t adc_buffer[NUM_ADCS];
 
+extern uint32_t ENVOUT_PWM[NUM_CHANNELS];
+
 // **** two pass calibration variables ******
 	// static float qval_b[NUM_CHANNELS]   = {1000,1000,1000,1000,1000,1000};	
 	// float max_filter_out[NUM_FILTS];
@@ -697,7 +699,11 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
 					poll_ctr[j]=0;
 
-					t = potadc_buffer[j+SLIDER_ADC_BASE];
+					if(env_track_mode==ENV_CONTEMPLATION) {
+						t = ENVOUT_PWM[j];
+					} else {
+						t = potadc_buffer[j+SLIDER_ADC_BASE];
+					}
 					if (t<20) t=0;
 					else t-=20;
 

@@ -95,8 +95,8 @@ enum Env_Out_Modes{
 ENV_SLOW,
 ENV_FAST,
 ENV_TRIG,
-ENV_VOLTOCT
-
+ENV_VOLTOCT,
+ENV_CONTEMPLATION
 };
 
 #endif /* PARAMS_H_ */
