@@ -10,7 +10,5 @@ Makefile-old
 DS_Store/
 *.csv
 *.ods
-*.jdebug
 *.o.dump*
-*.sublime-workspace
 *.log

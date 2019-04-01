@@ -66,6 +66,9 @@ extern int8_t spread;
 
 extern uint8_t cur_param_bank;
 
+uint8_t TESTING_MODE=1;
+
+
 
 #define delay()						\
 do {							\
@@ -137,13 +140,17 @@ void main(void)
 	init_freq_update_timer();
 	init_ENV_update_timer();
 
+	if (TESTING_MODE)
+		init_test_results_ledring();
+
 	while(1){
 
 		check_errors();
 
 		param_read_switches();
 
-		update_LED_ring();
+		if (!TESTING_MODE) 
+			update_LED_ring();
 
 		update_lock_leds();
 
@@ -193,6 +200,9 @@ void main(void)
 		process_rotateCV();
 
 		process_scaleCV();
+
+		if (TESTING_MODE)
+			assign_test_values();
 
 	} //end main loop
 

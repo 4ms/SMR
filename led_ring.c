@@ -422,6 +422,103 @@ void calculate_envout_leds(uint16_t env_out_leds[NUM_CHANNELS][3]){
 
 }
 
+extern volatile uint16_t test01_freqPotLeft;
+extern volatile uint16_t test02_freqJackLeft;
+extern volatile uint16_t test03_lockJackLeft;
+extern volatile uint32_t test04_modeSwitchLeft;
+extern volatile uint32_t test05_lagSwitch;
+extern volatile uint32_t test06_scaleJack;			
+extern volatile uint32_t test07_bankScaleSwitch;	
+extern volatile uint32_t test08_QPot;				
+extern volatile uint32_t test09_QJack;				
+extern volatile uint32_t test10_RotTrigDownJack;	
+extern volatile uint32_t test11_RotCVJack;			
+extern volatile uint32_t test12_RotaryButton;
+extern volatile uint32_t test13_RotaryEncoderL;
+extern volatile uint32_t test14_RotaryEncoderR;
+extern volatile uint32_t test15_RotTrigUpJack;		
+extern volatile uint32_t test16_morphJackAndPot;	
+extern volatile uint32_t test17_spreadJackAndPot;	
+extern volatile uint32_t test18_speedSwitchLeftPin;
+extern volatile uint32_t test19_speedSwitchRightPin;
+extern volatile uint32_t test20_prepostSwitch;		
+extern volatile uint32_t test21_modeSwitchRight;	
+extern volatile uint32_t test22_lockJackRight;		
+extern volatile uint32_t test23_freqJackRight;		
+extern volatile uint32_t test24_freqPotRight;		
+extern volatile uint32_t test25_button1;
+extern volatile uint32_t test25_button2;
+extern volatile uint32_t test25_button3;
+extern volatile uint32_t test25_button4;
+extern volatile uint32_t test25_button5;
+extern volatile uint32_t test25_button6;
+extern volatile uint32_t test26_slider1;
+extern volatile uint32_t test27_slider2;
+extern volatile uint32_t test28_slider3;
+extern volatile uint32_t test29_slider4;
+extern volatile uint32_t test30_slider5;
+extern volatile uint32_t test31_slider6;
+
+uint16_t test_ring[20][3];
+uint16_t test_env_out_leds[6][3];
+
+void init_test_results_ledring(void)
+{
+	uint8_t chan;
+	for (chan=0;chan<20;chan++){
+		test_ring[chan][0]=512;
+		test_ring[chan][1]=512;
+		test_ring[chan][2]=512;
+	}
+	for (chan=0;chan<6;chan++){
+		test_env_out_leds[chan][0]=512;
+		test_env_out_leds[chan][1]=512;
+		test_env_out_leds[chan][2]=512;
+	}
+}
+void show_test_results_on_ledring(void)
+{
+	if (test01_freqPotLeft 			== 11111) 		test_ring[0][0]=0;
+	if (test02_freqJackLeft 		== 22222) 		test_ring[0][1]=0;
+	if (test03_lockJackLeft 		== 33333) 		test_ring[0][2]=0;
+	if (test04_modeSwitchLeft 		== 44444) 		test_ring[1][0]=0;
+	if (test05_lagSwitch 			== 55555) 		test_ring[1][1]=0;
+	if (test06_scaleJack 			== 66666) 		test_ring[1][2]=0;
+	if (test07_bankScaleSwitch 		== 77777) 		test_ring[2][0]=0;
+	if (test08_QPot			 		== 88888) 		test_ring[2][1]=0;
+	if (test09_QJack		 		== 99999) 		test_ring[2][2]=0;
+	if (test10_RotTrigDownJack 		== 1010101010) 	test_ring[3][0]=0;
+	if (test11_RotCVJack	 		== 1111111111) 	test_ring[3][1]=0;
+	if (test12_RotaryButton 		== 1212121212) 	test_ring[3][2]=0;
+	if (test13_RotaryEncoderL 		== 1313131313) 	test_ring[4][0]=0;
+	if (test14_RotaryEncoderR 		== 1414141414) 	test_ring[4][1]=0;
+	if (test15_RotTrigUpJack 		== 1515151515) 	test_ring[4][2]=0;
+	if (test16_morphJackAndPot 		== 1616161616) 	test_ring[5][0]=0;
+	if (test17_spreadJackAndPot 	== 1717171717) 	test_ring[5][1]=0;
+	if (test18_speedSwitchLeftPin 	== 1818181818) 	test_ring[5][2]=0;
+	if (test19_speedSwitchRightPin 	== 1919191919) 	test_ring[6][0]=0;
+	if (test20_prepostSwitch 		== 2020202020) 	test_ring[6][1]=0;
+	if (test21_modeSwitchRight 		== 2121212121) 	test_ring[6][2]=0;
+	if (test22_lockJackRight 		== 2222222222) 	test_ring[7][0]=0;
+	if (test23_freqJackRight 		== 2323232323) 	test_ring[7][1]=0;
+	if (test24_freqPotRight 		== 2424242424) 	test_ring[7][2]=0;
+
+	if (test25_button1 				== 1) 			test_env_out_leds[0][2]=0;
+	if (test25_button2 				== 1) 			test_env_out_leds[1][2]=0;
+	if (test25_button3				== 1) 			test_env_out_leds[2][2]=0;
+	if (test25_button4 				== 1) 			test_env_out_leds[3][2]=0;
+	if (test25_button5 				== 1) 			test_env_out_leds[4][2]=0;
+	if (test25_button6 				== 1) 			test_env_out_leds[5][2]=0;
+	if (test26_slider1 				== 2626262626) 	test_env_out_leds[0][1]=0;
+	if (test27_slider2 				== 2727272727) 	test_env_out_leds[1][1]=0;
+	if (test28_slider3				== 2828282828) 	test_env_out_leds[2][1]=0;
+	if (test29_slider4 				== 2929292929) 	test_env_out_leds[3][1]=0;
+	if (test30_slider5 				== 3030303030) 	test_env_out_leds[4][1]=0;
+	if (test31_slider6 				== 3131313131) 	test_env_out_leds[5][1]=0;
+
+	LEDDriver_set_LED_ring(test_ring, test_env_out_leds);
+}
+
 void display_filter_rotation(void){
 
 	uint16_t ring[20][3];
@@ -446,7 +543,6 @@ void display_filter_rotation(void){
 		env_out_leds[chan][1]=512;
 		env_out_leds[chan][2]=512;
 	}
-
 
 #else
 

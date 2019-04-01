@@ -85,6 +85,7 @@ extern uint8_t slider_led_mode;
 extern float channel_level[NUM_CHANNELS];
 
 extern enum UI_Modes ui_mode;
+extern uint8_t TESTING_MODE;
 
 extern enum Env_Out_Modes env_track_mode;
 
@@ -175,6 +176,7 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 
  	static float t_morph = 0.0;
 
+ 	static int32_t sawL, sawR;
 
 	if (filter_mode != TWOPASS){ // not mandatory but save CPU in most cases
 		if (filter_type==BPRE && (
@@ -677,7 +679,9 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 			else
 				f_blended = (filter_out[j][i] * (1.0f-motion_morphpos[j])) + (filter_out[j+NUM_CHANNELS][i] * motion_morphpos[j]); // filter blending
 
-
+			if (TESTING_MODE){
+				channel_level[j]=1.0;
+			}
 		 	if (ui_mode==EDIT_SCALES){
 				if (env_track_mode!=ENV_SLOW ) channel_level[0]=1.0;
 				else channel_level[0]=0.0;
@@ -752,6 +756,20 @@ void process_audio_block(int16_t *src, int16_t *dst, uint16_t ht)
 		}
 	}
 	
+	if (TESTING_MODE){
+		for (i=0;i<MONO_BUFSZ;i++)
+		{
+			sawL+=0x10000;
+			if (sawL>(1200000000)) sawL=-1200000000;//-2147483647;
+			filtered_buffer[i]=sawL;
+
+			// sawR+=0x24800;
+			// if (sawR>(1200000000)) sawR=-1200000000;//-2147483647;
+			// filtered_bufferR[i]=sawR;
+			filtered_bufferR[i]=(left_buffer[i] + right_buffer[i]) / 2;
+		}
+	}
+
 	audio_convert_stereo24_to_2x16(DMA_xfer_BUFF_LEN, filtered_buffer, filtered_bufferR, dst); //1.5us
 
 	filter_type_changed=0;

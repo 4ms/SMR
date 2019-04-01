@@ -43,6 +43,8 @@ extern float channel_level[NUM_CHANNELS];
 
 float voltoct_pwm_tracking = 1.0f;
 
+extern uint8_t TESTING_MODE;
+
 
 void init_envout_pwm(void){
 	TIM_TimeBaseInitTypeDef tim;
@@ -179,7 +181,17 @@ void update_ENVOUT_PWM(void){
 	static float envelope[NUM_CHANNELS];
 	uint8_t quantize_voct=0;
 
+	static int8_t dir[NUM_CHANNELS]={1,2,3,4,5,6};
 
+	if (TESTING_MODE){
+		for (j=0;j<NUM_CHANNELS;j++)
+		{
+			ENVOUT_PWM[j]+= dir[j];
+			if(ENVOUT_PWM[j] >= 4090) ENVOUT_PWM[j] = 0;
+			// if(ENVOUT_PWM[j] >= 4090) dir[j]=-1*dir[j];
+			// if(ENVOUT_PWM[j] <= 7) dir[j]=-1*dir[j];
+		}
+	} else
 	if (env_track_mode==ENV_VOLTOCT) //takes 5us, every 20us
 	{
 		for (j=0;j<NUM_CHANNELS;j++)

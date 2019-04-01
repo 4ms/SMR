@@ -38,6 +38,9 @@
 #include "leds.h"
 #include "user_scales.h"
 #include "lpf.h"
+#include "led_ring.h"
+
+extern uint8_t TESTING_MODE;
 
 extern float exp_4096[4096];
 
@@ -160,6 +163,129 @@ uint8_t just_switched_to_change_scale_mode=0;
 extern uint8_t cur_param_bank;
 extern uint8_t cur_colsch;
 
+volatile uint16_t test01_freqPotLeft;
+volatile uint16_t test02_freqJackLeft;
+volatile uint16_t test03_lockJackLeft;
+volatile uint32_t test04_modeSwitchLeft;
+volatile uint32_t test05_lagSwitch;
+volatile uint32_t test06_scaleJack;			
+volatile uint32_t test07_bankScaleSwitch;	
+volatile uint32_t test08_QPot;				
+volatile uint32_t test09_QJack;				
+volatile uint32_t test10_RotTrigDownJack;	
+volatile uint32_t test11_RotCVJack;			
+volatile uint32_t test12_RotaryButton;
+volatile uint32_t test13_RotaryEncoderL;
+volatile uint32_t test14_RotaryEncoderR;
+volatile uint32_t test15_RotTrigUpJack;		
+volatile uint32_t test16_morphJackAndPot;	
+volatile uint32_t test17_spreadJackAndPot;	
+volatile uint32_t test18_speedSwitchLeftPin;
+volatile uint32_t test19_speedSwitchRightPin;
+volatile uint32_t test20_prepostSwitch;		
+volatile uint32_t test21_modeSwitchRight;	
+volatile uint32_t test22_lockJackRight;		
+volatile uint32_t test23_freqJackRight;		
+volatile uint32_t test24_freqPotRight;		
+volatile uint32_t test25_button1;
+volatile uint32_t test25_button2;
+volatile uint32_t test25_button3;
+volatile uint32_t test25_button4;
+volatile uint32_t test25_button5;
+volatile uint32_t test25_button6;
+volatile uint32_t test26_slider1;
+volatile uint32_t test27_slider2;
+volatile uint32_t test28_slider3;
+volatile uint32_t test29_slider4;
+volatile uint32_t test30_slider5;
+volatile uint32_t test31_slider6;
+
+
+void assign_test_values(void)
+{
+	static uint32_t led_ring_update_ctr=0;
+
+	//test section 0: LED test (power on)
+	//
+
+	//test section A: global controls (outskirts, starting in top left and going counter clockwise)
+	//
+	test01_freqPotLeft 			= adc_buffer[FREQNUDGE1_ADC] > 3000 ? 11111 : adc_buffer[FREQNUDGE1_ADC];
+	test02_freqJackLeft 		= adc_buffer[FREQCV1_ADC] > 1400 ? 22222 : adc_buffer[FREQCV1_ADC];
+	test03_lockJackLeft 		= LOCK135 ? 33333 : 0;
+	test04_modeSwitchLeft 		= mod_mode_135 == 135 ? 0 : 44444;
+	test05_lagSwitch 			= CVLAG == 256 ? 0: 55555;
+	test06_scaleJack 			= adc_buffer[SCALE_ADC] > 3000 ? 66666 : adc_buffer[SCALE_ADC];
+	test07_bankScaleSwitch 		= RANGE_MODE == 16384 ? 0: 77777;
+	test08_QPot 				= potadc_buffer[QPOT_ADC] > 3000 ? 88888 : potadc_buffer[QPOT_ADC];
+	test09_QJack 				= adc_buffer[QVAL_ADC] > 3000 ? 99999 : adc_buffer[QVAL_ADC];
+	test10_RotTrigDownJack 		= ROTDOWN ? 1010101010 : 0;
+	test11_RotCVJack 			= adc_buffer[ROTCV_ADC] > 3000 ? 1111111111 : adc_buffer[ROTCV_ADC];
+
+	test12_RotaryButton			= ROTARY_SW ? 1212121212 : 0;
+	test13_RotaryEncoderL		= ROTARY_A ? 0 : 1313131313;
+	test14_RotaryEncoderR		= ROTARY_B ? 0 : 1414141414;
+
+	test15_RotTrigUpJack 		= ROTUP ? 1515151515 : 0;
+	test16_morphJackAndPot 		= adc_buffer[MORPH_ADC] > 3000 ? 1616161616 : adc_buffer[MORPH_ADC];
+	test17_spreadJackAndPot 	= adc_buffer[SPREAD_ADC] > 3000 ? 1717171717 : adc_buffer[SPREAD_ADC];
+	test18_speedSwitchLeftPin 	= ENVSPEEDSLOW ? 1818181818 : 0;
+	test19_speedSwitchRightPin 	= ENVSPEEDFAST ? 1919191919 : 0;
+	test20_prepostSwitch 		= ENV_MODE ? 2020202020 : 0;
+	test21_modeSwitchRight		= mod_mode_246 == 246 ? 0 : 2121212121;
+	test22_lockJackRight		= LOCK246 ? 2222222222 : 0;
+	test23_freqJackRight		= adc_buffer[FREQCV6_ADC] > 1400 ? 2323232323 : adc_buffer[FREQCV6_ADC];
+	test24_freqPotRight			= adc_buffer[FREQNUDGE6_ADC] > 3000 ? 2424242424 :  adc_buffer[FREQNUDGE6_ADC];
+
+	//test section B: channel controls: buttons, button lights, sliders, slider lights, LevelCV jacks, Env Out jacks
+	test25_button1				= LOCKBUTTON(0);
+	test25_button2				= LOCKBUTTON(1);
+	test25_button3				= LOCKBUTTON(2);
+	test25_button4				= LOCKBUTTON(3);
+	test25_button5				= LOCKBUTTON(4);
+	test25_button6				= LOCKBUTTON(5);
+
+	test26_slider1				= potadc_buffer[1] > 3000 ? 2626262626 : potadc_buffer[1];
+	test27_slider2				= potadc_buffer[2] > 3000 ? 2727272727 : potadc_buffer[2];
+	test28_slider3				= potadc_buffer[3] > 3000 ? 2828282828 : potadc_buffer[3];
+	test29_slider4				= potadc_buffer[4] > 3000 ? 2929292929 : potadc_buffer[4];
+	test30_slider5				= potadc_buffer[5] > 3000 ? 3030303030 : potadc_buffer[5];
+	test31_slider6				= potadc_buffer[6] > 3000 ? 3131313131 : potadc_buffer[6];
+
+	//test section C: audio and env outs
+
+
+	// LEDs
+	if (led_ring_update_ctr & 0b100)
+	{
+		LOCKLED_ON(0);
+		LOCKLED_ON(1);
+		LOCKLED_ON(2);
+		LOCKLED_ON(3);
+		LOCKLED_ON(4);
+		LOCKLED_ON(5);
+
+		LED_CLIPL_ON;
+		LED_CLIPR_ON;
+	}
+	else
+	{
+		LOCKLED_OFF(0);
+		LOCKLED_OFF(1);
+		LOCKLED_OFF(2);
+		LOCKLED_OFF(3);
+		LOCKLED_OFF(4);
+		LOCKLED_OFF(5);
+		
+		LED_CLIPL_OFF;
+		LED_CLIPR_OFF;
+	}
+ 	//Show results
+
+	if (led_ring_update_ctr++>2000)
+		show_test_results_on_ledring();
+
+}
 
 uint32_t diff(uint32_t a, uint32_t b)
 {
@@ -851,7 +977,6 @@ void param_read_switches(void)
 
 
 /*** Read Switches ***/
-
 	//PRE|POST switch
 	if (ENV_MODE){
 		env_prepost_mode=PRE;
@@ -1263,7 +1388,7 @@ void process_rotary_rotation(void){
 	rotary_state=read_rotary();
 
 	if (rotary_state==DIR_CW) {
-
+		TESTING_MODE=0;
 		if (ui_mode==SELECT_PARAMS){		 //COLOR SCHEME
 
 			cur_colsch=(cur_colsch+1) % NUM_COLORSCHEMES;
@@ -1292,6 +1417,8 @@ void process_rotary_rotation(void){
 		}
 	}
 	if (rotary_state==DIR_CCW) {
+		TESTING_MODE=0;
+
 		if (ui_mode==SELECT_PARAMS){ //HOVER COLOR SCHEME
 
 			if (cur_colsch==0) cur_colsch = NUM_COLORSCHEMES-1;

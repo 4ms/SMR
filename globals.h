@@ -34,6 +34,7 @@
 
 #define FW_VERSION 0x05
 
+
 //Number of components
 #define NUM_FILTS 20
 #define NUM_CHANNELS 6

@@ -88,7 +88,7 @@ void process_scaleCV(void);
 void init_freq_update_timer(void);
 void init_freq_lpf(void);
 
-
+void assign_test_values(void);
 
 
 enum Env_Out_Modes{
