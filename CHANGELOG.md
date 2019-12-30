@@ -14,6 +14,11 @@
 
      * If it's blue or any color and all the Env Out lights are on, then you have Version 1.
 
+## Version 5.1:
+ * **Improvements:**
+     * Freq jacks have less slew
+     * Locked Q values are loaded from saved slots 
+
 ## Version 5:
  * **New Features:**
    * Two-Pass filter algorithm (default)
