@@ -90,10 +90,17 @@ void init_envout_pwm(void){
 	TIM_TimeBaseInit(TIM3, &tim);
 	TIM_TimeBaseInit(TIM1, &tim);
 
+	TIM_OCStructInit(&tim_oc);
+
 	tim_oc.TIM_OCMode = TIM_OCMode_PWM1;
 	tim_oc.TIM_OutputState = TIM_OutputState_Enable;
+	tim_oc.TIM_OutputNState = TIM_OutputNState_Disable;
 	tim_oc.TIM_Pulse = 0;
 	tim_oc.TIM_OCPolarity = TIM_OCPolarity_High;
+	tim_oc.TIM_OCNPolarity = TIM_OCNPolarity_High;
+
+	tim_oc.TIM_OCIdleState = TIM_OCIdleState_Set;
+    tim_oc.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
 
 	TIM_OC1Init(TIM3, &tim_oc);
 	TIM_OC1PreloadConfig(TIM3, TIM_OCPreload_Enable);
@@ -110,13 +117,20 @@ void init_envout_pwm(void){
 	TIM_CtrlPWMOutputs(TIM3, ENABLE);
 	TIM_Cmd(TIM3, ENABLE);
 
+
+	TIM_SelectOutputTrigger(TIM1, TIM_TRGOSource_Update);
+	TIM_SelectCOM(TIM1, DISABLE);
+	TIM_CCPreloadControl(TIM1, DISABLE);
+	TIM_SelectCCDMA(TIM1, DISABLE);
+	TIM_SelectHallSensor(TIM1, DISABLE);
+
 	TIM_OC1Init(TIM1, &tim_oc);
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
 	TIM_OC3Init(TIM1, &tim_oc);
 	TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
-    TIM_CtrlPWMOutputs(TIM1, ENABLE);
+	TIM_CtrlPWMOutputs(TIM1, ENABLE);
 
 	TIM_Cmd(TIM1, ENABLE);
 }
@@ -485,7 +499,7 @@ uint32_t FreqCoef_to_PWMval(uint32_t k, float v)
 	else return(4095);
 
 	result = ( ((t-v)/(t-b))*bval + ((v-b)/(t-b))*tval );
-	
+
 	asm("usat %[dst], #12, %[src]" : [dst] "=r" (result) : [src] "r" (result));
 
 	return(result);
