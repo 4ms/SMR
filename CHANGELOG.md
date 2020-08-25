@@ -14,6 +14,10 @@
 
      * If it's blue or any color and all the Env Out lights are on, then you have Version 1.
 
+## Version 5.1.1:
+ * **Bug Fix:**
+     * Env Outs 3 and 4 would sometimes output steady 8V after booting. Fixed.
+
 ## Version 5.1:
  * **Improvements:**
      * Freq jacks have less slew
